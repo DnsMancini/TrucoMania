@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TrucoMania</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <main class="container">
+      <h1>🃏 TrucoMania</h1>
+      <p>Crie ou entre em uma sala para jogar.</p>
+
+      <section class="panel">
+        <input id="playerName" placeholder="Seu nome" />
+        <input id="roomId" placeholder="Código da sala" />
+        <div class="actions">
+          <button id="createBtn">Criar sala</button>
+          <button id="joinBtn">Entrar na sala</button>
+          <button id="nextTurnBtn">Próxima vez</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Status da sala</h2>
+        <pre id="status">Aguardando conexão...</pre>
+      </section>
+    </main>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/game.js"></script>
+  </body>
+</html>
