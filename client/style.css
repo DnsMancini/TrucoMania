@@ -1,0 +1,51 @@
+:root {
+  color-scheme: dark;
+}
+
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  background: #102027;
+  color: #fff;
+}
+
+.container {
+  max-width: 760px;
+  margin: 2rem auto;
+  padding: 1rem;
+}
+
+.panel {
+  background: #1b3340;
+  border-radius: 10px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+input,
+button {
+  padding: 0.7rem;
+  border-radius: 8px;
+  border: 1px solid #446;
+  margin: 0.25rem 0;
+}
+
+input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.actions {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+button {
+  cursor: pointer;
+  font-weight: bold;
+}
+
+pre {
+  white-space: pre-wrap;
+}
