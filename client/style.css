@@ -137,9 +137,9 @@ body {
 }
 
 #painelRodada {
-  position: fixed;
-  top: calc(var(--safe-top) + 8px);
-  left: calc(var(--safe-left) + 8px);
+  position: absolute;
+  top: 16px;
+  left: -180px;
   width: 170px;
   background: linear-gradient(155deg, rgba(20,20,20,0.95), rgba(5,5,5,0.9));
   border: 2px solid rgba(241,196,15,0.75);
@@ -148,15 +148,8 @@ body {
   box-shadow: 0 8px 20px rgba(0,0,0,0.55);
   z-index: 1200;
 }
-#infoRodada {
-  font-weight: 700;
-  color: #f1c40f;
-  font-size: 17px;
-  line-height: 1.3;
-  margin-bottom: 8px;
-}
+#infoRodada { font-weight: 700; color: #f1c40f; font-size: 17px; line-height: 1.3; margin-bottom: 8px; }
 #trucoStatus { color: #fff; font-weight: 700; font-size: 17px; line-height: 1.3; }
-#trucoDisplay { color: #fff; font-weight: 700; font-size: 17px; line-height: 1.3; }
 
 #btnTruco:hover, #btnCorrer:hover {
   filter: brightness(1.08);
@@ -224,28 +217,10 @@ body {
   justify-content: center;
   font-weight: bold;
   font-size: 18px;
-  -webkit-user-select: none;
   user-select: none;
 }
 
-.virada {
-  background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.08), transparent 40%),
-              repeating-linear-gradient(45deg, #7a0c0c, #7a0c0c 6px, #8e1111 6px, #8e1111 12px);
-  border: 2px solid #c9a227;
-  border-radius: 12px;
-  box-shadow: 0 8px 18px rgba(0,0,0,0.6), inset 0 0 10px rgba(255,255,255,0.08);
-}
-.virada::before {
-  content: "";
-  position: absolute;
-  inset: 0; margin: auto;
-  width: 50%; height: 60%;
-  background: repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(255,255,255,0.05) 2px, rgba(255,255,255,0.05) 4px);
-  border-radius: 5px;
-}
-
-/* Novas classes para cartas com fundo personalizado */
-.carta.back {
+.carta.virada {
   background: #fff url("/img/carta-copag-vermelha.png") center/contain no-repeat !important;
   image-rendering: crisp-edges;
 }
@@ -298,21 +273,34 @@ body {
   box-sizing: border-box;
   isolation: isolate;
 }
-.placar-time::before {
-  content: "";
-  position: absolute;
-  inset: 0;
+.placar-time::before { content: none; } /* removido, usaremos background-image direto */
+.placar-time-nome { font-size: 12px; font-weight: 800; letter-spacing: 0.6px; color: #eef3ee; text-transform: uppercase; }
+.placar-time-pontos { font-size: 30px; line-height: 1; font-weight: 900; margin-top: 2px; color: #eef3ee; }
+
+.placar-time--eles {
+  background-image: url("/img/bandeirabranca.png");
   background-size: contain;
   background-position: center;
   background-repeat: no-repeat;
-  z-index: -1;
 }
-.placar-time-nome { font-size: 12px; font-weight: 800; letter-spacing: 0.6px; color: #eef3ee; text-transform: uppercase; }
-.placar-time-pontos { font-size: 30px; line-height: 1; font-weight: 900; margin-top: 2px; color: #eef3ee; }
-.placar-time--eles::before { background-image: url("/img/bandeirabranca.png"); }
-.placar-time--eles .placar-time-nome, .placar-time--eles .placar-time-pontos { color: #ffecec; text-shadow: 0 1px 3px rgba(110,0,0,0.55); }
-.placar-time--nos::before { background-image: url("/img/bandeiraverde.png"); }
-.placar-time--nos .placar-time-nome, .placar-time--nos .placar-time-pontos { color: #ecffec; text-shadow: 0 1px 3px rgba(0,80,20,0.55); }
+.placar-time--eles .placar-time-nome,
+.placar-time--eles .placar-time-pontos {
+  color: #ffecec;
+  text-shadow: 0 1px 3px rgba(110,0,0,0.55);
+}
+
+.placar-time--nos {
+  background-image: url("/img/bandeiraverde.png");
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+.placar-time--nos .placar-time-nome,
+.placar-time--nos .placar-time-pontos {
+  color: #ecffec;
+  text-shadow: 0 1px 3px rgba(0,80,20,0.55);
+}
+
 .placar-status { display: block; margin-top: 4px; text-align: center; font-size: 12px; color: #f1c40f; }
 #placar {
   position: fixed;
@@ -406,23 +394,6 @@ body {
 .bolinha-branca { background: radial-gradient(circle at 30% 26%, #ffffff 0%, #ececec 56%, #b8b8b8 100%); }
 .bolinha-ouro { background: radial-gradient(circle at 30% 26%, #ffe8a3 0%, #d4af37 52%, #8a6a00 100%); }
 
-.contadorTurno {
-  position: fixed;
-  right: calc(24px + var(--safe-right));
-  bottom: calc(230px + var(--safe-bottom));
-  min-width: 46px; height: 46px;
-  border-radius: 999px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px; font-weight: 800;
-  color: #fff;
-  background: rgba(186,41,41,0.94);
-  border: 2px solid rgba(255,255,255,0.8);
-  box-shadow: 0 6px 18px rgba(0,0,0,0.45);
-  z-index: 2300;
-}
-
 .telaFinal {
   position: fixed;
   top: 0; left: 0;
@@ -431,23 +402,23 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 60px;
+  font-weight: bold;
+  color: white;
   opacity: 0;
   pointer-events: none;
   transition: 0.5s;
   z-index: calc(var(--overlay-z) + 10);
 }
 .telaFinal.show { opacity: 1; pointer-events: auto; }
-#textoFinal { animation: zoom 0.5s ease; text-align: center; padding: 0; max-width: min(92vw, 720px); font-size: clamp(32px, 5vw, 52px); font-weight: 800; }
-.tela-final-card { width: min(92vw, 820px); background: rgba(10,14,20,0.96); border: 1px solid rgba(255,255,255,0.2); border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 14px; color: #fff; }
-#resumoFinal { margin: 0; white-space: pre-wrap; font-size: 16px; line-height: 1.45; color: #dbe8ff; }
-.tela-final-acoes { display: flex; gap: 10px; }
-.tela-final-acoes button { flex: 1; border: 0; border-radius: 10px; padding: 12px 10px; font-size: 15px; font-weight: 700; cursor: pointer; }
-#btnVoltarLobby { background: #0d6efd; color: #fff; }
-#btnBuscarNova { background: #198754; color: #fff; }
+#textoFinal { animation: zoom 0.5s ease; text-align: center; padding: 0 24px; max-width: min(92vw, 720px); }
 
-@keyframes zoom { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes zoom {
+  from { transform: scale(0.5); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
 
-/* Lobby mantido */
+/* Lobby */
 .lobby {
   min-height: var(--viewport-height);
   display: grid;
@@ -463,6 +434,19 @@ body {
   padding: 24px;
 }
 
-/* Cores dos naipes */
+/* Cores naipes */
 .naipe-vermelho { color: #c1121f; }
 .naipe-preto { color: #111; }
+
+/* Outros ajustes */
+.cartaMesa .top-left,
+.carta.playerCard .top-left,
+.carta.playerCard .bottom-right { font-size: 14px; }
+.cartaMesa .center { font-size: 26px; }
+.cartaMesa .bottom-right { font-size: 12px; transform: rotate(180deg); }
+
+@media (max-width: 1200px), (max-height: 760px) {
+  #painelRodada { left: 12px; top: 12px; width: 156px; padding: 10px 12px; }
+  #placar { right: var(--safe-right); top: var(--safe-top); font-size: 15px; }
+  #painelHistorico { left: calc(var(--safe-left) + 8px); bottom: 20px; width: 40px; min-height: 110px; }
+}
