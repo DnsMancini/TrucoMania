@@ -4,29 +4,32 @@ const socket = io(window.location.origin);
 const lobbyDiv = document.getElementById('lobby');
 const gameDiv = document.getElementById('game');
 
-// Elementos do lobby
+// Lobby
 const nameInput = document.getElementById('nameInput');
 const createBtn = document.getElementById('createBtn');
 const roomInput = document.getElementById('roomInput');
 const joinBtn = document.getElementById('joinBtn');
 
-// Elementos do jogo
+// Elementos do jogo (novo layout)
 const teamAScoreEl = document.getElementById('teamAScore');
 const teamBScoreEl = document.getElementById('teamBScore');
-const roomCodeEl = document.getElementById('roomCodeDisplay');
-const viraCardEl = document.getElementById('viraCard');
-const playerHandDiv = document.getElementById('playerHand');
-const tableArea = document.getElementById('tableArea');
-const actionsArea = document.getElementById('actionsArea');
-const betActions = document.getElementById('betActions');
-const messageArea = document.getElementById('messageArea');
+const roomCodeEl = document.getElementById('roomCodeDisplay'); // ainda existe
+const playerHandDiv = document.getElementById('playerHand');   // sua mão
+const trucoDisplay = document.getElementById('trucoDisplay');
+const rodadasIndicador = document.getElementById('rodadasIndicador');
+const historicoCartasDiv = document.getElementById('historicoCartas');
+const rodadaAtualSpan = document.getElementById('rodadaAtual');
+const trucoStatusSpan = document.getElementById('trucoStatus');
+const trucoBtn = document.getElementById('trucoBtn');
+const correrBtn = document.getElementById('correrBtn');
+const parceiroNomeEl = document.getElementById('parceiroNome');
 
-// Slots dos jogadores
+// Slots
 const slots = {
-  0: document.getElementById('slotP0'),
-  1: document.getElementById('slotP1'),
-  2: document.getElementById('slotP2'),
-  3: document.getElementById('slotP3')
+  0: document.getElementById('slotP0'), // Você
+  1: document.getElementById('slotP1'), // Oponente 1
+  2: document.getElementById('slotP2'), // Parceiro
+  3: document.getElementById('slotP3')  // Oponente 2
 };
 
 // Áudios
@@ -68,33 +71,28 @@ function enterRoom(code, players) {
   const me = players.find(p => p.name === nameInput.value.trim() || 'Jogador');
   myPlayerIndex = players.indexOf(me);
   updatePlayerSlots(players);
-  if (players.length < 4) {
-    messageArea.textContent = 'Aguardando jogadores... (Bots entrarão em breve)';
-  }
 }
 
 socket.on('waiting', (players) => {
   updatePlayerSlots(players);
-  if (players.length < 4) {
-    messageArea.textContent = 'Aguardando jogadores... (Bots entrarão em breve)';
-  }
 });
 
 socket.on('handStart', (data) => {
   playerHand = data.hand;
   myPlayerIndex = data.player;
   renderMyHand(playerHand);
-  viraCardEl.textContent = `${data.vira.rank}${suitSymbol(data.vira.suit)}`;
   teamAScoreEl.textContent = data.scores[0];
   teamBScoreEl.textContent = data.scores[1];
   gameActive = true;
-  clearTable();
-  messageArea.textContent = '';
-  betActions.innerHTML = '';
-  updateTurn(data.currentPlayer);
-  // Toca áudio de distribuição
+  historicoCartasDiv.innerHTML = ''; // limpa histórico
+  rodadaAtualSpan.textContent = 'Rodada 1 de 3';
+  trucoStatusSpan.textContent = 'Truco: Nenhum';
+  trucoDisplay.textContent = 'TRUCO';
+  trucoBtn.style.display = 'inline-block';
+  correrBtn.style.display = 'none';
+
   audioDistribuir.play().catch(() => {});
-  // Atualiza nomes e avatares
+  // Atualiza nomes/avatares
   data.players.forEach((p, i) => {
     const slot = slots[i];
     if (slot) {
@@ -102,61 +100,63 @@ socket.on('handStart', (data) => {
       updateSlotAvatar(i, p.isBot, data.players.length === 4);
     }
   });
-  // Mãos dos oponentes como costas
+  // Atualiza nome do parceiro no cabeçalho
+  const parceiro = data.players.find((_, i) => i % 2 === myPlayerIndex % 2 && i !== myPlayerIndex);
+  if (parceiroNomeEl && parceiro) parceiroNomeEl.textContent = parceiro.name;
+
+  // Mãos dos oponentes (costas)
   for (let i = 0; i < 4; i++) {
     if (i !== myPlayerIndex) {
       slots[i].querySelector('.hand').innerHTML =
         '<div class="card back"></div><div class="card back"></div><div class="card back"></div>';
     }
   }
-
-  // Dentro de socket.on('handStart', ...)
-  for (let i = 0; i < 4; i++) {
-   if (i !== myPlayerIndex) {
-    slots[i].querySelector('.hand').innerHTML =
-      '<div class="card back"></div><div class="card back"></div><div class="card back"></div>';
-    }
-  }
+  // Garante que as mãos sejam exibidas (alguns slots podem estar ocultos)
+  updateTurn(data.currentPlayer);
 });
 
 socket.on('turn', ({ currentPlayer }) => {
   updateTurn(currentPlayer);
 });
- 
+
 socket.on('cardPlayed', ({ player, card }) => {
+  // Remove uma carta de costas do jogador que jogou
   const slot = slots[player];
   if (slot) {
     const handDiv = slot.querySelector('.hand');
     const backs = handDiv.querySelectorAll('.back');
     if (backs.length > 0) backs[0].remove();
   }
-  // Cria elemento da carta jogada
-  const cardDiv = document.createElement('div');
-  cardDiv.className = 'card';
-  cardDiv.style.backgroundColor = 'white';
-  cardDiv.style.backgroundImage = 'none';
-  const simbolo = suitSymbol(card.suit);
-  const corClasse = (card.suit === 'copas' || card.suit === 'ouros') ? 'naipe-vermelho' : 'naipe-preto';
-  cardDiv.innerHTML = `<span class="card-value ${corClasse}">${card.rank}${simbolo}</span>`;
-  cardDiv.setAttribute('data-player', player);
-  tableArea.appendChild(cardDiv);
+  // Adiciona ao histórico visual
+  adicionarAoHistorico(card);
   audioCarta.play().catch(() => {});
 });
 
 socket.on('roundResult', ({ winner }) => {
-  setTimeout(clearTable, 2000);
+  // Atualiza indicador de rodadas (1ª, 2ª, 3ª)
+  const spans = rodadasIndicador.querySelectorAll('span');
+  if (spans.length >= 3) {
+    if (winner !== null && winner !== undefined) {
+      // Marca rodada como concluída
+      const rodada = gameActive ? (parseInt(rodadaAtualSpan.textContent.split(' ')[1]) - 1) : 0;
+      spans[rodada].textContent = `${rodada + 1}ª: ✔`;
+    } else {
+      // Empate, talvez marcar como empate?
+    }
+  }
 });
 
 socket.on('handEnd', ({ winnerTeam, points, scores }) => {
   gameActive = false;
   teamAScoreEl.textContent = scores[0];
   teamBScoreEl.textContent = scores[1];
-  messageArea.textContent = winnerTeam === myPlayerIndex % 2 ? 'Seu time ganhou a mão!' : 'Time adversário ganhou a mão.';
   if (points === 6) audioSeis.play().catch(() => {});
   else if (points === 9) audioNove.play().catch(() => {});
   else if (points === 12) audioDoze.play().catch(() => {});
   playerHandDiv.innerHTML = '';
   for (let i = 0; i < 4; i++) slots[i].querySelector('.hand').innerHTML = '';
+  trucoBtn.style.display = 'inline-block';
+  correrBtn.style.display = 'none';
 });
 
 socket.on('gameOver', ({ winnerTeam }) => {
@@ -165,22 +165,21 @@ socket.on('gameOver', ({ winnerTeam }) => {
 });
 
 socket.on('betCalled', ({ challenger, level, responderTeam }) => {
-  messageArea.textContent = `${slots[challenger].querySelector('.name').textContent} pediu ${level.toUpperCase()}!`;
+  trucoDisplay.textContent = level.toUpperCase();
+  trucoBtn.style.display = 'none';
+  correrBtn.style.display = 'inline-block';
   audioTruco.play().catch(() => {});
-  if (responderTeam === myPlayerIndex % 2) {
-    showBetActions(level);
-  }
 });
 
 socket.on('betAccepted', ({ handValue }) => {
-  messageArea.textContent = `Aposta aceita! Mão vale ${handValue} pontos.`;
-  betActions.innerHTML = '';
+  trucoStatusSpan.textContent = `Truco: ${handValue} pontos`;
+  trucoDisplay.textContent = handValue >= 12 ? 'VALE QUATRO' : handValue >= 6 ? 'RETRUCO' : 'TRUCO';
+  trucoBtn.style.display = 'inline-block';
+  correrBtn.style.display = 'none';
 });
 
 socket.on('turnToRespond', ({ responderTeam }) => {
-  if (responderTeam === myPlayerIndex % 2) {
-    // Botões já aparecem via betCalled
-  }
+  // No novo layout, o botão "CORRER" já apareceu quando o truco foi chamado.
 });
 
 socket.on('playerLeft', () => {
@@ -188,12 +187,14 @@ socket.on('playerLeft', () => {
   location.reload();
 });
 
+// ---- Funções auxiliares ----
+
 function updatePlayerSlots(players) {
   for (let i = 0; i < 4; i++) {
     const slot = slots[i];
     if (slot) {
       if (i < players.length) {
-        slot.style.display = 'flex';
+        slot.style.display = 'block';
         slot.querySelector('.name').textContent = players[i].name + (players[i].isBot ? ' (Bot)' : '');
         updateSlotAvatar(i, players[i].isBot, players.length === 4);
       } else {
@@ -221,51 +222,28 @@ function updateSlotAvatar(index, isBot, isFull) {
 }
 
 function updateTurn(cp) {
-  actionsArea.innerHTML = '';
-  betActions.innerHTML = '';
-  if (!gameActive) return;
+  // Remove destaque de todos e coloca no atual
   for (let i = 0; i < 4; i++) {
     slots[i].classList.toggle('active', i === cp);
   }
-  if (cp === myPlayerIndex && playerHand.length > 0) {
-    actionsArea.innerHTML = `
-      <button id="playBtn">Jogar Carta</button>
-      <button id="trucoBtn">Truco</button>
-    `;
-    document.getElementById('playBtn').onclick = () => highlightCardsForPlay();
-    document.getElementById('trucoBtn').onclick = () => socket.emit('callBet', 'truco');
+  // Lógica de botões: se for sua vez, habilita "TRUCO" (a jogada de carta é feita clicando na carta)
+  if (cp === myPlayerIndex && gameActive && playerHand.length > 0) {
+    trucoBtn.style.display = 'inline-block';
+    // O botão "CORRER" só aparece quando há aposta pendente
+  } else {
+    trucoBtn.style.display = 'none';
   }
 }
 
-function highlightCardsForPlay() {
-  const cards = document.querySelectorAll('.my-hand .card');
-  cards.forEach(card => {
-    card.onclick = () => {
-      const index = parseInt(card.dataset.index);
-      socket.emit('playCard', playerHand[index]);
-      playerHand.splice(index, 1);
-      renderMyHand(playerHand);
-      actionsArea.innerHTML = '';
-    };
-    card.classList.add('selectable');
-  });
-}
+// Botões de ação (agora fixos no HTML)
+trucoBtn.onclick = () => {
+  socket.emit('callBet', 'truco');
+};
+correrBtn.onclick = () => {
+  socket.emit('respondBet', 'flee');
+};
 
-function showBetActions(level) {
-  betActions.innerHTML = `
-    <button id="acceptBtn">Aceitar</button>
-    <button id="fleeBtn">Correr</button>
-    ${level === 'truco' ? '<button id="retrucoBtn">Retruco</button>' : ''}
-    ${level === 'retruco' ? '<button id="valequatroBtn">Vale Quatro</button>' : ''}
-  `;
-  document.getElementById('acceptBtn').onclick = () => socket.emit('respondBet', 'accept');
-  document.getElementById('fleeBtn').onclick = () => socket.emit('respondBet', 'flee');
-  if (document.getElementById('retrucoBtn'))
-    document.getElementById('retrucoBtn').onclick = () => socket.emit('respondBet', 'retruco');
-  if (document.getElementById('valequatroBtn'))
-    document.getElementById('valequatroBtn').onclick = () => socket.emit('respondBet', 'valequatro');
-}
-
+// Função de jogar carta: clica na carta diretamente
 function renderMyHand(hand) {
   playerHandDiv.innerHTML = hand.map((c, idx) => {
     const simbolo = suitSymbol(c.suit);
@@ -274,10 +252,27 @@ function renderMyHand(hand) {
       <span class="card-value ${corClasse}">${c.rank}${simbolo}</span>
     </div>`;
   }).join('');
+
+  // Adiciona evento de clique em cada carta
+  document.querySelectorAll('.my-card').forEach(card => {
+    card.onclick = () => {
+      const index = parseInt(card.dataset.index);
+      socket.emit('playCard', playerHand[index]);
+      playerHand.splice(index, 1);
+      renderMyHand(playerHand);
+    };
+  });
 }
 
-function clearTable() {
-  tableArea.innerHTML = '';
+function adicionarAoHistorico(card) {
+  const simbolo = suitSymbol(card.suit);
+  const corClasse = (card.suit === 'copas' || card.suit === 'ouros') ? 'naipe-vermelho' : 'naipe-preto';
+  const cardDiv = document.createElement('div');
+  cardDiv.className = `card ${corClasse}`;
+  cardDiv.style.width = '40px';
+  cardDiv.style.height = '55px';
+  cardDiv.textContent = card.rank + simbolo;
+  historicoCartasDiv.appendChild(cardDiv);
 }
 
 function suitSymbol(suit) {
