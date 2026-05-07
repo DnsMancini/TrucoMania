@@ -101,7 +101,6 @@ function enterWaitingRoom(res) {
   telaFinal.classList.remove('show');
 }
 
-// Solicitar lista ao conectar
 socket.on('connect', () => {
   socket.emit('getRooms');
 });
@@ -117,7 +116,7 @@ socket.on('roomsUpdate', (rooms) => {
     const div = document.createElement('div');
     div.className = 'room-item';
     div.innerHTML = `
-      <span>Sala ${room.code} (${room.players}/4 jogadores)</span>
+      <span>Sala ${room.code} (${room.players}/4 jogadores) ${room.status === 'playing' ? '(em jogo)' : ''}</span>
       <button class="join-room-btn">Entrar</button>
     `;
     div.querySelector('.join-room-btn').addEventListener('click', () => joinRoomFromList(room.code));
@@ -280,6 +279,26 @@ socket.on('betAccepted', ({ handValue }) => {
 
 socket.on('turnToRespond', () => {});
 
+socket.on('playerStatusUpdate', (players) => {
+  // Armazenamos último status para detectar mudanças e exibir mensagem
+  if (!window.lastOnlineStatus) window.lastOnlineStatus = {};
+  players.forEach((p, i) => {
+    const slotKey = 'p' + i;
+    const el = nomesSlots[slotKey];
+    if (!el) return;
+    el.textContent = (p.name || '') + (p.isBot ? ' (Bot)' : '') + (p.online ? '' : ' (Off)');
+    el.className = p.online ? 'name' : 'name offline';
+    
+    // Verificar mudança
+    const prevOnline = window.lastOnlineStatus[slotKey];
+    if (prevOnline !== undefined && prevOnline !== p.online) {
+      const msg = p.online ? `${p.name} está online` : `${p.name} está offline`;
+      mostrarMensagem(msg);
+    }
+    window.lastOnlineStatus[slotKey] = p.online;
+  });
+});
+
 socket.on('playerLeft', () => {
   clearTurnTimer();
   alert('Oponente saiu do jogo.');
@@ -383,6 +402,10 @@ function suitSymbol(suit) {
 function atualizarNomes(players) {
   for (let i = 0; i < 4; i++) {
     const el = nomesSlots['p' + i];
-    if (el) el.textContent = (players[i]?.name || '') + (players[i]?.isBot ? ' (Bot)' : '');
+    if (el) {
+      const p = players[i];
+      el.textContent = (p?.name || '') + (p?.isBot ? ' (Bot)' : '') + (p?.online ? '' : ' (Off)');
+      el.className = p?.online ? 'name' : 'name offline';
+    }
   }
 }

@@ -2,16 +2,6 @@ const SUITS = ['paus', 'copas', 'espadas', 'ouros'];
 const RANKS = ['4', '5', '6', '7', 'Q', 'J', 'K', 'A', '2', '3'];
 const { cardStrength } = require('./utils');
 
-const RANK_STRENGTH = {
-  '4': 1, '5': 2, '6': 3, '7': 4,
-  'Q': 5, 'J': 6, 'K': 7, 'A': 8,
-  '2': 9, '3': 10
-};
-
-const SUIT_STRENGTH = {
-  'ouros': 1, 'espadas': 2, 'copas': 3, 'paus': 4
-};
-
 const BET_VALUES = { truco: 3, retruco: 6, valequatro: 12 };
 
 function buildDeck() {
@@ -29,13 +19,14 @@ function shuffle(deck) {
 }
 
 class Game4P {
-  constructor(roomId, players, emit, onMatchOver = null) {
+  constructor(roomId, players, emit, onMatchOver = null, onBeforeNewHand = null) {
     this.roomId = roomId;
     this.players = players;
     this.emit = emit;
     this.onMatchOver = onMatchOver;
-    this.setWins = [0, 0]; // vitórias em sets
-    this.scores = [0, 0];  // pontos do set atual
+    this.onBeforeNewHand = onBeforeNewHand;
+    this.setWins = [0, 0];
+    this.scores = [0, 0];
     this.dealerIndex = 0;
     this.handValue = 1;
     this.maoDe11 = false;
@@ -67,7 +58,7 @@ class Game4P {
     else if (this.scores[0] >= 11 || this.scores[1] >= 11) { this.handValue = 3; this.maoDe11 = true; }
     else { this.handValue = 1; this.maoDe11 = false; }
 
-    this.currentPlayer = (this.dealerIndex + 3) % 4;
+    this.currentPlayer = (this.dealerIndex + 3) % 4; // anti‑horário
     this.turnStage = 'play';
     this.betState = null;
     this.roundWins = [0, 0];
@@ -87,7 +78,7 @@ class Game4P {
           scores: this.scores,
           setWins: this.setWins,
           maoDe11: this.maoDe11,
-          players: this.players.map(p => ({ name: p.name, isBot: p.isBot }))
+          players: this.players.map(p => ({ name: p.name, isBot: p.isBot, online: p.online }))
         }, this.players[i].id);
       }
     }
@@ -152,34 +143,20 @@ class Game4P {
 
   endHand(winningTeam) {
     this.scores[winningTeam] += this.handValue;
-    this.emit('handEnd', {
-      winnerTeam: winningTeam,
-      points: this.handValue,
-      scores: this.scores,
-      setWins: this.setWins
-    }, 'all');
+    this.emit('handEnd', { winnerTeam: winningTeam, points: this.handValue, scores: this.scores, setWins: this.setWins }, 'all');
 
     if (this.scores[winningTeam] >= 12) {
-      // Fim do set
       this.setWins[winningTeam]++;
-      this.emit('setWin', {
-        winnerTeam,
-        setWins: this.setWins
-      }, 'all');
-
+      this.emit('setWin', { winnerTeam, setWins: this.setWins }, 'all');
       if (this.setWins[winningTeam] >= 2) {
-        // Fim da partida
-        this.emit('matchOver', {
-          winnerTeam,
-          setWins: this.setWins
-        }, 'all');
-        if (this.onMatchOver) this.onMatchOver(winnerTeam);
+        this.emit('matchOver', { winnerTeam, setWins: this.setWins }, 'all');
+        if (this.onMatchOver) this.onMatchOver(winningTeam);
         return;
       }
-
-      // Resetar pontos e iniciar novo set após pausa
+      // Novo set: zera pontos e agenda próxima mão
       this.scores = [0, 0];
       this.dealerIndex = (this.dealerIndex + 1) % 4;
+      if (this.onBeforeNewHand) this.onBeforeNewHand();
       const checkBot = this.checkBotTurn;
       setTimeout(() => {
         this.startNewHand();
@@ -188,8 +165,9 @@ class Game4P {
       return;
     }
 
-    // Ainda não fechou o set, próxima mão
+    // Ainda não fechou set: próxima mão
     this.dealerIndex = (this.dealerIndex + 1) % 4;
+    if (this.onBeforeNewHand) this.onBeforeNewHand();
     const checkBot = this.checkBotTurn;
     setTimeout(() => {
       this.startNewHand();
@@ -202,12 +180,7 @@ class Game4P {
     const fleeingTeam = playerIndex % 2;
     const winningTeam = 1 - fleeingTeam;
     this.scores[winningTeam] += this.handValue;
-    this.emit('handEnd', {
-      winnerTeam: winningTeam,
-      points: this.handValue,
-      scores: this.scores,
-      setWins: this.setWins
-    }, 'all');
+    this.emit('handEnd', { winnerTeam: winningTeam, points: this.handValue, scores: this.scores, setWins: this.setWins }, 'all');
 
     if (this.scores[winningTeam] >= 12) {
       this.setWins[winningTeam]++;
@@ -219,6 +192,7 @@ class Game4P {
       }
       this.scores = [0, 0];
       this.dealerIndex = (this.dealerIndex + 1) % 4;
+      if (this.onBeforeNewHand) this.onBeforeNewHand();
       const checkBot = this.checkBotTurn;
       setTimeout(() => {
         this.startNewHand();
@@ -228,6 +202,7 @@ class Game4P {
     }
 
     this.dealerIndex = (this.dealerIndex + 1) % 4;
+    if (this.onBeforeNewHand) this.onBeforeNewHand();
     const checkBot = this.checkBotTurn;
     setTimeout(() => {
       this.startNewHand();
@@ -277,6 +252,7 @@ class Game4P {
         }
         this.scores = [0, 0];
         this.dealerIndex = (this.dealerIndex + 1) % 4;
+        if (this.onBeforeNewHand) this.onBeforeNewHand();
         const checkBot = this.checkBotTurn;
         setTimeout(() => {
           this.startNewHand();
@@ -285,6 +261,7 @@ class Game4P {
         return true;
       }
       this.dealerIndex = (this.dealerIndex + 1) % 4;
+      if (this.onBeforeNewHand) this.onBeforeNewHand();
       setTimeout(() => {
         this.startNewHand();
         if (this.checkBotTurn) this.checkBotTurn();

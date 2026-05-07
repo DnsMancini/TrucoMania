@@ -558,6 +558,12 @@ body {
 .naipe-vermelho { color: #c1121f; }
 .naipe-preto { color: #111; }
 
+/* Status offline */
+.player .name.offline {
+  color: #999;
+  text-decoration: line-through;
+}
+
 /* ========== MOBILE (retrato) ========== */
 @media (max-width: 1024px) and (orientation: portrait) {
   :root {

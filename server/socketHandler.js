@@ -3,6 +3,7 @@ const { createBot, shouldCallBet, respondBet, chooseCard } = require('./bot');
 
 const rooms = new Map();
 const MAX_ROOMS = 8;
+const OFFLINE_TIMEOUT = 90000; // 90 segundos
 
 function generateRoomCode() {
   return Math.random().toString(36).substring(2, 6).toUpperCase();
@@ -11,8 +12,8 @@ function generateRoomCode() {
 function broadcastRooms(io) {
   const openRooms = [];
   for (const [code, room] of rooms) {
-    if (room.status === 'waiting') {
-      openRooms.push({ code, players: room.players.length });
+    if (room.status === 'waiting' || room.status === 'playing') {
+      openRooms.push({ code, players: room.players.length, status: room.status });
     }
   }
   io.emit('roomsUpdate', openRooms);
@@ -22,9 +23,7 @@ function handleSocket(io) {
   io.on('connection', (socket) => {
     broadcastRooms(io);
 
-    socket.on('getRooms', () => {
-      broadcastRooms(io);
-    });
+    socket.on('getRooms', () => broadcastRooms(io));
 
     socket.on('createRoom', (playerName, callback) => {
       if (rooms.size >= MAX_ROOMS) {
@@ -33,15 +32,17 @@ function handleSocket(io) {
       let code = generateRoomCode();
       while (rooms.has(code)) code = generateRoomCode();
       const room = {
-        players: [{ id: socket.id, name: playerName, isBot: false }],
+        players: [{ id: socket.id, name: playerName, isBot: false, online: true, pendingReplace: false }],
         game: null,
         countdownInterval: null,
+        pendingJoin: [],
+        offlineTimers: new Map(),
         code,
         status: 'waiting'
       };
       rooms.set(code, room);
       socket.join(code);
-      callback({ roomCode: code, players: room.players.map(p => ({name:p.name, isBot:false})) });
+      callback({ roomCode: code, players: room.players.map(p => ({name:p.name, isBot:false, online:true})) });
       broadcastRooms(io);
 
       let count = 10;
@@ -59,10 +60,23 @@ function handleSocket(io) {
     socket.on('joinRoom', ({ roomCode, playerName }, callback) => {
       const room = rooms.get(roomCode);
       if (!room) return callback({ error: 'Sala não encontrada' });
-      if (room.players.length >= 4) return callback({ error: 'Sala cheia' });
-      room.players.push({ id: socket.id, name: playerName, isBot: false });
+      if (room.players.length >= 4 && room.status !== 'playing') {
+        return callback({ error: 'Sala cheia' });
+      }
+
+      if (room.status === 'playing') {
+        if (room.game && room.game.setWins[0] === 1 && room.game.setWins[1] === 1) {
+          return callback({ error: 'Partida no terceiro set, entrada não permitida.' });
+        }
+        room.pendingJoin.push({ socket, playerName });
+        socket.join(roomCode);
+        callback({ roomCode, waiting: true });
+        return;
+      }
+
+      room.players.push({ id: socket.id, name: playerName, isBot: false, online: true, pendingReplace: false });
       socket.join(roomCode);
-      callback({ roomCode, players: room.players.map(p => ({ name: p.name, isBot: p.isBot })) });
+      callback({ roomCode, players: room.players.map(p => ({ name: p.name, isBot: p.isBot, online: p.online })) });
       broadcastRooms(io);
 
       if (room.players.length === 4) {
@@ -78,6 +92,7 @@ function handleSocket(io) {
       const room = findRoomBySocket(socket.id);
       if (!room || !room.game) return;
       const playerIndex = room.players.findIndex(p => p.id === socket.id);
+      updateActivity(room, socket.id);
       room.game.playCard(playerIndex, card);
       checkBotTurn(room, io);
     });
@@ -86,6 +101,7 @@ function handleSocket(io) {
       const room = findRoomBySocket(socket.id);
       if (!room || !room.game) return;
       const playerIndex = room.players.findIndex(p => p.id === socket.id);
+      updateActivity(room, socket.id);
       room.game.callBet(playerIndex, betType);
       checkBotResponse(room, io);
     });
@@ -94,6 +110,7 @@ function handleSocket(io) {
       const room = findRoomBySocket(socket.id);
       if (!room || !room.game) return;
       const playerIndex = room.players.findIndex(p => p.id === socket.id);
+      updateActivity(room, socket.id);
       room.game.respondBet(playerIndex, action);
       checkBotTurn(room, io);
     });
@@ -102,23 +119,25 @@ function handleSocket(io) {
       const room = findRoomBySocket(socket.id);
       if (!room || !room.game) return;
       const playerIndex = room.players.findIndex(p => p.id === socket.id);
+      updateActivity(room, socket.id);
       room.game.fleeHand(playerIndex);
     });
 
     socket.on('disconnect', () => {
-      for (const [code, room] of rooms) {
-        const idx = room.players.findIndex(p => p.id === socket.id);
-        if (idx !== -1) {
-          room.players.splice(idx, 1);
-          if (room.players.length === 0) {
-            if (room.countdownInterval) clearInterval(room.countdownInterval);
-            rooms.delete(code);
-            broadcastRooms(io);
-          } else {
-            broadcastRooms(io);
+      const room = findRoomBySocket(socket.id);
+      if (!room) return;
+      const player = room.players.find(p => p.id === socket.id);
+      if (player && !player.isBot) {
+        player.online = false;
+        emitPlayerStatus(room, io);
+        // Iniciar timer para substituição entre mãos
+        const timer = setTimeout(() => {
+          if (room.players.includes(player)) {
+            player.pendingReplace = true; // será substituído na próxima mão
+            // Se neste momento podemos substituir imediatamente? Apenas marcamos.
           }
-          break;
-        }
+        }, OFFLINE_TIMEOUT);
+        room.offlineTimers.set(socket.id, timer);
       }
     });
   });
@@ -130,6 +149,7 @@ function fillWithBotsAndStart(code, io) {
   const needed = 4 - room.players.length;
   for (let i = 0; i < needed; i++) {
     const bot = createBot(room.players.length);
+    bot.online = true;
     room.players.push(bot);
   }
   room.status = 'playing';
@@ -146,13 +166,73 @@ function startGame(room, io) {
         io.to(target).emit(event, data);
     }
   };
-  room.game = new Game4P(room.code, room.players, emit, () => {
-    rooms.delete(room.code);
-    broadcastRooms(io);
-  });
+  room.game = new Game4P(
+    room.code,
+    room.players,
+    emit,
+    () => {
+      rooms.delete(room.code);
+      broadcastRooms(io);
+    },
+    () => processPendingJoins(room, io)
+  );
   room.game.checkBotTurn = () => checkBotTurn(room, io);
   room.game.startGame();
   checkBotTurn(room, io);
+  emitPlayerStatus(room, io);
+}
+
+function processPendingJoins(room, io) {
+  // Substituir bots por humanos pendentes
+  while (room.pendingJoin.length > 0) {
+    const botIndex = room.players.findIndex(p => p.isBot);
+    if (botIndex === -1) break;
+    const { socket, playerName } = room.pendingJoin.shift();
+    room.players[botIndex] = { id: socket.id, name: playerName, isBot: false, online: true, pendingReplace: false };
+    socket.join(room.code);
+  }
+  // Substituir jogadores marcados para replace (offline há > 90s)
+  for (let i = 0; i < room.players.length; i++) {
+    const p = room.players[i];
+    if (!p.isBot && p.pendingReplace) {
+      const bot = createBot(i);
+      bot.online = true;
+      room.players[i] = bot;
+    }
+  }
+  emitPlayerStatus(room, io);
+  checkAllHumansGone(room, io);
+}
+
+function checkAllHumansGone(room, io) {
+  const humansLeft = room.players.some(p => !p.isBot && p.online);
+  if (!humansLeft) {
+    io.to(room.code).emit('matchOver', { winnerTeam: -1, setWins: [0,0], message: 'Todos os jogadores saíram.' });
+    rooms.delete(room.code);
+    broadcastRooms(io);
+  }
+}
+
+function updateActivity(room, socketId) {
+  const timer = room.offlineTimers.get(socketId);
+  if (timer) {
+    clearTimeout(timer);
+    room.offlineTimers.delete(socketId);
+  }
+  const player = room.players.find(p => p.id === socketId);
+  if (player && !player.online) {
+    player.online = true;
+    player.pendingReplace = false;
+    emitPlayerStatus(room, io);
+  }
+}
+
+function emitPlayerStatus(room, io) {
+  io.to(room.code).emit('playerStatusUpdate', room.players.map(p => ({
+    name: p.name,
+    isBot: p.isBot,
+    online: p.online
+  })));
 }
 
 function checkBotTurn(room, io) {
