@@ -1,32 +1,31 @@
 const socket = io(window.location.origin);
 
-// Telas
 const lobbyDiv = document.getElementById('lobby');
 const gameDiv = document.getElementById('game');
-
-// Elementos do lobby
 const nameInput = document.getElementById('nameInput');
 const createBtn = document.getElementById('createBtn');
 const roomInput = document.getElementById('roomInput');
 const joinBtn = document.getElementById('joinBtn');
 
-// Elementos do jogo
-const oppNameEl = document.getElementById('oppName');
-const oppScoreEl = document.getElementById('oppScore');
-const playerNameEl = document.getElementById('playerName');
-const playerScoreEl = document.getElementById('playerScore');
+const teamAScoreEl = document.getElementById('teamAScore');
+const teamBScoreEl = document.getElementById('teamBScore');
 const roomCodeEl = document.getElementById('roomCodeDisplay');
 const viraCardEl = document.getElementById('viraCard');
-const oppHandDiv = document.getElementById('oppHand');
-const tableArea = document.getElementById('tableArea');
 const playerHandDiv = document.getElementById('playerHand');
+const tableArea = document.getElementById('tableArea');
 const actionsArea = document.getElementById('actionsArea');
 const betActions = document.getElementById('betActions');
 const messageArea = document.getElementById('messageArea');
 
+const slots = {
+  0: document.getElementById('slotP1'),
+  1: document.getElementById('slotP2'),
+  2: document.getElementById('slotP3'),
+  3: document.getElementById('slotP4')
+};
+
 let myPlayerIndex = null;
 let playerHand = [];
-let currentTurn = null;
 let gameActive = false;
 let roomCode = '';
 
@@ -53,44 +52,48 @@ function enterRoom(code, players) {
   lobbyDiv.classList.add('hidden');
   gameDiv.classList.remove('hidden');
   roomCodeEl.textContent = code;
-  const me = players.find(p => p.id === socket.id);
-  const opp = players.find(p => p.id !== socket.id);
+  // Encontrar nosso índice
+  const me = players.find(p => p.name === nameInput.value.trim() || 'Jogador');
   myPlayerIndex = players.indexOf(me);
-  playerNameEl.textContent = me.name;
-  if (opp) {
-    oppNameEl.textContent = opp.name;
-  } else {
-    oppNameEl.textContent = '...';
-    messageArea.textContent = 'Aguardando oponente... Código: ' + code;
+  updatePlayerSlots(players);
+  // Se jogo já iniciou (handStart será enviado), senão mensagem de espera
+  if (players.length < 4) {
+    messageArea.textContent = 'Aguardando jogadores...';
   }
 }
 
-// Evento de espera (sala com 1 jogador)
 socket.on('waiting', (players) => {
-  if (players.length < 2) {
-    messageArea.textContent = 'Aguardando oponente... Código: ' + roomCode;
-    oppNameEl.textContent = '...';
+  updatePlayerSlots(players);
+  if (players.length < 4) {
+    messageArea.textContent = 'Aguardando jogadores... (Bots entrarão em breve)';
   }
 });
 
-// Quando a mão começa (dois jogadores)
 socket.on('handStart', (data) => {
-  // Atualiza nome do oponente usando os nomes enviados pelo servidor
-  if (data.players) {
-    const oppIndex = myPlayerIndex === 0 ? 1 : 0;
-    oppNameEl.textContent = data.players[oppIndex] || 'Oponente';
-  }
   playerHand = data.hand;
-  renderHand(playerHand);
-  oppHandDiv.innerHTML = '<p>Cartas do oponente: 🂠 🂠 🂠</p>';
+  myPlayerIndex = data.player;
+  renderMyHand(playerHand);
   viraCardEl.textContent = `${data.vira.rank}${suitSymbol(data.vira.suit)}`;
-  playerScoreEl.textContent = data.scores[0];
-  oppScoreEl.textContent = data.scores[1];
+  teamAScoreEl.textContent = data.scores[0];
+  teamBScoreEl.textContent = data.scores[1];
   gameActive = true;
   clearTable();
   messageArea.textContent = '';
   betActions.innerHTML = '';
   updateTurn(data.currentPlayer);
+  // Atualiza nomes/dados dos jogadores (incluindo bots)
+  data.players.forEach((p, i) => {
+    const slot = slots[i];
+    if (slot) {
+      slot.querySelector('.name').textContent = p.name + (p.isBot ? ' (Bot)' : '');
+    }
+  });
+  // Mostrar mãos dos oponentes como costas
+  for (let i = 0; i < 4; i++) {
+    if (i !== myPlayerIndex) {
+      slots[i].querySelector('.hand').innerHTML = '<div class="card back">🂠</div><div class="card back">🂠</div><div class="card back">🂠</div>';
+    }
+  }
 });
 
 socket.on('turn', ({ currentPlayer }) => {
@@ -98,34 +101,43 @@ socket.on('turn', ({ currentPlayer }) => {
 });
 
 socket.on('cardPlayed', ({ player, card }) => {
-  showPlayedCard(player, card);
+  const slot = slots[player];
+  if (slot) {
+    const handDiv = slot.querySelector('.hand');
+    // Remove uma carta de costas
+    const backs = handDiv.querySelectorAll('.back');
+    if (backs.length > 0) backs[0].remove();
+  }
+  // Mostra carta na mesa
+  const cardDiv = document.createElement('div');
+  cardDiv.className = 'card';
+  cardDiv.textContent = `${card.rank}${suitSymbol(card.suit)}`;
+  cardDiv.setAttribute('data-player', player);
+  tableArea.appendChild(cardDiv);
 });
 
 socket.on('roundResult', ({ winner }) => {
-  // O resultado da rodada é tratado automaticamente pelo servidor
+  setTimeout(clearTable, 2000);
 });
 
-socket.on('handEnd', ({ winner, scores }) => {
+socket.on('handEnd', ({ winnerTeam, scores }) => {
   gameActive = false;
-  playerScoreEl.textContent = scores[0];
-  oppScoreEl.textContent = scores[1];
-  messageArea.textContent = winner === myPlayerIndex ? 'Você ganhou a mão!' : 'Oponente ganhou a mão!';
+  teamAScoreEl.textContent = scores[0];
+  teamBScoreEl.textContent = scores[1];
+  messageArea.textContent = winnerTeam === myPlayerIndex % 2 ? 'Seu time ganhou a mão!' : 'Time adversário ganhou a mão.';
   playerHandDiv.innerHTML = '';
-  oppHandDiv.innerHTML = '';
+  for (let i = 0; i < 4; i++) slots[i].querySelector('.hand').innerHTML = '';
 });
 
-socket.on('gameOver', ({ winner, scores }) => {
-  gameActive = false;
-  alert(winner === myPlayerIndex ? 'Você venceu o jogo!' : 'Oponente venceu o jogo!');
+socket.on('gameOver', ({ winnerTeam }) => {
+  alert(winnerTeam === myPlayerIndex % 2 ? 'Seu time venceu o jogo!' : 'Time adversário venceu!');
   location.reload();
 });
 
-socket.on('betCalled', ({ challenger, level }) => {
-  messageArea.textContent = `${challenger === myPlayerIndex ? 'Você' : 'Oponente'} pediu ${level.toUpperCase()}!`;
-  if (challenger !== myPlayerIndex) {
+socket.on('betCalled', ({ challenger, level, responderTeam }) => {
+  messageArea.textContent = `${slots[challenger].querySelector('.name').textContent} pediu ${level.toUpperCase()}!`;
+  if (responderTeam === myPlayerIndex % 2) {
     showBetActions(level);
-  } else {
-    betActions.innerHTML = '';
   }
 });
 
@@ -134,44 +146,50 @@ socket.on('betAccepted', ({ handValue }) => {
   betActions.innerHTML = '';
 });
 
-socket.on('turnToRespond', ({ responder }) => {
-  if (responder === myPlayerIndex) {
-    // Os botões de resposta já são mostrados em showBetActions
+socket.on('turnToRespond', ({ responderTeam }) => {
+  if (responderTeam === myPlayerIndex % 2) {
+    // Botões já aparecem via betCalled
   }
 });
 
-socket.on('playerLeft', () => {
-  alert('Oponente saiu do jogo.');
-  location.reload();
-});
+function updatePlayerSlots(players) {
+  for (let i = 0; i < 4; i++) {
+    const slot = slots[i];
+    if (i < players.length) {
+      slot.style.display = 'flex';
+      slot.querySelector('.name').textContent = players[i].name + (players[i].isBot ? ' (Bot)' : '');
+    } else {
+      slot.style.display = 'none';
+    }
+  }
+}
 
-function updateTurn(currentPlayer) {
-  currentTurn = currentPlayer;
+function updateTurn(cp) {
   actionsArea.innerHTML = '';
   betActions.innerHTML = '';
   if (!gameActive) return;
-  if (currentPlayer === myPlayerIndex) {
-    if (playerHand.length > 0) {
-      actionsArea.innerHTML = '<button id="playCardBtn">Jogar Carta</button>';
-      document.getElementById('playCardBtn').onclick = () => {
-        highlightCardsForPlay();
-      };
-    }
-  } else {
-    actionsArea.innerHTML = '<p>Aguardando oponente...</p>';
+  // Destacar slot do jogador da vez
+  for (let i = 0; i < 4; i++) {
+    slots[i].classList.toggle('active', i === cp);
+  }
+  if (cp === myPlayerIndex && playerHand.length > 0) {
+    actionsArea.innerHTML = `
+      <button id="playBtn">Jogar Carta</button>
+      <button id="trucoBtn">Truco</button>
+    `;
+    document.getElementById('playBtn').onclick = () => highlightCardsForPlay();
+    document.getElementById('trucoBtn').onclick = () => socket.emit('callBet', 'truco');
   }
 }
 
 function highlightCardsForPlay() {
-  const cards = document.querySelectorAll('.player-hand .card');
+  const cards = document.querySelectorAll('.my-hand .card');
   cards.forEach(card => {
     card.onclick = () => {
       const index = parseInt(card.dataset.index);
-      const selected = playerHand[index];
-      if (!selected) return;
-      socket.emit('playCard', selected);
+      socket.emit('playCard', playerHand[index]);
       playerHand.splice(index, 1);
-      renderHand(playerHand);
+      renderMyHand(playerHand);
       actionsArea.innerHTML = '';
     };
     card.classList.add('selectable');
@@ -193,28 +211,16 @@ function showBetActions(level) {
     document.getElementById('valequatroBtn').onclick = () => socket.emit('respondBet', 'valequatro');
 }
 
-function renderHand(hand) {
-  playerHandDiv.innerHTML = hand.map((card, idx) =>
-    `<div class="card" data-index="${idx}">${card.rank}${suitSymbol(card.suit)}</div>`
+function renderMyHand(hand) {
+  playerHandDiv.innerHTML = hand.map((c, idx) => 
+    `<div class="card" data-index="${idx}">${c.rank}${suitSymbol(c.suit)}</div>`
   ).join('');
-}
-
-function showPlayedCard(player, card) {
-  const div = document.createElement('div');
-  div.className = 'card played';
-  div.textContent = `${card.rank}${suitSymbol(card.suit)}`;
-  div.setAttribute('data-player', player);
-  tableArea.appendChild(div);
-  setTimeout(() => {
-    if (tableArea.children.length >= 2) clearTable();
-  }, 2000);
 }
 
 function clearTable() {
   tableArea.innerHTML = '';
 }
 
-function suitSymbol(suit) {
-  const map = { paus: '♣', copas: '♥', espadas: '♠', ouros: '♦' };
-  return map[suit] || suit;
+function suitSymbol(s) {
+  return { paus: '♣', copas: '♥', espadas: '♠', ouros: '♦' }[s] || s;
 }

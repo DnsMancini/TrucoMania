@@ -1,14 +1,12 @@
 const SUITS = ['paus', 'copas', 'espadas', 'ouros'];
 const RANKS = ['4', '5', '6', '7', 'Q', 'J', 'K', 'A', '2', '3'];
 
-// Força base das cartas (sem manilha)
 const RANK_STRENGTH = {
   '4': 1, '5': 2, '6': 3, '7': 4,
   'Q': 5, 'J': 6, 'K': 7, 'A': 8,
   '2': 9, '3': 10
 };
 
-// Ordem dos naipes para manilha
 const SUIT_STRENGTH = {
   'ouros': 1,
   'espadas': 2,
@@ -16,13 +14,17 @@ const SUIT_STRENGTH = {
   'paus': 4
 };
 
+const BET_VALUES = {
+  truco: 3,
+  retruco: 6,
+  valequatro: 12
+};
+
 function buildDeck() {
   const deck = [];
-  for (const suit of SUITS) {
-    for (const rank of RANKS) {
+  for (const suit of SUITS)
+    for (const rank of RANKS)
       deck.push({ suit, rank });
-    }
-  }
   return deck;
 }
 
@@ -35,54 +37,38 @@ function shuffle(deck) {
 
 function getManilhaRank(viraRank) {
   const idx = RANKS.indexOf(viraRank);
-  const nextIdx = (idx + 1) % RANKS.length;
-  return RANKS[nextIdx];
+  return RANKS[(idx + 1) % RANKS.length];
 }
 
 function cardStrength(card, viraRank) {
   if (!viraRank) return RANK_STRENGTH[card.rank];
   const manilhaRank = getManilhaRank(viraRank);
   if (card.rank === manilhaRank) {
-    // Manilha: força base 10 + força do naipe (1-4)
     return 10 + SUIT_STRENGTH[card.suit];
   }
   return RANK_STRENGTH[card.rank];
 }
 
-function compareCards(card1, card2, viraRank) {
-  const s1 = cardStrength(card1, viraRank);
-  const s2 = cardStrength(card2, viraRank);
-  if (s1 > s2) return 1;
-  if (s1 < s2) return -1;
-  return 0;
-}
-
-// Valores de aposta
-const BET_VALUES = {
-  truco: 3,
-  retruco: 6,
-  valequatro: 12
-};
-
-class Game2P {
+class Game4P {
   constructor(roomId, players, emit) {
     this.roomId = roomId;
-    this.players = players; // [{ id: socketId, name }]
-    this.emit = emit;       // função (event, data, to) onde to='all' ou socketId
-    this.scores = [0, 0];
-    this.dealerIndex = Math.floor(Math.random() * 2);
+    this.players = players; // array de 4 objetos: { id, name, isBot }
+    this.emit = emit;
+    this.scores = [0, 0]; // time0, time1
+    this.dealerIndex = 0; // será rotacionado a cada mão
     this.handValue = 1;
     this.maoDe11 = false;
     this.deck = [];
-    this.hands = [[], []];
+    this.hands = [[], [], [], []]; // 4 mãos
     this.vira = null;
-    this.currentPlayer = (this.dealerIndex + 1) % 2;
+    // Ordem de jogo: 0 (time0), 1 (time1), 2 (time0), 3 (time1)
+    this.currentPlayer = 0;
     this.turnStage = 'play'; // 'play' | 'respond'
-    this.betState = null;    // { challenger, level, responder }
-    this.roundCards = [[], []];
-    this.roundWins = [0, 0];
+    this.betState = null;    // { challenger (índice), level, responderTeam (0 ou 1) }
+    this.roundCards = [];    // array de 4 cartas por rodada (até 3 rodadas)
+    this.roundWins = [0, 0]; // vitórias de rodada por time
     this.currentRound = 0;
-    this.handStarted = false;
+    this.playersInRound = 0; // quantos já jogaram na rodada atual
   }
 
   startGame() {
@@ -92,10 +78,11 @@ class Game2P {
   startNewHand() {
     this.deck = buildDeck();
     shuffle(this.deck);
-    this.hands = [[], []];
+    for (let i = 0; i < 4; i++) this.hands[i] = [];
     for (let i = 0; i < 3; i++) {
-      this.hands[0].push(this.deck.pop());
-      this.hands[1].push(this.deck.pop());
+      for (let p = 0; p < 4; p++) {
+        this.hands[p].push(this.deck.pop());
+      }
     }
     this.vira = this.deck.pop();
 
@@ -111,138 +98,175 @@ class Game2P {
       this.maoDe11 = false;
     }
 
-    this.currentPlayer = (this.dealerIndex + 1) % 2;
+    // Define quem começa (à direita do dealer) – dealer rotaciona
+    this.currentPlayer = (this.dealerIndex + 1) % 4;
     this.turnStage = 'play';
     this.betState = null;
     this.roundWins = [0, 0];
     this.currentRound = 0;
     this.roundCards = [];
+    this.playersInRound = 0;
 
-    // Envia mão para cada jogador
-    for (let i = 0; i < 2; i++) {
-      this.emit('handStart', {
-        player: i,
-        hand: this.hands[i],
-        vira: this.vira,
-        currentPlayer: this.currentPlayer,
-        dealer: this.dealerIndex,
-        handValue: this.handValue,
-        scores: this.scores,
-        maoDe11: this.maoDe11,
-        players: this.players.map(p => p.name)   // nomes dos jogadores
-      }, this.players[i].id);
+    // Envia estado inicial para cada jogador (somente humanos e bots que precisam?)
+    // Bots não precisam de handStart, eles decidem internamente, mas vamos enviar para todos para o front atualizar.
+    // Vamos enviar apenas para os sockets (humanos) no socketHandler; o bot será notificado internamente.
+    // Então a função de emissão deve cuidar de enviar apenas para humanos.
+    for (let i = 0; i < 4; i++) {
+      if (!this.players[i].isBot) {
+        this.emit('handStart', {
+          player: i,
+          hand: this.hands[i],
+          vira: this.vira,
+          currentPlayer: this.currentPlayer,
+          dealer: this.dealerIndex,
+          handValue: this.handValue,
+          scores: this.scores,
+          maoDe11: this.maoDe11,
+          players: this.players.map(p => ({ name: p.name, isBot: p.isBot }))
+        }, this.players[i].id);
+      }
     }
-  }   // <-- FECHA startNewHand
+  }
 
+  // Jogar carta (chamado por humano ou bot)
   playCard(playerIndex, card) {
-    if (this.turnStage !== 'play' || playerIndex !== this.currentPlayer) return;
+    if (this.turnStage !== 'play' || playerIndex !== this.currentPlayer) return false;
     const hand = this.hands[playerIndex];
     const cardIdx = hand.findIndex(c => c.suit === card.suit && c.rank === card.rank);
-    if (cardIdx === -1) return;
+    if (cardIdx === -1) return false;
     const played = hand.splice(cardIdx, 1)[0];
 
-    // Adiciona à rodada atual
     if (!this.roundCards[this.currentRound]) {
-      this.roundCards[this.currentRound] = [null, null];
+      this.roundCards[this.currentRound] = new Array(4).fill(null);
     }
     this.roundCards[this.currentRound][playerIndex] = played;
+    this.playersInRound++;
+
+    // Notifica todos (humanos) sobre a carta jogada
     this.emit('cardPlayed', { player: playerIndex, card: played }, 'all');
 
-    // Se ambos jogaram
-    if (this.roundCards[this.currentRound][0] && this.roundCards[this.currentRound][1]) {
+    if (this.playersInRound === 4) {
       this.resolveRound();
     } else {
-      this.currentPlayer = (playerIndex + 1) % 2;
+      // Próximo jogador na ordem (0->1->2->3->0...)
+      this.currentPlayer = (playerIndex + 1) % 4;
       this.emit('turn', { currentPlayer: this.currentPlayer }, 'all');
     }
+    return true;
   }
 
   resolveRound() {
     const round = this.roundCards[this.currentRound];
-    const card0 = round[0];
-    const card1 = round[1];
-    const cmp = compareCards(card0, card1, this.vira.rank);
+    // Comparar as 4 cartas para determinar a carta mais forte
+    let bestCard = null;
+    let bestPlayer = -1;
+    for (let i = 0; i < 4; i++) {
+      const c = round[i];
+      if (!bestCard || cardStrength(c, this.vira.rank) > cardStrength(bestCard, this.vira.rank)) {
+        bestCard = c;
+        bestPlayer = i;
+      } else if (cardStrength(c, this.vira.rank) === cardStrength(bestCard, this.vira.rank)) {
+        // empate de força -> ninguém ganha a rodada? No truco, empate total zera a rodada? 
+        // Em dupla, se a carta mais alta for de ambos os times (empate), a rodada é "empatada" e não dá ponto a nenhum time.
+        // Vamos considerar empate se a maior força for igual entre dois jogadores de times diferentes.
+        const bestTeam = bestPlayer % 2;
+        const currentTeam = i % 2;
+        if (bestTeam !== currentTeam && cardStrength(c, this.vira.rank) === cardStrength(bestCard, this.vira.rank)) {
+          // Dois times empataram na maior força -> rodada sem vencedor
+          bestPlayer = -1;
+        }
+        // Se for do mesmo time, mantém o primeiro (não afeta)
+      }
+    }
 
-    let winner = null;
-    if (cmp > 0) winner = 0;
-    else if (cmp < 0) winner = 1;
+    let winnerTeam = -1;
+    if (bestPlayer !== -1) {
+      winnerTeam = bestPlayer % 2;
+      this.roundWins[winnerTeam]++;
+    }
+    this.emit('roundResult', { round: this.currentRound, winner: bestPlayer }, 'all');
 
-    this.roundWins[winner]++;
-    this.emit('roundResult', { round: this.currentRound, winner }, 'all');
-
-    // Verifica se alguém ganhou a mão
-    const winsRequired = 2;
-    if (this.roundWins[0] >= winsRequired || this.roundWins[1] >= winsRequired) {
-      this.endHand(winner);
+    // Verifica se algum time fez 2 rodadas
+    if (this.roundWins[0] >= 2 || this.roundWins[1] >= 2) {
+      const winningTeam = this.roundWins[0] >= 2 ? 0 : 1;
+      this.endHand(winningTeam);
       return;
     }
 
-    // Se houve empate na rodada e ainda não acabou, próxima rodada começa com o próximo jogador (alternar)
-    if (winner === null) {
-      // Em caso de empate, o primeiro jogador da rodada atual começa a próxima
-      // (quem iniciou essa rodada)
-    } else {
-      // Vencedor da rodada começa a próxima
-      this.currentPlayer = winner;
-    }
-
+    // Se ninguém fez 2, prepara próxima rodada
     this.currentRound++;
+    this.playersInRound = 0;
+    // Quem começa a próxima rodada é quem ganhou a última (se empatou, mantém o mesmo que começou?)
+    // Regra: o vencedor da rodada anterior inicia a próxima. Em empate, o mesmo que iniciou a rodada empate?
+    // Vamos simplificar: em empate, mantém o currentPlayer da rodada anterior (não muda). Se houve vencedor, o vencedor começa.
+    if (bestPlayer !== -1) {
+      this.currentPlayer = bestPlayer;
+    }
+    // Se empate (-1), currentPlayer permanece o que estava antes da rodada (ou seja, o que iniciou a rodada).
     this.emit('turn', { currentPlayer: this.currentPlayer }, 'all');
   }
 
-  endHand(winner) {
-    const points = this.handValue;
-    this.scores[winner] += points;
-    this.emit('handEnd', { winner, points, scores: this.scores }, 'all');
+  endHand(winningTeam) {
+    this.scores[winningTeam] += this.handValue;
+    this.emit('handEnd', { winnerTeam: winningTeam, points: this.handValue, scores: this.scores }, 'all');
 
-    // Verifica se o jogo acabou
-    if (this.scores[winner] >= 12) {
-      this.emit('gameOver', { winner, scores: this.scores }, 'all');
+    if (this.scores[winningTeam] >= 12) {
+      this.emit('gameOver', { winnerTeam: winningTeam, scores: this.scores }, 'all');
       return;
     }
 
-    this.dealerIndex = (this.dealerIndex + 1) % 2;
+    this.dealerIndex = (this.dealerIndex + 1) % 4;
     setTimeout(() => this.startNewHand(), 1500);
   }
 
+  // Pedido de truco (qualquer jogador na sua vez)
   callBet(playerIndex, betType) {
-    if (this.maoDe11) return;
-    if (this.turnStage !== 'play' || playerIndex !== this.currentPlayer) return;
-    if (this.betState) {
-      // Já existe aposta em andamento, não pode chamar nova
-      return;
-    }
-    if (betType === 'truco' && this.handValue >= 3) return; // já vale 3
-    if (betType === 'retruco' && this.handValue >= 6) return;
-    if (betType === 'valequatro' && this.handValue >= 12) return;
+    if (this.maoDe11) return false;
+    if (this.turnStage !== 'play' || playerIndex !== this.currentPlayer) return false;
+    if (this.betState) return false; // já existe aposta em andamento
+    if (betType === 'truco' && this.handValue >= 3) return false;
+    if (betType === 'retruco' && this.handValue >= 6) return false;
+    if (betType === 'valequatro' && this.handValue >= 12) return false;
 
-    const challenger = playerIndex;
-    const responder = (challenger + 1) % 2;
-    this.betState = { challenger, level: betType, responder };
+    const challengerTeam = playerIndex % 2;
+    const responderTeam = 1 - challengerTeam;
+    this.betState = {
+      challenger: playerIndex,
+      level: betType,
+      responderTeam: responderTeam,
+      responded: false
+    };
     this.turnStage = 'respond';
-    this.emit('betCalled', { challenger, level: betType }, 'all');
-    this.emit('turnToRespond', { responder }, this.players[responder].id);
+    this.emit('betCalled', { challenger: playerIndex, level: betType, responderTeam }, 'all');
+    // Envia evento para os dois jogadores do time adversário avisando que podem responder
+    for (let i = 0; i < 4; i++) {
+      if (i % 2 === responderTeam && !this.players[i].isBot) {
+        this.emit('turnToRespond', { responderTeam }, this.players[i].id);
+      }
+    }
+    return true;
   }
 
+  // Resposta ao truco (qualquer jogador do time adversário)
   respondBet(playerIndex, action) {
-    if (this.turnStage !== 'respond') return;
-    if (!this.betState) return;
-    if (playerIndex !== this.betState.responder) return;
+    if (this.turnStage !== 'respond' || !this.betState) return false;
+    const respTeam = this.betState.responderTeam;
+    if (playerIndex % 2 !== respTeam) return false;
 
     const { challenger, level } = this.betState;
 
     if (action === 'flee') {
-      // Quem chamou ganha o valor atual (antes de aceitar)
       const points = this.getBetValueBefore(level);
-      this.scores[challenger] += points;
-      this.emit('handEnd', { winner: challenger, points, scores: this.scores }, 'all');
-      if (this.scores[challenger] >= 12) {
-        this.emit('gameOver', { winner: challenger, scores: this.scores }, 'all');
-        return;
+      const challengerTeam = challenger % 2;
+      this.scores[challengerTeam] += points;
+      this.emit('handEnd', { winnerTeam: challengerTeam, points, scores: this.scores }, 'all');
+      if (this.scores[challengerTeam] >= 12) {
+        this.emit('gameOver', { winnerTeam: challengerTeam, scores: this.scores }, 'all');
+        return false;
       }
-      this.dealerIndex = (this.dealerIndex + 1) % 2;
+      this.dealerIndex = (this.dealerIndex + 1) % 4;
       setTimeout(() => this.startNewHand(), 1500);
-      return;
+      return true;
     }
 
     if (action === 'accept') {
@@ -251,39 +275,42 @@ class Game2P {
       this.turnStage = 'play';
       this.emit('betAccepted', { handValue: this.handValue }, 'all');
       this.emit('turn', { currentPlayer: this.currentPlayer }, 'all');
-      return;
+      return true;
     }
 
-    if (action === 'retruco' && level === 'truco') {
-      this.betState.level = 'retruco';
-      this.betState.responder = challenger;
-      this.betState.challenger = playerIndex; // inverte
-      this.emit('betCalled', { challenger: playerIndex, level: 'retruco' }, 'all');
-      this.emit('turnToRespond', { responder: challenger }, this.players[challenger].id);
-      return;
-    }
-
-    if (action === 'valequatro' && level === 'retruco') {
-      this.betState.level = 'valequatro';
-      this.betState.responder = challenger;
+    // Retruco / Vale Quatro
+    let nextLevel = null;
+    if (action === 'retruco' && level === 'truco') nextLevel = 'retruco';
+    if (action === 'valequatro' && level === 'retruco') nextLevel = 'valequatro';
+    if (nextLevel) {
+      this.betState.level = nextLevel;
+      this.betState.responderTeam = challenger % 2;
       this.betState.challenger = playerIndex;
-      this.emit('betCalled', { challenger: playerIndex, level: 'valequatro' }, 'all');
-      this.emit('turnToRespond', { responder: challenger }, this.players[challenger].id);
-      return;
+      this.emit('betCalled', { challenger: playerIndex, level: nextLevel, responderTeam: challenger % 2 }, 'all');
+      // Notifica o time adversário (agora o time do challenger original)
+      for (let i = 0; i < 4; i++) {
+        if (i % 2 === challenger % 2 && !this.players[i].isBot) {
+          this.emit('turnToRespond', { responderTeam: challenger % 2 }, this.players[i].id);
+        }
+      }
+      return true;
     }
+
+    return false;
   }
 
   getBetValueBefore(level) {
-    if (level === 'truco') return this.handValue; // valor base
+    if (level === 'truco') return this.handValue;
     if (level === 'retruco') return 3;
     if (level === 'valequatro') return 6;
     return 1;
   }
 
+  // Retorna true se o jogo continua
   removePlayer(socketId) {
-    // retorna true se o jogo ainda pode continuar
+    // Se um humano sair, podemos substituir por bot? Por enquanto só desliga o jogo.
     return false;
   }
 }
 
-module.exports = { Game2P };
+module.exports = { Game4P };
