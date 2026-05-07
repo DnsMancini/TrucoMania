@@ -58,9 +58,10 @@
 
         <div id="vira" class="carta oculto"></div>
 
-        <div id="painelRodada">
+        <!-- Informações ao vivo (canto superior esquerdo) -->
+        <div id="infoLive">
           <div id="infoRodada">Rodada 1 de 3</div>
-          <div id="trucoDisplay">TRUCO</div>
+          <div id="trucoStatus">Truco: Nenhum</div>
         </div>
 
         <div id="painelHistorico">
@@ -78,7 +79,8 @@
           <span id="cronometroNum"></span>
         </div>
 
-        <div id="mensagem"></div>
+        <!-- Toast para mensagens temporárias -->
+        <div id="toast"></div>
 
         <div class="telaFinal" id="telaFinal">
           <div class="tela-final-card">
@@ -103,7 +105,7 @@
             <span class="placar-time-pontos" id="teamBScore">0</span>
           </div>
         </div>
-        <span class="placar-status" id="trucoStatus">Truco: Nenhum</span>
+        <span class="placar-status" id="trucoStatusPlacar">Truco: Nenhum</span>
       </div>
 
       <div id="ui"></div>

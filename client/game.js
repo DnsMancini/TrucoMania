@@ -11,9 +11,9 @@ const joinBtn = document.getElementById('joinBtn');
 // Elementos do jogo
 const teamAScoreEl = document.getElementById('teamAScore');
 const teamBScoreEl = document.getElementById('teamBScore');
-const trucoDisplay = document.getElementById('trucoDisplay');
-const trucoStatus = document.getElementById('trucoStatus');
-const infoRodada = document.getElementById('infoRodada');
+const trucoDisplay = document.getElementById('trucoDisplay'); // não usado agora, podemos remover
+const trucoStatusEl = document.getElementById('trucoStatus'); // dentro do infoLive
+const infoRodadaEl = document.getElementById('infoRodada');   // dentro do infoLive
 const btnTruco = document.getElementById('btnTruco');
 const btnCorrer = document.getElementById('btnCorrer');
 const viraEl = document.getElementById('vira');
@@ -23,7 +23,7 @@ const hand2 = document.getElementById('hand2');
 const hand3 = document.getElementById('hand3');
 const maoDiv = document.getElementById('mao');
 const painelHistorico = document.getElementById('historicoRodadas');
-const mensagemEl = document.getElementById('mensagem');
+const toastEl = document.getElementById('toast');
 const telaFinal = document.getElementById('telaFinal');
 const textoFinal = document.getElementById('textoFinal');
 const resumoFinal = document.getElementById('resumoFinal');
@@ -97,9 +97,8 @@ socket.on('handStart', (data) => {
   renderizarMao(playerHand);
   teamAScoreEl.textContent = data.scores[0];
   teamBScoreEl.textContent = data.scores[1];
-  infoRodada.textContent = 'Rodada 1 de 3';
-  trucoStatus.textContent = 'Truco: Nenhum';
-  trucoDisplay.textContent = 'TRUCO';
+  infoRodadaEl.textContent = 'Rodada 1 de 3';
+  trucoStatusEl.textContent = 'Truco: Nenhum';
   btnTruco.classList.remove('oculto');
   btnCorrer.classList.remove('oculto');
   aguardandoResposta = false;
@@ -127,7 +126,6 @@ socket.on('handStart', (data) => {
   });
 
   audioDistribuir.play().catch(e => console.warn('Áudio distribuir:', e));
-  esconderMensagem();
   clearTurnTimer();
   if (isMyTurn && !aguardandoResposta) startTurnTimer();
 });
@@ -166,7 +164,7 @@ socket.on('cardPlayed', ({ player, card }) => {
 });
 
 socket.on('roundResult', ({ round, winner }) => {
-  infoRodada.textContent = `Rodada ${round + 2} de 3`;
+  infoRodadaEl.textContent = `Rodada ${round + 2} de 3`;
   const bolinhas = painelHistorico.querySelectorAll('.bolinha-rodada');
   if (bolinhas[round]) {
     let corClasse = 'bolinha-ouro';
@@ -211,7 +209,6 @@ socket.on('gameOver', ({ winnerTeam }) => {
 });
 
 socket.on('betCalled', ({ challenger, level }) => {
-  trucoDisplay.textContent = level.toUpperCase();
   btnTruco.classList.add('oculto');
   btnCorrer.classList.remove('oculto');
   aguardandoResposta = true;
@@ -219,7 +216,7 @@ socket.on('betCalled', ({ challenger, level }) => {
 });
 
 socket.on('betAccepted', ({ handValue }) => {
-  trucoStatus.textContent = `Truco: ${handValue} pts`;
+  trucoStatusEl.textContent = `Truco: ${handValue} pts`;
   btnCorrer.classList.remove('oculto');
   btnTruco.classList.remove('oculto');
   aguardandoResposta = false;
@@ -314,14 +311,13 @@ function autoPlayRandomCard() {
   }
 }
 
+// Toast temporário (exibe mensagem por 3s)
 function mostrarMensagem(texto) {
-  mensagemEl.textContent = texto;
-  mensagemEl.style.display = 'block';
-  setTimeout(() => { mensagemEl.style.display = 'none'; }, 3000);
-}
-
-function esconderMensagem() {
-  mensagemEl.style.display = 'none';
+  toastEl.textContent = texto;
+  toastEl.style.display = 'block';
+  setTimeout(() => {
+    toastEl.style.display = 'none';
+  }, 3000);
 }
 
 function suitSymbol(suit) {

@@ -164,9 +164,9 @@ class Game4P {
     }, 1500);
   }
 
-  // Novo método: desistir voluntariamente da mão
+  // Desistir voluntariamente da mão
   fleeHand(playerIndex) {
-    if (this.turnStage !== 'play') return false; // só pode correr durante a jogada normal
+    if (this.turnStage !== 'play') return false;
     const fleeingTeam = playerIndex % 2;
     const winningTeam = 1 - fleeingTeam;
     this.scores[winningTeam] += this.handValue;
