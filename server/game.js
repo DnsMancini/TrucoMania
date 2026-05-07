@@ -120,20 +120,21 @@ class Game2P {
     this.roundCards = [];
 
     // Envia mão para cada jogador
+    // Envia mão para cada jogador
     for (let i = 0; i < 2; i++) {
       this.emit('handStart', {
-        player: i,
-        hand: this.hands[i],
-        vira: this.vira,
-        currentPlayer: this.currentPlayer,
-        dealer: this.dealerIndex,
-        handValue: this.handValue,
-        scores: this.scores,
-        maoDe11: this.maoDe11
-      }, this.players[i].id);
-    }
-  }
-
+      player: i,
+    hand: this.hands[i],
+    vira: this.vira,
+    currentPlayer: this.currentPlayer,
+    dealer: this.dealerIndex,
+    handValue: this.handValue,
+    scores: this.scores,
+    maoDe11: this.maoDe11,
+    // ADICIONE:
+    players: this.players.map(p => p.name)  // array com nomes
+  }, this.players[i].id);
+}
   playCard(playerIndex, card) {
     if (this.turnStage !== 'play' || playerIndex !== this.currentPlayer) return;
     const hand = this.hands[playerIndex];
