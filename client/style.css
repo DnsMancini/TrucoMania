@@ -165,7 +165,7 @@ body {
 .game-hidden { display: none !important; }
 
 .player {
-  --avatar-size: 40px;
+  --avatar-size: 80px;  /* tamanho único para todos */
   position: absolute;
   display: flex;
   flex-direction: column;
@@ -173,6 +173,7 @@ body {
   text-align: center;
   font-size: 12px;
 }
+
 .avatar {
   width: var(--avatar-size);
   height: var(--avatar-size);
@@ -194,9 +195,9 @@ body {
 }
 
 #p0 { bottom: 0; left: 50%; transform: translate(-50%, 66%); }
-#p1 { --avatar-size: 105px; left: 0; top: 50%; transform: translate(-58%, -182%); }
-#p2 { --avatar-size: 105px; top: 0; left: 50%; transform: translate(-50%, -85%); z-index: 1300; }
-#p3 { --avatar-size: 105px; right: 0; top: 50%; transform: translate(58%, -182%); }
+#p1 { left: 0; top: 50%; transform: translate(-58%, -182%); }
+#p2 { top: 0; left: 50%; transform: translate(-50%, -85%); z-index: 1300; }
+#p3 { right: 0; top: 50%; transform: translate(58%, -182%); }
 
 .botHand { position: absolute; display: flex; gap: 0; }
 #hand1 { position: fixed; left: 0; top: 50%; transform: translate(0, -50%); flex-direction: column; }
@@ -304,12 +305,13 @@ body {
 .placar-status { display: block; margin-top: 4px; text-align: center; font-size: 12px; color: #f1c40f; }
 #placar {
   position: fixed;
-  top: var(--safe-top);
-  right: var(--safe-right);
+  top: 0;
+  right: 0;
   left: auto;
   min-width: 0;
   background: transparent;
   padding: 0;
+  margin: 0;
   border-radius: 0;
   font-weight: 700;
   font-size: 17px;

@@ -186,7 +186,7 @@ socket.on('gameOver', ({ winnerTeam }) => {
 socket.on('betCalled', ({ challenger, level }) => {
   trucoDisplay.textContent = level.toUpperCase();
   btnTruco.classList.add('oculto');
-  btnCorrer.classList.remove('oculto');
+  btnCorrer.classList.remove('oculto'); // garante que aparece
   audioTruco.play().catch(() => {});
 });
 
@@ -214,11 +214,12 @@ function renderizarMao(hand) {
     carta.className = 'carta playerCard';
     carta.setAttribute('data-index', idx);
     carta.innerHTML = `<span class="center ${c.suit === 'copas' || c.suit === 'ouros' ? 'naipe-vermelho' : 'naipe-preto'}">${c.rank}${suitSymbol(c.suit)}</span>`;
-    carta.onclick = () => {
+    carta.style.pointerEvents = 'auto'; // garante clique
+    carta.addEventListener('click', () => {
       socket.emit('playCard', c);
       playerHand.splice(idx, 1);
       renderizarMao(playerHand);
-    };
+    });
     maoDiv.appendChild(carta);
   });
 }
