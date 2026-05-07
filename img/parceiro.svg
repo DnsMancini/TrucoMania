@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Avatar parceiro">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1f1f1f"/>
+      <stop offset="100%" stop-color="#090909"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffd45a"/>
+      <stop offset="100%" stop-color="#c98a00"/>
+    </linearGradient>
+  </defs>
+  <rect x="10" y="10" width="492" height="492" rx="48" fill="url(#bg)" stroke="url(#gold)" stroke-width="12"/>
+  <circle cx="256" cy="212" r="120" fill="#2f3136" stroke="url(#gold)" stroke-width="8"/>
+  <circle cx="256" cy="190" r="52" fill="#e9e9e9"/>
+  <ellipse cx="256" cy="286" rx="92" ry="62" fill="#e9e9e9"/>
+</svg>
