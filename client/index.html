@@ -2,92 +2,122 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Truco Mania</title>
   <link rel="stylesheet" href="style.css" />
+  <link rel="icon" href="/img/carta-copag-vermelha.png" />
 </head>
 <body>
   <div id="app">
-    <!-- LOBBY -->
-    <div id="lobby" class="screen">
-      <h1>🃏 Truco Mania</h1>
-      <div class="menu">
-        <input type="text" id="nameInput" placeholder="Seu nome" maxlength="15" />
-        <button id="createBtn">Criar Sala</button>
-        <div class="join-area">
-          <input type="text" id="roomInput" placeholder="Código da sala" maxlength="6" />
-          <button id="joinBtn">Entrar</button>
+    <!-- LOBBY (mantido igual) -->
+    <div id="lobby" class="lobby">
+      <div class="lobby-card">
+        <h1 style="text-align:center; color:#f1c40f;">🃏 Truco Mania</h1>
+        <div class="menu" style="text-align:center; margin-top:20px;">
+          <input type="text" id="nameInput" placeholder="Seu nome" maxlength="15" style="padding:10px; font-size:16px; border-radius:8px; border:none;" />
+          <button id="createBtn" style="padding:10px 20px; margin:5px; font-size:16px; border-radius:8px; border:none; background:#5cb85c; color:white; cursor:pointer;">Criar Sala</button>
+          <div class="join-area" style="margin-top:10px;">
+            <input type="text" id="roomInput" placeholder="Código da sala" maxlength="6" style="padding:10px; font-size:16px; border-radius:8px; border:none;" />
+            <button id="joinBtn" style="padding:10px 20px; margin:5px; font-size:16px; border-radius:8px; border:none; background:#5cb85c; color:white; cursor:pointer;">Entrar</button>
+          </div>
         </div>
+        <div id="lobbyStatus" style="text-align:center; margin-top:15px; color:#ccc;"></div>
       </div>
     </div>
 
     <!-- JOGO -->
-    <div id="game" class="screen hidden">
-      <div class="game-container">
-        
-        <!-- Cabeçalho -->
-        <div class="header">
-          <div class="parceiro-info" id="parceiroNome">Parceiro</div>
-          <div class="placar-central">
-            <span class="nos">Nós:</span> <span id="teamAScore">0</span>
-            <span>x</span>
-            <span id="teamBScore">0</span> <span class="eles">Eles</span>
+    <div id="gameWrapper" class="game-hidden">
+      <div class="avisoOrientacao">Gire o dispositivo</div>
+      <div class="mesa"></div>
+
+      <div id="game">
+        <!-- Cartas na mesa -->
+        <div id="mesaCartas"></div>
+
+        <!-- Jogadores (posicionados ao redor) -->
+        <div class="player" id="p0">
+          <div class="avatar avatar-voce"></div>
+          <span class="name">Você</span>
+        </div>
+        <div class="player" id="p1">
+          <div class="avatar avatar-bot1"></div>
+          <span class="name"></span>
+        </div>
+        <div class="player" id="p2">
+          <div class="avatar avatar-parceiro"></div>
+          <span class="name"></span>
+        </div>
+        <div class="player" id="p3">
+          <div class="avatar avatar-bot2"></div>
+          <span class="name"></span>
+        </div>
+
+        <!-- Mãos dos oponentes -->
+        <div class="botHand" id="hand1"></div>
+        <div class="botHand" id="hand2"></div>
+        <div class="botHand" id="hand3"></div>
+
+        <!-- Mão do jogador -->
+        <div id="mao"></div>
+
+        <!-- Carta Vira (sobre a mesa) -->
+        <div id="vira" class="carta virada oculto"></div>
+
+        <!-- Placar -->
+        <div id="placar">
+          <div class="placar-times">
+            <div class="placar-time placar-time--nos">
+              <span class="placar-time-nome">Nós</span>
+              <span class="placar-time-pontos" id="teamAScore">0</span>
+            </div>
+            <div class="placar-time placar-time--eles">
+              <span class="placar-time-nome">Eles</span>
+              <span class="placar-time-pontos" id="teamBScore">0</span>
+            </div>
           </div>
-          <div class="rodada-info">
-            <span id="rodadaAtual">Rodada 1 de 3</span><br>
-            <span id="trucoStatus">Truco: Nenhum</span>
+          <span class="placar-status" id="trucoStatus">Truco: Nenhum</span>
+        </div>
+
+        <!-- Painel de rodada -->
+        <div id="painelRodada">
+          <div id="infoRodada">Rodada 1 de 3</div>
+          <div id="trucoDisplay">TRUCO</div>
+        </div>
+
+        <!-- Histórico de rodadas -->
+        <div id="painelHistorico">
+          <div id="historicoRodadas">
+            <div class="bolinha-rodada bolinha-branca"></div>
+            <div class="bolinha-rodada bolinha-branca"></div>
+            <div class="bolinha-rodada bolinha-branca"></div>
           </div>
         </div>
 
-        <!-- Oponentes (topo) -->
-        <div class="oponentes-area">
-          <div class="oponente-slot" id="slotP1">
-            <img class="avatar" src="/img/bot1.png" />
-            <span class="name"></span>
-            <div class="hand"></div>
-          </div>
-          <div class="oponente-slot" id="slotP3">
-            <img class="avatar" src="/img/bot2.png" />
-            <span class="name"></span>
-            <div class="hand"></div>
+        <!-- Botões de ação -->
+        <button id="btnTruco">TRUCO</button>
+        <button id="btnCorrer" class="oculto">CORRER</button>
+
+        <!-- Contador de turno -->
+        <div class="contadorTurno oculto" id="contadorTurno">10</div>
+
+        <!-- Mensagem -->
+        <div id="mensagem"></div>
+
+        <!-- Tela de fim de jogo -->
+        <div class="telaFinal" id="telaFinal">
+          <div class="tela-final-card">
+            <div id="textoFinal"></div>
+            <div id="resumoFinal"></div>
+            <div class="tela-final-acoes">
+              <button id="btnVoltarLobby">Voltar ao Lobby</button>
+              <button id="btnBuscarNova">Nova Partida</button>
+            </div>
           </div>
         </div>
-
-        <!-- Mesa central -->
-          <div class="mesa-central">
-  <div class="vira-info">
-    Vira: <span id="viraCard"></span>
-  </div>
-  <!-- restante igual -->
-          <div class="truco-display" id="trucoDisplay">TRUCO</div>
-          <div class="rodadas-indicador" id="rodadasIndicador">
-            <span>1ª: -</span> | <span>2ª: -</span> | <span>3ª: -</span>
-          </div>
-          <div class="historico-area">
-            <div class="historico-titulo">HISTÓRICO</div>
-            <div class="historico-cartas" id="historicoCartas"></div>
-          </div>
-        </div>
-
-        <!-- Jogador (inferior) -->
-        <div class="jogador-area">
-          <div class="parceiro-slot-lateral" id="slotP2">
-            <img class="avatar" src="/img/Avatarparceiro.png" />
-            <span class="name"></span>
-            <div class="hand"></div>
-          </div>
-          <div class="voce-slot" id="slotP0">
-            <img class="avatar" src="/img/voce.png" />
-            <span class="name">Você</span>
-            <div class="hand" id="playerHand"></div>
-          </div>
-          <div class="acoes">
-            <button id="trucoBtn">TRUCO</button>
-            <button id="correrBtn" style="display:none;">CORRER</button>
-          </div>
-        </div>
-
       </div>
+
+      <!-- UI overlay -->
+      <div id="ui"></div>
     </div>
   </div>
 
