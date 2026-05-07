@@ -29,10 +29,11 @@ function shuffle(deck) {
 }
 
 class Game4P {
-  constructor(roomId, players, emit) {
+  constructor(roomId, players, emit, onGameOver = null) {
     this.roomId = roomId;
     this.players = players;
     this.emit = emit;
+    this.onGameOver = onGameOver; // callback para remoção da sala
     this.scores = [0, 0];
     this.dealerIndex = 0;
     this.handValue = 1;
@@ -154,6 +155,7 @@ class Game4P {
     this.emit('handEnd', { winnerTeam: winningTeam, points: this.handValue, scores: this.scores }, 'all');
     if (this.scores[winningTeam] >= 12) {
       this.emit('gameOver', { winnerTeam: winningTeam, scores: this.scores }, 'all');
+      if (this.onGameOver) this.onGameOver(winningTeam); // notifica remoção da sala
       return;
     }
     this.dealerIndex = (this.dealerIndex + 1) % 4;
@@ -173,6 +175,7 @@ class Game4P {
     this.emit('handEnd', { winnerTeam: winningTeam, points: this.handValue, scores: this.scores }, 'all');
     if (this.scores[winningTeam] >= 12) {
       this.emit('gameOver', { winnerTeam: winningTeam, scores: this.scores }, 'all');
+      if (this.onGameOver) this.onGameOver(winningTeam);
       return true;
     }
     this.dealerIndex = (this.dealerIndex + 1) % 4;
@@ -217,6 +220,7 @@ class Game4P {
       this.emit('handEnd', { winnerTeam: challengerTeam, points, scores: this.scores }, 'all');
       if (this.scores[challengerTeam] >= 12) {
         this.emit('gameOver', { winnerTeam: challengerTeam, scores: this.scores }, 'all');
+        if (this.onGameOver) this.onGameOver(challengerTeam);
         return false;
       }
       this.dealerIndex = (this.dealerIndex + 1) % 4;

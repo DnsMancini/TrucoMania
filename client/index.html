@@ -21,6 +21,9 @@
             <button id="joinBtn" class="lobby-button lobby-button-primary">Entrar</button>
           </div>
         </div>
+        <div id="roomsList" class="rooms-list">
+          <!-- Salas serão inseridas aqui -->
+        </div>
         <div id="lobbyStatus" class="lobby-status"></div>
       </div>
     </div>
@@ -60,7 +63,6 @@
 
         <div id="vira" class="carta oculto"></div>
 
-        <!-- Informações ao vivo (canto superior esquerdo) -->
         <div id="infoLive">
           <div id="infoRodada">Rodada 1 de 3</div>
           <div id="trucoStatus">Truco: Nenhum</div>
@@ -79,6 +81,11 @@
 
         <div id="cronometro" class="cronometro oculto">
           <span id="cronometroNum"></span>
+        </div>
+
+        <!-- Contagem regressiva antes do jogo -->
+        <div id="contagemRegressiva" class="contagem-regressiva oculto">
+          <span id="contagemNumero">10</span>
         </div>
 
         <!-- Toast para mensagens temporárias -->

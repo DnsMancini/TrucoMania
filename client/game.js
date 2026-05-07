@@ -7,11 +7,14 @@ const nameInput = document.getElementById('nameInput');
 const createBtn = document.getElementById('createBtn');
 const roomInput = document.getElementById('roomInput');
 const joinBtn = document.getElementById('joinBtn');
+const roomsListEl = document.getElementById('roomsList');
+const lobbyStatusEl = document.getElementById('lobbyStatus');
+const contagemEl = document.getElementById('contagemRegressiva');
+const contagemNumero = document.getElementById('contagemNumero');
 
 // Elementos do jogo
 const teamAScoreEl = document.getElementById('teamAScore');
 const teamBScoreEl = document.getElementById('teamBScore');
-const trucoDisplay = document.getElementById('trucoDisplay');
 const trucoStatusEl = document.getElementById('trucoStatus');
 const infoRodadaEl = document.getElementById('infoRodada');
 const btnTruco = document.getElementById('btnTruco');
@@ -51,15 +54,17 @@ let gameActive = false;
 let aguardandoResposta = false;
 let isMyTurn = false;
 
-// Timer
 let turnTimerInterval = null;
 let timeLeft = 25;
+let currentGameCode = null;
 
+// ========== LOBBY FUNCTIONS ==========
 createBtn.onclick = () => {
   const name = nameInput.value.trim() || 'Jogador';
   socket.emit('createRoom', name, (res) => {
     if (res.error) return alert(res.error);
-    enterRoom(res);
+    currentGameCode = res.roomCode;
+    enterWaitingRoom(res);
   });
 };
 
@@ -69,27 +74,66 @@ joinBtn.onclick = () => {
   if (!code) return;
   socket.emit('joinRoom', { roomCode: code, playerName: name }, (res) => {
     if (res.error) return alert(res.error);
-    enterRoom(res);
+    currentGameCode = res.roomCode;
+    enterWaitingRoom(res);
   });
 };
 
-function enterRoom(res) {
+function joinRoomFromList(code) {
+  const name = nameInput.value.trim() || 'Jogador';
+  socket.emit('joinRoom', { roomCode: code, playerName: name }, (res) => {
+    if (res.error) return alert(res.error);
+    currentGameCode = res.roomCode;
+    enterWaitingRoom(res);
+  });
+}
+
+function enterWaitingRoom(res) {
   lobbyDiv.classList.add('game-hidden');
   gameWrapper.classList.remove('game-hidden');
-  const players = res.players;
-  const me = players.find(p => p.name === nameInput.value.trim() || 'Jogador');
-  myPlayerIndex = players.indexOf(me);
-  atualizarNomes(players);
+  // Exibir contagem regressiva
+  contagemEl.classList.remove('oculto');
+  contagemNumero.textContent = '10';
+  // Ocultar elementos do jogo
+  document.getElementById('mao').innerHTML = '';
+  document.getElementById('mesaCartas').innerHTML = '';
+  viraEl.classList.add('oculto');
+  btnTruco.classList.add('oculto');
+  btnCorrer.classList.add('oculto');
+  telaFinal.classList.remove('show');
 }
 
-function atualizarNomes(players) {
-  for (let i = 0; i < 4; i++) {
-    const el = nomesSlots['p' + i];
-    if (el) el.textContent = (players[i]?.name || '') + (players[i]?.isBot ? ' (Bot)' : '');
+// Atualizar lista de salas
+socket.on('roomsUpdate', (rooms) => {
+  if (!roomsListEl) return;
+  roomsListEl.innerHTML = '';
+  if (rooms.length === 0) {
+    roomsListEl.innerHTML = '<div style="color:#aaa; text-align:center;">Nenhuma sala disponível</div>';
+    return;
   }
-}
+  rooms.forEach(room => {
+    const div = document.createElement('div');
+    div.className = 'room-item';
+    div.innerHTML = `
+      <span>Sala ${room.code} (${room.players}/4 jogadores)</span>
+      <button class="join-room-btn">Entrar</button>
+    `;
+    div.querySelector('.join-room-btn').addEventListener('click', () => joinRoomFromList(room.code));
+    roomsListEl.appendChild(div);
+  });
+});
 
+// Contagem regressiva
+socket.on('lobbyCountdown', ({ count }) => {
+  contagemNumero.textContent = count;
+  if (count <= 0) {
+    contagemEl.classList.add('oculto');
+  }
+});
+
+// ========== GAME EVENTS ==========
 socket.on('handStart', (data) => {
+  contagemEl.classList.add('oculto');
   gameActive = true;
   playerHand = data.hand;
   myPlayerIndex = data.player;
@@ -201,10 +245,14 @@ socket.on('gameOver', ({ winnerTeam }) => {
   aguardandoResposta = false;
   isMyTurn = false;
   clearTurnTimer();
+  contagemEl.classList.add('oculto');
   telaFinal.classList.add('show');
   textoFinal.textContent = winnerTeam === myPlayerIndex % 2 ? 'VOCÊ VENCEU!' : 'VOCÊ PERDEU!';
   resumoFinal.textContent = 'Clique em Voltar ao Lobby para jogar novamente.';
-  document.getElementById('btnVoltarLobby').onclick = () => location.reload();
+  document.getElementById('btnVoltarLobby').onclick = () => {
+    // Ao voltar ao lobby, recarregar a página (simples)
+    location.reload();
+  };
   document.getElementById('btnBuscarNova').onclick = () => location.reload();
 });
 
@@ -230,6 +278,7 @@ socket.on('playerLeft', () => {
   location.reload();
 });
 
+// ========== BOTÕES ==========
 btnTruco.onclick = () => {
   if (!isMyTurn || !gameActive || aguardandoResposta) return;
   socket.emit('callBet', 'truco');
@@ -246,7 +295,7 @@ btnCorrer.onclick = () => {
   clearTurnTimer();
 };
 
-// Cria HTML de carta com valor central grande + cantos
+// ========== FUNÇÕES AUXILIARES ==========
 function createCardHTML(card) {
   const suitSym = suitSymbol(card.suit);
   const corClasse = (card.suit === 'copas' || card.suit === 'ouros') ? 'naipe-vermelho' : 'naipe-preto';
@@ -274,7 +323,6 @@ function renderizarMao(hand) {
   });
 }
 
-// --- Cronômetro ---
 function startTurnTimer() {
   clearTurnTimer();
   cronometroEl.classList.add('oculto');
@@ -311,7 +359,6 @@ function autoPlayRandomCard() {
   }
 }
 
-// Toast temporário (exibe mensagem por 3s)
 function mostrarMensagem(texto) {
   toastEl.textContent = texto;
   toastEl.style.display = 'block';
@@ -324,3 +371,13 @@ function suitSymbol(suit) {
   const map = { paus: '♣', copas: '♥', espadas: '♠', ouros: '♦' };
   return map[suit] || suit;
 }
+
+function atualizarNomes(players) {
+  for (let i = 0; i < 4; i++) {
+    const el = nomesSlots['p' + i];
+    if (el) el.textContent = (players[i]?.name || '') + (players[i]?.isBot ? ' (Bot)' : '');
+  }
+}
+
+// Solicitar lista ao carregar
+socket.emit('getRooms');

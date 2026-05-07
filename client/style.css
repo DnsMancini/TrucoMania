@@ -734,3 +734,72 @@ body {
     display: none !important;
   }
 }
+
+/* ... (todo o CSS anterior permanece igual) ... */
+
+/* ========== NOVOS ESTILOS (LOBBY COM LISTA E CONTAGEM) ========== */
+
+/* Lista de salas */
+.rooms-list {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+.room-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255,255,255,0.08);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: #ccc;
+  font-size: 14px;
+}
+.room-item span {
+  flex: 1;
+}
+.room-item button {
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: none;
+  background: #5cb85c;
+  color: white;
+  cursor: pointer;
+}
+
+/* Contagem regressiva (balão central) */
+.contagem-regressiva {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.25);
+  border: 2px solid rgba(241,196,15,0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3500;
+}
+.contagem-regressiva span {
+  font-size: 80px;
+  font-weight: 900;
+  color: #f1c40f;
+  text-shadow: 0 0 20px rgba(241,196,15,0.8);
+}
+
+/* Ajustes mobile para contagem */
+@media (max-width: 768px) and (orientation: portrait) {
+  .contagem-regressiva {
+    width: 150px;
+    height: 150px;
+  }
+  .contagem-regressiva span {
+    font-size: 60px;
+  }
+}
