@@ -10,11 +10,10 @@ const createBtn = document.getElementById('createBtn');
 const roomInput = document.getElementById('roomInput');
 const joinBtn = document.getElementById('joinBtn');
 
-// Elementos do jogo (novo layout)
+// Elementos do jogo
 const teamAScoreEl = document.getElementById('teamAScore');
 const teamBScoreEl = document.getElementById('teamBScore');
-const roomCodeEl = document.getElementById('roomCodeDisplay'); // ainda existe
-const playerHandDiv = document.getElementById('playerHand');   // sua mão
+const playerHandDiv = document.getElementById('playerHand');
 const trucoDisplay = document.getElementById('trucoDisplay');
 const rodadasIndicador = document.getElementById('rodadasIndicador');
 const historicoCartasDiv = document.getElementById('historicoCartas');
@@ -26,10 +25,10 @@ const parceiroNomeEl = document.getElementById('parceiroNome');
 
 // Slots
 const slots = {
-  0: document.getElementById('slotP0'), // Você
-  1: document.getElementById('slotP1'), // Oponente 1
-  2: document.getElementById('slotP2'), // Parceiro
-  3: document.getElementById('slotP3')  // Oponente 2
+  0: document.getElementById('slotP0'),
+  1: document.getElementById('slotP1'),
+  2: document.getElementById('slotP2'),
+  3: document.getElementById('slotP3')
 };
 
 // Áudios
@@ -43,7 +42,6 @@ const audioDoze = document.getElementById('audioDoze');
 let myPlayerIndex = null;
 let playerHand = [];
 let gameActive = false;
-let roomCode = '';
 
 createBtn.onclick = () => {
   const name = nameInput.value.trim() || 'Jogador';
@@ -64,10 +62,8 @@ joinBtn.onclick = () => {
 };
 
 function enterRoom(code, players) {
-  roomCode = code;
   lobbyDiv.classList.add('hidden');
   gameDiv.classList.remove('hidden');
-  roomCodeEl.textContent = code;
   const me = players.find(p => p.name === nameInput.value.trim() || 'Jogador');
   myPlayerIndex = players.indexOf(me);
   updatePlayerSlots(players);
@@ -84,7 +80,7 @@ socket.on('handStart', (data) => {
   teamAScoreEl.textContent = data.scores[0];
   teamBScoreEl.textContent = data.scores[1];
   gameActive = true;
-  historicoCartasDiv.innerHTML = ''; // limpa histórico
+  historicoCartasDiv.innerHTML = '';
   rodadaAtualSpan.textContent = 'Rodada 1 de 3';
   trucoStatusSpan.textContent = 'Truco: Nenhum';
   trucoDisplay.textContent = 'TRUCO';
@@ -92,57 +88,44 @@ socket.on('handStart', (data) => {
   correrBtn.style.display = 'none';
 
   audioDistribuir.play().catch(() => {});
-  // Atualiza nomes/avatares
   data.players.forEach((p, i) => {
     const slot = slots[i];
     if (slot) {
       slot.querySelector('.name').textContent = p.name + (p.isBot ? ' (Bot)' : '');
-      updateSlotAvatar(i, p.isBot, data.players.length === 4);
     }
   });
-  // Atualiza nome do parceiro no cabeçalho
   const parceiro = data.players.find((_, i) => i % 2 === myPlayerIndex % 2 && i !== myPlayerIndex);
   if (parceiroNomeEl && parceiro) parceiroNomeEl.textContent = parceiro.name;
 
-  // Mãos dos oponentes (costas)
   for (let i = 0; i < 4; i++) {
     if (i !== myPlayerIndex) {
-      slots[i].querySelector('.hand').innerHTML =
-        '<div class="card back"></div><div class="card back"></div><div class="card back"></div>';
+      slots[i].querySelector('.hand').innerHTML = '<div class="card back"></div><div class="card back"></div><div class="card back"></div>';
     }
   }
-  // Garante que as mãos sejam exibidas (alguns slots podem estar ocultos)
   updateTurn(data.currentPlayer);
 });
 
-socket.on('turn', ({ currentPlayer }) => {
-  updateTurn(currentPlayer);
-});
+socket.on('turn', ({ currentPlayer }) => updateTurn(currentPlayer));
 
 socket.on('cardPlayed', ({ player, card }) => {
-  // Remove uma carta de costas do jogador que jogou
   const slot = slots[player];
   if (slot) {
     const handDiv = slot.querySelector('.hand');
-    const backs = handDiv.querySelectorAll('.back');
-    if (backs.length > 0) backs[0].remove();
+    if (handDiv) {
+      const backs = handDiv.querySelectorAll('.back');
+      if (backs.length > 0) backs[0].remove();
+    }
   }
-  // Adiciona ao histórico visual
   adicionarAoHistorico(card);
   audioCarta.play().catch(() => {});
 });
 
 socket.on('roundResult', ({ winner }) => {
-  // Atualiza indicador de rodadas (1ª, 2ª, 3ª)
   const spans = rodadasIndicador.querySelectorAll('span');
-  if (spans.length >= 3) {
-    if (winner !== null && winner !== undefined) {
-      // Marca rodada como concluída
-      const rodada = gameActive ? (parseInt(rodadaAtualSpan.textContent.split(' ')[1]) - 1) : 0;
-      spans[rodada].textContent = `${rodada + 1}ª: ✔`;
-    } else {
-      // Empate, talvez marcar como empate?
-    }
+  if (spans.length >= 3 && gameActive) {
+    const rodadaAtual = parseInt(rodadaAtualSpan.textContent.split(' ')[1]) || 1;
+    const idx = rodadaAtual - 1;
+    if (idx < 3) spans[idx].textContent = `${idx + 1}ª: ✔`;
   }
 });
 
@@ -178,16 +161,14 @@ socket.on('betAccepted', ({ handValue }) => {
   correrBtn.style.display = 'none';
 });
 
-socket.on('turnToRespond', ({ responderTeam }) => {
-  // No novo layout, o botão "CORRER" já apareceu quando o truco foi chamado.
-});
+socket.on('turnToRespond', () => {});
 
 socket.on('playerLeft', () => {
   alert('Oponente saiu do jogo.');
   location.reload();
 });
 
-// ---- Funções auxiliares ----
+// Funções auxiliares
 
 function updatePlayerSlots(players) {
   for (let i = 0; i < 4; i++) {
@@ -196,7 +177,6 @@ function updatePlayerSlots(players) {
       if (i < players.length) {
         slot.style.display = 'block';
         slot.querySelector('.name').textContent = players[i].name + (players[i].isBot ? ' (Bot)' : '');
-        updateSlotAvatar(i, players[i].isBot, players.length === 4);
       } else {
         slot.style.display = 'none';
       }
@@ -204,46 +184,20 @@ function updatePlayerSlots(players) {
   }
 }
 
-function updateSlotAvatar(index, isBot, isFull) {
-  const slot = slots[index];
-  const avatarImg = slot.querySelector('.avatar');
-  if (!avatarImg) return;
-  const isParceiro = (myPlayerIndex !== null && index % 2 === myPlayerIndex % 2 && index !== myPlayerIndex);
-  const isVoce = (index === myPlayerIndex);
-  if (isVoce) {
-    avatarImg.src = '/img/voce.png';
-  } else if (isBot) {
-    avatarImg.src = index % 2 === 0 ? '/img/bot1.png' : '/img/bot2.png';
-  } else if (isParceiro && isFull) {
-    avatarImg.src = '/img/Avatarparceiro.png';
-  } else {
-    avatarImg.src = '/img/Avatarparceiro.png';
-  }
-}
-
 function updateTurn(cp) {
-  // Remove destaque de todos e coloca no atual
   for (let i = 0; i < 4; i++) {
     slots[i].classList.toggle('active', i === cp);
   }
-  // Lógica de botões: se for sua vez, habilita "TRUCO" (a jogada de carta é feita clicando na carta)
   if (cp === myPlayerIndex && gameActive && playerHand.length > 0) {
     trucoBtn.style.display = 'inline-block';
-    // O botão "CORRER" só aparece quando há aposta pendente
   } else {
     trucoBtn.style.display = 'none';
   }
 }
 
-// Botões de ação (agora fixos no HTML)
-trucoBtn.onclick = () => {
-  socket.emit('callBet', 'truco');
-};
-correrBtn.onclick = () => {
-  socket.emit('respondBet', 'flee');
-};
+trucoBtn.onclick = () => socket.emit('callBet', 'truco');
+correrBtn.onclick = () => socket.emit('respondBet', 'flee');
 
-// Função de jogar carta: clica na carta diretamente
 function renderMyHand(hand) {
   playerHandDiv.innerHTML = hand.map((c, idx) => {
     const simbolo = suitSymbol(c.suit);
@@ -252,8 +206,6 @@ function renderMyHand(hand) {
       <span class="card-value ${corClasse}">${c.rank}${simbolo}</span>
     </div>`;
   }).join('');
-
-  // Adiciona evento de clique em cada carta
   document.querySelectorAll('.my-card').forEach(card => {
     card.onclick = () => {
       const index = parseInt(card.dataset.index);
@@ -269,8 +221,11 @@ function adicionarAoHistorico(card) {
   const corClasse = (card.suit === 'copas' || card.suit === 'ouros') ? 'naipe-vermelho' : 'naipe-preto';
   const cardDiv = document.createElement('div');
   cardDiv.className = `card ${corClasse}`;
-  cardDiv.style.width = '40px';
-  cardDiv.style.height = '55px';
+  cardDiv.style.width = '35px';
+  cardDiv.style.height = '50px';
+  cardDiv.style.fontSize = '0.7rem';
+  cardDiv.style.backgroundColor = 'white';
+  cardDiv.style.backgroundImage = 'none';
   cardDiv.textContent = card.rank + simbolo;
   historicoCartasDiv.appendChild(cardDiv);
 }
