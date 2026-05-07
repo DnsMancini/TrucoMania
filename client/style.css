@@ -7,6 +7,7 @@ body {
   justify-content: center;
   align-items: center;
   min-height: 100vh;
+  margin: 0;
 }
 .hidden { display: none !important; }
 .screen { width: 100%; max-width: 800px; padding: 20px; }
@@ -16,15 +17,19 @@ body {
 .menu button:hover { background: #4cae4c; }
 .join-area { margin-top: 10px; }
 
+/* Fundo geral do jogo */
 #mesaFundo {
   background: url('/img/mesa.png') no-repeat center center/cover;
   border-radius: 20px;
-  padding: 20px;
+  padding: 10px;
   min-height: 80vh;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  position: relative;
 }
+
+/* Barra superior com placares */
 .top-bar {
   display: flex;
   justify-content: space-between;
@@ -33,67 +38,87 @@ body {
   border-radius: 10px;
   padding: 5px 15px;
   font-weight: bold;
+  z-index: 5;
 }
 .team-score { display: flex; align-items: center; gap: 5px; }
 .bandeira { width: 30px; height: 20px; object-fit: cover; border-radius: 3px; }
 .timeA { color: #5cb85c; }
 .timeB { color: #d9534f; }
+.room-code { font-size: 20px; background: rgba(255,255,255,0.2); padding: 5px 15px; border-radius: 8px; }
 
-.vira-area {
-  text-align: center;
-  margin: 10px 0;
-  background: rgba(255,255,255,0.2);
-  border-radius: 8px;
-  padding: 5px;
-  font-size: 18px;
+/* Container principal dos jogadores e mesa */
+.mesa-container {
+  position: relative;
+  flex: 1;
+  min-height: 500px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.table-grid {
-  display: grid;
-  grid-template: 1fr 1fr / 1fr 1fr;
-  gap: 10px;
-  margin: 15px 0;
-}
+/* Slots de jogadores */
 .player-slot {
+  position: absolute;
   background: rgba(0,0,0,0.5);
   border-radius: 12px;
   padding: 8px;
   text-align: center;
-  position: relative;
-  min-height: 80px;
+  width: 150px;
+  z-index: 2;
 }
 .player-slot.active {
   box-shadow: 0 0 15px gold;
   background: rgba(255,215,0,0.3);
 }
 .player-slot .avatar {
-  width: 45px;
-  height: 45px;
+  width: 50px;
+  height: 50px;
   border-radius: 50%;
-  position: absolute;
-  top: -15px;
-  left: 10px;
   border: 2px solid white;
-  background: white;
   object-fit: cover;
+  background: white;
+  display: block;
+  margin: -30px auto 5px;
 }
 .player-slot .name {
   font-weight: bold;
-  margin-top: 15px;
+  font-size: 13px;
+  margin-bottom: 5px;
   display: block;
-  font-size: 14px;
 }
 .player-slot .hand {
   display: flex;
   justify-content: center;
-  gap: 5px;
-  margin-top: 5px;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+/* Posicionamento dos jogadores */
+.slot-top {
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.slot-left {
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.slot-right {
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.slot-bottom {
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
 }
 
 /* Cartas */
 .card {
-  width: 60px;
-  height: 85px;
+  width: 45px;
+  height: 65px;
   border-radius: 6px;
   display: flex;
   align-items: center;
@@ -110,24 +135,33 @@ body {
 .card.back {
   background-image: url('/img/carta-copag-vermelha.png');
   background-size: cover;
-  width: 60px;
-  height: 85px;
   font-size: 0;
 }
 .player-slot .hand .card {
-  width: 45px;
-  height: 65px;
+  width: 40px;
+  height: 55px;
 }
+
+/* Mão do jogador principal (embaixo, maior) */
 .my-hand {
   display: flex;
   justify-content: center;
   gap: 10px;
-  margin: 15px 0;
+  margin: 10px 0;
+  position: absolute;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
 }
 .my-hand .card {
   cursor: pointer;
   width: 70px;
   height: 98px;
+  background-image: url('/img/carta-copag-vermelha.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
 }
 .my-hand .card:hover {
   transform: translateY(-10px);
@@ -142,29 +176,54 @@ body {
 }
 
 .card-value {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: bold;
   color: #000;
-  background: rgba(255,255,255,0.7);
+  background: rgba(255,255,255,0.8);
   border-radius: 4px;
-  padding: 2px 6px;
+  padding: 2px 5px;
 }
 
-/* Mesa (cartas jogadas) */
+/* Centro da mesa */
+.mesa-centro {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  z-index: 1;
+  width: 60%;
+}
+.vira-area {
+  background: rgba(0,0,0,0.6);
+  border-radius: 8px;
+  padding: 5px 15px;
+  font-size: 18px;
+  display: inline-block;
+  margin-bottom: 10px;
+}
 .table-area {
   display: flex;
   justify-content: center;
   gap: 10px;
   min-height: 85px;
-  margin: 10px 0;
+  flex-wrap: wrap;
 }
+
+/* Botões */
 .actions, .bet-actions {
   text-align: center;
   margin: 10px 0;
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 4;
+  display: flex;
+  gap: 10px;
 }
 .actions button, .bet-actions button {
   padding: 8px 16px;
-  margin: 5px;
   font-size: 14px;
   border-radius: 6px;
   border: none;
@@ -176,6 +235,7 @@ body {
 .actions button:hover, .bet-actions button:hover {
   background: #ec971f;
 }
+
 #messageArea {
   text-align: center;
   font-weight: bold;
@@ -184,4 +244,17 @@ body {
   background: rgba(0,0,0,0.5);
   border-radius: 8px;
   margin-top: 5px;
+  position: absolute;
+  top: 50px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  white-space: nowrap;
+}
+
+/* Responsivo */
+@media (max-width: 600px) {
+  .player-slot { width: 120px; }
+  .player-slot .avatar { width: 40px; height: 40px; margin-top: -25px; }
+  .my-hand .card { width: 55px; height: 78px; }
 }
