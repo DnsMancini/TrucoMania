@@ -208,14 +208,20 @@ btnTruco.onclick = () => socket.emit('callBet', 'truco');
 btnCorrer.onclick = () => socket.emit('respondBet', 'flee');
 
 function renderizarMao(hand) {
+  console.log('Renderizando mão com', hand.length, 'cartas');
   maoDiv.innerHTML = '';
+  if (!hand.length) {
+    console.warn('Mão vazia!');
+    return;
+  }
   hand.forEach((c, idx) => {
     const carta = document.createElement('div');
     carta.className = 'carta playerCard';
     carta.setAttribute('data-index', idx);
     carta.innerHTML = `<span class="center ${c.suit === 'copas' || c.suit === 'ouros' ? 'naipe-vermelho' : 'naipe-preto'}">${c.rank}${suitSymbol(c.suit)}</span>`;
-    carta.style.pointerEvents = 'auto'; // garante clique
+    carta.style.pointerEvents = 'auto';
     carta.addEventListener('click', () => {
+      console.log('Carta clicada:', c.rank, c.suit);
       socket.emit('playCard', c);
       playerHand.splice(idx, 1);
       renderizarMao(playerHand);

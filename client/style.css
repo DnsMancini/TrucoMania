@@ -69,7 +69,7 @@ body {
   pointer-events: none;
   z-index: 1900;
 }
-#game > * { pointer-events: auto; }
+#game > * { }
 
 #ui {
   position: fixed;
@@ -451,4 +451,13 @@ body {
   #painelRodada { left: 12px; top: 12px; width: 156px; padding: 10px 12px; }
   #placar { right: var(--safe-right); top: var(--safe-top); font-size: 15px; }
   #painelHistorico { left: calc(var(--safe-left) + 8px); bottom: 20px; width: 40px; min-height: 110px; }
+}
+/* Garante que as cartas da mão recebam clique */
+#mao {
+  z-index: 2100; /* acima do #game que tem 1900 */
+}
+
+/* Aumenta z-index dos botões para ficarem acima de tudo */
+#btnTruco, #btnCorrer {
+  z-index: 2600; /* maior que qualquer outro */
 }

@@ -46,6 +46,7 @@ function handleSocket(io) {
     });
 
     socket.on('playCard', (card) => {
+      console.log('playCard recebido de', socket.id, 'carta:', card);
       const room = findRoomBySocket(socket.id);
       if (!room || !room.game) return;
       const player = room.players.find(p => p.id === socket.id);
