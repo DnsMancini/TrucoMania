@@ -289,6 +289,21 @@ body {
 .c2 { top: calc(50% - var(--offset-y) - clamp(22px, 4vh, 34px)); left: 50%; transform: translate(-50%, -50%); }
 .c3 { top: 50%; left: calc(50% + var(--offset-x)); transform: translate(-50%, -50%); }
 
+/* Placar e sets */
+.set-wins {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  font-size: 16px;
+  margin-bottom: 4px;
+  color: #eee;
+}
+.set-pontos {
+  font-weight: bold;
+  color: #f1c40f;
+}
+
 .placar-times { display: flex; justify-content: flex-end; gap: 6px; }
 .placar-time + .placar-time { margin-left: -6px; }
 .placar-time {
@@ -466,32 +481,6 @@ body {
 .lobby-join-area { margin-top: 10px; }
 .lobby-status { text-align: center; margin-top: 15px; color: #ccc; }
 
-.telaFinal {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: rgba(0,0,0,0.8);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 60px;
-  font-weight: bold;
-  color: white;
-  opacity: 0;
-  pointer-events: none;
-  transition: 0.5s;
-  z-index: calc(var(--overlay-z) + 10);
-}
-.telaFinal.show { opacity: 1; pointer-events: auto; }
-#textoFinal { animation: zoom 0.5s ease; text-align: center; padding: 0 24px; max-width: min(92vw, 720px); }
-@keyframes zoom {
-  from { transform: scale(0.5); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
-}
-
-.naipe-vermelho { color: #c1121f; }
-.naipe-preto { color: #111; }
-
 /* Lista de salas */
 .rooms-list {
   margin-top: 20px;
@@ -542,6 +531,32 @@ body {
   color: #f1c40f;
   text-shadow: 0 0 20px rgba(241,196,15,0.8);
 }
+
+.telaFinal {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 60px;
+  font-weight: bold;
+  color: white;
+  opacity: 0;
+  pointer-events: none;
+  transition: 0.5s;
+  z-index: calc(var(--overlay-z) + 10);
+}
+.telaFinal.show { opacity: 1; pointer-events: auto; }
+#textoFinal { animation: zoom 0.5s ease; text-align: center; padding: 0 24px; max-width: min(92vw, 720px); }
+@keyframes zoom {
+  from { transform: scale(0.5); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.naipe-vermelho { color: #c1121f; }
+.naipe-preto { color: #111; }
 
 /* ========== MOBILE (retrato) ========== */
 @media (max-width: 1024px) and (orientation: portrait) {

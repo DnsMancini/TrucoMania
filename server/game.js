@@ -29,12 +29,13 @@ function shuffle(deck) {
 }
 
 class Game4P {
-  constructor(roomId, players, emit, onGameOver = null) {
+  constructor(roomId, players, emit, onMatchOver = null) {
     this.roomId = roomId;
     this.players = players;
     this.emit = emit;
-    this.onGameOver = onGameOver; // callback para remoção da sala
-    this.scores = [0, 0];
+    this.onMatchOver = onMatchOver;
+    this.setWins = [0, 0]; // vitórias em sets
+    this.scores = [0, 0];  // pontos do set atual
     this.dealerIndex = 0;
     this.handValue = 1;
     this.maoDe11 = false;
@@ -66,7 +67,6 @@ class Game4P {
     else if (this.scores[0] >= 11 || this.scores[1] >= 11) { this.handValue = 3; this.maoDe11 = true; }
     else { this.handValue = 1; this.maoDe11 = false; }
 
-    // Sentido anti‑horário: próximo jogador é o anterior (dealerIndex + 3) % 4
     this.currentPlayer = (this.dealerIndex + 3) % 4;
     this.turnStage = 'play';
     this.betState = null;
@@ -85,6 +85,7 @@ class Game4P {
           dealer: this.dealerIndex,
           handValue: this.handValue,
           scores: this.scores,
+          setWins: this.setWins,
           maoDe11: this.maoDe11,
           players: this.players.map(p => ({ name: p.name, isBot: p.isBot }))
         }, this.players[i].id);
@@ -107,7 +108,6 @@ class Game4P {
 
     if (this.playersInRound === 4) this.resolveRound();
     else {
-      // Sentido anti‑horário: (playerIndex + 3) % 4
       this.currentPlayer = (playerIndex + 3) % 4;
       this.emit('turn', { currentPlayer: this.currentPlayer }, 'all');
     }
@@ -152,12 +152,43 @@ class Game4P {
 
   endHand(winningTeam) {
     this.scores[winningTeam] += this.handValue;
-    this.emit('handEnd', { winnerTeam: winningTeam, points: this.handValue, scores: this.scores }, 'all');
+    this.emit('handEnd', {
+      winnerTeam: winningTeam,
+      points: this.handValue,
+      scores: this.scores,
+      setWins: this.setWins
+    }, 'all');
+
     if (this.scores[winningTeam] >= 12) {
-      this.emit('gameOver', { winnerTeam: winningTeam, scores: this.scores }, 'all');
-      if (this.onGameOver) this.onGameOver(winningTeam); // notifica remoção da sala
+      // Fim do set
+      this.setWins[winningTeam]++;
+      this.emit('setWin', {
+        winnerTeam,
+        setWins: this.setWins
+      }, 'all');
+
+      if (this.setWins[winningTeam] >= 2) {
+        // Fim da partida
+        this.emit('matchOver', {
+          winnerTeam,
+          setWins: this.setWins
+        }, 'all');
+        if (this.onMatchOver) this.onMatchOver(winnerTeam);
+        return;
+      }
+
+      // Resetar pontos e iniciar novo set após pausa
+      this.scores = [0, 0];
+      this.dealerIndex = (this.dealerIndex + 1) % 4;
+      const checkBot = this.checkBotTurn;
+      setTimeout(() => {
+        this.startNewHand();
+        if (checkBot) checkBot();
+      }, 3000);
       return;
     }
+
+    // Ainda não fechou o set, próxima mão
     this.dealerIndex = (this.dealerIndex + 1) % 4;
     const checkBot = this.checkBotTurn;
     setTimeout(() => {
@@ -166,18 +197,36 @@ class Game4P {
     }, 1500);
   }
 
-  // Desistir voluntariamente da mão
   fleeHand(playerIndex) {
     if (this.turnStage !== 'play') return false;
     const fleeingTeam = playerIndex % 2;
     const winningTeam = 1 - fleeingTeam;
     this.scores[winningTeam] += this.handValue;
-    this.emit('handEnd', { winnerTeam: winningTeam, points: this.handValue, scores: this.scores }, 'all');
+    this.emit('handEnd', {
+      winnerTeam: winningTeam,
+      points: this.handValue,
+      scores: this.scores,
+      setWins: this.setWins
+    }, 'all');
+
     if (this.scores[winningTeam] >= 12) {
-      this.emit('gameOver', { winnerTeam: winningTeam, scores: this.scores }, 'all');
-      if (this.onGameOver) this.onGameOver(winningTeam);
+      this.setWins[winningTeam]++;
+      this.emit('setWin', { winnerTeam, setWins: this.setWins }, 'all');
+      if (this.setWins[winningTeam] >= 2) {
+        this.emit('matchOver', { winnerTeam, setWins: this.setWins }, 'all');
+        if (this.onMatchOver) this.onMatchOver(winningTeam);
+        return true;
+      }
+      this.scores = [0, 0];
+      this.dealerIndex = (this.dealerIndex + 1) % 4;
+      const checkBot = this.checkBotTurn;
+      setTimeout(() => {
+        this.startNewHand();
+        if (checkBot) checkBot();
+      }, 3000);
       return true;
     }
+
     this.dealerIndex = (this.dealerIndex + 1) % 4;
     const checkBot = this.checkBotTurn;
     setTimeout(() => {
@@ -217,11 +266,23 @@ class Game4P {
       const points = this.getBetValueBefore(level);
       const challengerTeam = challenger % 2;
       this.scores[challengerTeam] += points;
-      this.emit('handEnd', { winnerTeam: challengerTeam, points, scores: this.scores }, 'all');
+      this.emit('handEnd', { winnerTeam: challengerTeam, points, scores: this.scores, setWins: this.setWins }, 'all');
       if (this.scores[challengerTeam] >= 12) {
-        this.emit('gameOver', { winnerTeam: challengerTeam, scores: this.scores }, 'all');
-        if (this.onGameOver) this.onGameOver(challengerTeam);
-        return false;
+        this.setWins[challengerTeam]++;
+        this.emit('setWin', { winnerTeam: challengerTeam, setWins: this.setWins }, 'all');
+        if (this.setWins[challengerTeam] >= 2) {
+          this.emit('matchOver', { winnerTeam: challengerTeam, setWins: this.setWins }, 'all');
+          if (this.onMatchOver) this.onMatchOver(challengerTeam);
+          return false;
+        }
+        this.scores = [0, 0];
+        this.dealerIndex = (this.dealerIndex + 1) % 4;
+        const checkBot = this.checkBotTurn;
+        setTimeout(() => {
+          this.startNewHand();
+          if (checkBot) checkBot();
+        }, 3000);
+        return true;
       }
       this.dealerIndex = (this.dealerIndex + 1) % 4;
       setTimeout(() => {

@@ -14,6 +14,8 @@ const contagemNumero = document.getElementById('contagemNumero');
 // Elementos do jogo
 const teamAScoreEl = document.getElementById('teamAScore');
 const teamBScoreEl = document.getElementById('teamBScore');
+const setAScoreEl = document.getElementById('setAScore');
+const setBScoreEl = document.getElementById('setBScore');
 const trucoStatusEl = document.getElementById('trucoStatus');
 const infoRodadaEl = document.getElementById('infoRodada');
 const btnTruco = document.getElementById('btnTruco');
@@ -91,7 +93,6 @@ function enterWaitingRoom(res) {
   gameWrapper.classList.remove('game-hidden');
   contagemEl.classList.remove('oculto');
   contagemNumero.textContent = '10';
-  // Ocultar elementos do jogo
   maoDiv.innerHTML = '';
   mesaCartas.innerHTML = '';
   viraEl.classList.add('oculto');
@@ -100,6 +101,7 @@ function enterWaitingRoom(res) {
   telaFinal.classList.remove('show');
 }
 
+// Solicitar lista ao conectar
 socket.on('connect', () => {
   socket.emit('getRooms');
 });
@@ -140,6 +142,8 @@ socket.on('handStart', (data) => {
   renderizarMao(playerHand);
   teamAScoreEl.textContent = data.scores[0];
   teamBScoreEl.textContent = data.scores[1];
+  setAScoreEl.textContent = data.setWins[0];
+  setBScoreEl.textContent = data.setWins[1];
   infoRodadaEl.textContent = 'Rodada 1 de 3';
   trucoStatusEl.textContent = 'Truco: Nenhum';
   btnTruco.classList.remove('oculto');
@@ -220,13 +224,15 @@ socket.on('roundResult', ({ round, winner }) => {
   setTimeout(() => { mesaCartas.innerHTML = ''; }, 1200);
 });
 
-socket.on('handEnd', ({ winnerTeam, points, scores }) => {
+socket.on('handEnd', ({ winnerTeam, points, scores, setWins }) => {
   gameActive = false;
   aguardandoResposta = false;
   isMyTurn = false;
   clearTurnTimer();
   teamAScoreEl.textContent = scores[0];
   teamBScoreEl.textContent = scores[1];
+  setAScoreEl.textContent = setWins[0];
+  setBScoreEl.textContent = setWins[1];
   if (points === 6) audioSeis.play().catch(e => console.warn('Áudio seis:', e));
   else if (points === 9) audioNove.play().catch(e => console.warn('Áudio nove:', e));
   else if (points === 12) audioDoze.play().catch(e => console.warn('Áudio doze:', e));
@@ -240,14 +246,20 @@ socket.on('handEnd', ({ winnerTeam, points, scores }) => {
   mostrarMensagem(winnerTeam === myPlayerIndex % 2 ? 'Seu time ganhou a mão!' : 'Time adversário ganhou a mão.');
 });
 
-socket.on('gameOver', ({ winnerTeam }) => {
+socket.on('setWin', ({ winnerTeam, setWins }) => {
+  setAScoreEl.textContent = setWins[0];
+  setBScoreEl.textContent = setWins[1];
+  mostrarMensagem(winnerTeam === myPlayerIndex % 2 ? 'Set vencido!' : 'Set perdido!');
+});
+
+socket.on('matchOver', ({ winnerTeam, setWins }) => {
   aguardandoResposta = false;
   isMyTurn = false;
   clearTurnTimer();
   contagemEl.classList.add('oculto');
   telaFinal.classList.add('show');
-  textoFinal.textContent = winnerTeam === myPlayerIndex % 2 ? 'VOCÊ VENCEU!' : 'VOCÊ PERDEU!';
-  resumoFinal.textContent = 'Clique em Voltar ao Lobby para jogar novamente.';
+  textoFinal.textContent = winnerTeam === myPlayerIndex % 2 ? 'VOCÊ VENCEU A PARTIDA!' : 'VOCÊ PERDEU A PARTIDA!';
+  resumoFinal.textContent = `Placar final: ${setWins[0]} x ${setWins[1]}`;
   document.getElementById('btnVoltarLobby').onclick = () => location.reload();
   document.getElementById('btnBuscarNova').onclick = () => location.reload();
 });

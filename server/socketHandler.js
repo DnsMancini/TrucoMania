@@ -65,14 +65,6 @@ function handleSocket(io) {
       callback({ roomCode, players: room.players.map(p => ({ name: p.name, isBot: p.isBot })) });
       broadcastRooms(io);
 
-      // Enviar contagem atual para o novo jogador
-      if (room.countdownInterval) {
-        // Aproximado: enviar 10 (ou podemos armazenar o valor atual no room.count)
-        // Vamos apenas emitir o próximo tick, não é perfeito mas suficiente.
-        // Melhor: armazenar count na room. Como não temos, vamos apenas deixar a contagem rolar.
-        // O jogador verá a contagem a partir do próximo segundo.
-      }
-
       if (room.players.length === 4) {
         if (room.countdownInterval) {
           clearInterval(room.countdownInterval);
@@ -124,7 +116,6 @@ function handleSocket(io) {
             broadcastRooms(io);
           } else {
             broadcastRooms(io);
-            // Se o jogo estiver ativo, ele continua (com bots ou jogadores restantes)
           }
           break;
         }
