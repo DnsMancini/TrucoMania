@@ -19,7 +19,7 @@ body {
   font-family: Arial, sans-serif;
   color: white;
   overflow: hidden;
-  touch-action: manipulation; /* melhora resposta em telas sensíveis */
+  touch-action: manipulation;
 }
 
 #gameWrapper {
@@ -101,7 +101,7 @@ body {
   transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.22), 0 10px 22px rgba(0,0,0,0.45);
   pointer-events: auto;
-  -webkit-tap-highlight-color: transparent; /* evita destaque azul no mobile */
+  -webkit-tap-highlight-color: transparent;
 }
 
 .game-button-truco {
@@ -149,21 +149,23 @@ body {
   color: #fff;
 }
 
-/* Toast temporário */
+/* Toast temporário (mensagens) */
 #toast {
   position: fixed;
-  top: calc(var(--safe-top) + 60px);
+  top: 50%;
   left: 50%;
-  transform: translateX(-50%);
-  background: rgba(0,0,0,0.85);
-  color: #fff;
-  padding: 8px 18px;
-  border-radius: 20px;
-  font-weight: 700;
-  font-size: 14px;
-  z-index: 3000;
+  transform: translate(-50%, -50%);
+  background: rgba(0,0,0,0.9);
+  color: #f1c40f;
+  padding: 12px 24px;
+  border: 2px solid #f1c40f;
+  border-radius: 12px;
+  font-weight: 800;
+  font-size: 16px;
+  z-index: 3500;
   display: none;
   white-space: nowrap;
+  text-align: center;
 }
 
 .game-button:hover {
@@ -567,16 +569,6 @@ body {
     display: none !important; /* não mostrar aviso no retrato */
   }
 
-  /* Exibe aviso e esconde jogo apenas em paisagem no mobile */
-  @media (orientation: landscape) {
-    .avisoOrientacao {
-      display: flex !important;
-    }
-    #gameWrapper > *:not(.avisoOrientacao) {
-      display: none !important;
-    }
-  }
-
   .mesa {
     width: var(--table-size);
     height: var(--table-size);
@@ -611,7 +603,7 @@ body {
 
   /* Reposicionamento dos jogadores (ordem: embaixo, direita, cima, esquerda) */
   #p0 {
-    bottom: 100px;  /* sobe um pouco para dar espaço à mão */
+    bottom: 110px;
     left: 50%;
     transform: translate(-50%, 0);
   }
@@ -631,23 +623,25 @@ body {
     transform: translate(0, -50%);
   }
 
-  /* Mãos dos oponentes no mobile */
+  /* Mãos dos oponentes coladas nas bordas */
   #hand1 { /* esquerda */
-    left: 8px;
+    left: 0;
     top: 50%;
     transform: translate(0, -50%);
     flex-direction: column;
+    align-items: flex-start;
+  }
+  #hand3 { /* direita */
+    right: 0;
+    top: 50%;
+    transform: translate(0, -50%);
+    flex-direction: column;
+    align-items: flex-end;
   }
   #hand2 { /* topo */
     top: 60px;
     left: 50%;
     transform: translateX(-50%);
-  }
-  #hand3 { /* direita */
-    right: 8px;
-    top: 50%;
-    transform: translate(0, -50%);
-    flex-direction: column;
   }
 
   /* Ajuste de rotações e espaçamentos para mãos mobile */
@@ -678,7 +672,7 @@ body {
     font-size: 24px;
   }
 
-  /* Botões mobile */
+  /* Botões mobile (desceram) */
   .game-button {
     min-width: 120px;
     height: 44px;
@@ -686,14 +680,14 @@ body {
   }
   .game-button-truco {
     left: 10px;
-    bottom: calc(130px + var(--safe-bottom));
+    bottom: calc(90px + var(--safe-bottom)); /* mais próximo da mão */
   }
   .game-button-correr {
     right: 10px;
-    bottom: calc(130px + var(--safe-bottom));
+    bottom: calc(90px + var(--safe-bottom));
   }
 
-  /* Info live */
+  /* Info live (mais discreto) */
   #infoLive {
     top: calc(var(--safe-top) + 4px);
     left: calc(var(--safe-left) + 4px);
@@ -713,14 +707,30 @@ body {
     padding: 12px 20px;
   }
 
-  /* Histórico de rodadas */
+  /* Histórico de rodadas (desceu para perto da mão) */
   #painelHistorico {
     left: calc(var(--safe-left) + 4px);
-    bottom: 100px;
+    bottom: 15px;   /* bem embaixo */
     width: 36px;
     min-height: 100px;
   }
   .bolinha-rodada {
     width: 14px; height: 14px;
+  }
+
+  /* Toast ajustado para mobile */
+  #toast {
+    font-size: 14px;
+    padding: 10px 16px;
+  }
+}
+
+/* Aviso de orientação em paisagem (se mobile) */
+@media (max-width: 768px) and (orientation: landscape) {
+  .avisoOrientacao {
+    display: flex !important;
+  }
+  #gameWrapper > *:not(.avisoOrientacao) {
+    display: none !important;
   }
 }
