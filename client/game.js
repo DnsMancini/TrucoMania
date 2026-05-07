@@ -109,12 +109,20 @@ socket.on('handStart', (data) => {
         '<div class="card back"></div><div class="card back"></div><div class="card back"></div>';
     }
   }
+
+  // Dentro de socket.on('handStart', ...)
+  for (let i = 0; i < 4; i++) {
+   if (i !== myPlayerIndex) {
+    slots[i].querySelector('.hand').innerHTML =
+      '<div class="card back"></div><div class="card back"></div><div class="card back"></div>';
+    }
+  }
 });
 
 socket.on('turn', ({ currentPlayer }) => {
   updateTurn(currentPlayer);
 });
-
+ 
 socket.on('cardPlayed', ({ player, card }) => {
   const slot = slots[player];
   if (slot) {
@@ -125,11 +133,11 @@ socket.on('cardPlayed', ({ player, card }) => {
   // Cria elemento da carta jogada
   const cardDiv = document.createElement('div');
   cardDiv.className = 'card';
-  cardDiv.style.backgroundImage = "url('/img/carta-copag-vermelha.png')";
-  cardDiv.style.backgroundSize = 'contain';
-  cardDiv.style.backgroundRepeat = 'no-repeat';
-  cardDiv.style.backgroundPosition = 'center';
-  cardDiv.innerHTML = `<span class="card-value">${card.rank}${suitSymbol(card.suit)}</span>`;
+  cardDiv.style.backgroundColor = 'white';
+  cardDiv.style.backgroundImage = 'none';
+  const simbolo = suitSymbol(card.suit);
+  const corClasse = (card.suit === 'copas' || card.suit === 'ouros') ? 'naipe-vermelho' : 'naipe-preto';
+  cardDiv.innerHTML = `<span class="card-value ${corClasse}">${card.rank}${simbolo}</span>`;
   cardDiv.setAttribute('data-player', player);
   tableArea.appendChild(cardDiv);
   audioCarta.play().catch(() => {});
@@ -259,11 +267,13 @@ function showBetActions(level) {
 }
 
 function renderMyHand(hand) {
-  playerHandDiv.innerHTML = hand.map((c, idx) =>
-    `<div class="card my-card" data-index="${idx}" style="background-image: url('/img/carta-copag-vermelha.png'); background-size: contain; background-repeat: no-repeat; background-position: center;">
-      <span class="card-value">${c.rank}${suitSymbol(c.suit)}</span>
-    </div>`
-  ).join('');
+  playerHandDiv.innerHTML = hand.map((c, idx) => {
+    const simbolo = suitSymbol(c.suit);
+    const corClasse = (c.suit === 'copas' || c.suit === 'ouros') ? 'naipe-vermelho' : 'naipe-preto';
+    return `<div class="card my-card" data-index="${idx}" style="background-color: white; background-image: none;">
+      <span class="card-value ${corClasse}">${c.rank}${simbolo}</span>
+    </div>`;
+  }).join('');
 }
 
 function clearTable() {

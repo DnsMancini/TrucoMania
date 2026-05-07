@@ -7,7 +7,7 @@
 html, body {
   width: 100%;
   height: 100%;
-  overflow: hidden; /* evita scroll */
+  overflow: hidden;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   background: #1a4d1a;
   color: white;
@@ -22,7 +22,7 @@ html, body {
   display: none !important;
 }
 
-/* Tela de lobby (centralizada) */
+/* Lobby */
 #lobby {
   display: flex;
   flex-direction: column;
@@ -53,16 +53,17 @@ html, body {
   margin-top: 15px;
 }
 
-/* Tela do jogo ocupa tudo */
+/* Tela do jogo */
 #game {
   width: 100%;
   height: 100%;
   position: relative;
 }
 
-/* Fundo da mesa ocupa toda a tela */
+/* Fundo da mesa centralizado e com metade do tamanho */
 #mesaFundo {
-  background: url('/img/mesa.png') no-repeat center center/cover;
+  background: url('/img/mesa.png') no-repeat center center;
+  background-size: 50% auto;
   width: 100%;
   height: 100%;
   position: relative;
@@ -76,8 +77,8 @@ html, body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: rgba(0, 0, 0, 0.7);
-  padding: 8px 20px;
+  background: rgba(0,0,0,0.7);
+  padding: 5px 20px;
   font-weight: bold;
   z-index: 10;
   position: relative;
@@ -85,25 +86,25 @@ html, body {
 .team-score {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 1.2rem;
+  gap: 6px;
+  font-size: 1rem;
 }
 .bandeira {
-  width: 35px;
-  height: 25px;
+  width: 30px;
+  height: 20px;
   object-fit: cover;
-  border-radius: 4px;
+  border-radius: 3px;
 }
 .timeA { color: #5cb85c; }
 .timeB { color: #d9534f; }
 .room-code {
-  font-size: 1.5rem;
+  font-size: 1.2rem;
   background: rgba(255,255,255,0.2);
-  padding: 5px 20px;
-  border-radius: 8px;
+  padding: 4px 15px;
+  border-radius: 6px;
 }
 
-/* Container principal dos jogadores e mesa */
+/* Container da mesa e jogadores */
 .mesa-container {
   position: relative;
   flex: 1;
@@ -114,106 +115,115 @@ html, body {
 /* Slots de jogadores */
 .player-slot {
   position: absolute;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0,0,0,0.7);
   border-radius: 12px;
-  padding: 10px;
+  padding: 8px 12px;
   text-align: center;
-  min-width: 160px;
+  min-width: 140px;
   z-index: 2;
 }
 .player-slot.active {
   box-shadow: 0 0 20px gold;
-  background: rgba(255, 215, 0, 0.4);
+  background: rgba(255,215,0,0.5);
 }
 .player-slot .avatar {
-  width: 60px;
-  height: 60px;
+  width: 50px;
+  height: 50px;
   border-radius: 50%;
   border: 2px solid white;
   object-fit: cover;
   background: white;
   display: block;
-  margin: -35px auto 5px;
+  margin: -30px auto 5px;
 }
 .player-slot .name {
   font-weight: bold;
-  font-size: 1rem;
-  margin-bottom: 8px;
+  font-size: 0.9rem;
+  margin-bottom: 5px;
   display: block;
 }
 .player-slot .hand {
   display: flex;
   justify-content: center;
-  gap: 5px;
+  gap: 6px;
 }
 
-/* Posicionamento dos jogadores (porcentagens) */
+/* Posicionamento dos jogadores nas bordas */
+.slot-top {
+  top: 5%;
+  left: 50%;
+  transform: translateX(-50%);
+}
 .slot-bottom {
-  bottom: 15%;
+  bottom: 18%;
   left: 50%;
   transform: translateX(-50%);
 }
 .slot-left {
-  left: 5%;
-  top: 40%;
+  left: 3%;
+  top: 45%;
   transform: translateY(-50%);
 }
-.slot-top {
-  top: 12%;
-  left: 50%;
-  transform: translateX(-50%);
-}
 .slot-right {
-  right: 5%;
-  top: 40%;
+  right: 3%;
+  top: 45%;
   transform: translateY(-50%);
 }
 
 /* Cartas */
 .card {
-  width: 50px;
-  height: 72px;
+  width: 55px;
+  height: 80px;
   border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
+  background-color: white;
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
-  transition: transform 0.2s;
-  color: #000;
   font-weight: bold;
-  text-shadow: 1px 1px 0 white;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.3);
 }
+
+/* Cartas viradas (verso) usam a imagem */
 .card.back {
   background-image: url('/img/carta-copag-vermelha.png');
   background-size: cover;
+  background-color: transparent;
   font-size: 0;
-}
-.player-slot .hand .card {
-  width: 44px;
-  height: 62px;
+  color: transparent;
 }
 
-/* Mão do jogador principal (inferior) */
+/* Cartas dos oponentes (menores) */
+.player-slot .hand .card {
+  width: 45px;
+  height: 65px;
+}
+.player-slot .hand .card.back {
+  width: 45px;
+  height: 65px;
+}
+
+/* Mão do jogador principal */
 .my-hand {
   display: flex;
   justify-content: center;
-  gap: 15px;
+  gap: 20px;
   position: absolute;
-  bottom: 4%;
+  bottom: 2%;
   left: 50%;
   transform: translateX(-50%);
   z-index: 3;
 }
 .my-hand .card {
   cursor: pointer;
-  width: 85px;
-  height: 120px;
-  background-image: url('/img/carta-copag-vermelha.png');
-  background-size: contain;
-  background-repeat: no-repeat;
-  background-position: center;
+  width: 120px;
+  height: 170px;
+  background-color: white;
+  background-image: none;
+  font-size: 2rem;
+  transition: transform 0.2s;
 }
 .my-hand .card:hover {
   transform: translateY(-15px);
@@ -227,13 +237,19 @@ html, body {
   to { box-shadow: 0 0 25px gold; }
 }
 
+/* Valor da carta */
 .card-value {
-  font-size: 22px;
   font-weight: bold;
+  background: none;
+  padding: 0;
+}
+
+/* Naipes coloridos */
+.naipe-vermelho {
+  color: #cc0000;
+}
+.naipe-preto {
   color: #000;
-  background: rgba(255, 255, 255, 0.85);
-  border-radius: 5px;
-  padding: 3px 8px;
 }
 
 /* Centro da mesa (vira e cartas jogadas) */
@@ -244,16 +260,14 @@ html, body {
   transform: translate(-50%, -50%);
   text-align: center;
   z-index: 1;
-  width: auto;
-  max-width: 70%;
 }
 .vira-area {
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0,0,0,0.8);
   border-radius: 8px;
-  padding: 8px 25px;
-  font-size: 1.4rem;
+  padding: 5px 20px;
+  font-size: 1.2rem;
   display: inline-block;
-  margin-bottom: 15px;
+  margin-bottom: 10px;
 }
 .table-area {
   display: flex;
@@ -263,19 +277,19 @@ html, body {
   flex-wrap: wrap;
 }
 
-/* Botões de ação */
+/* Botões */
 .actions, .bet-actions {
   position: absolute;
-  bottom: 5%;
+  bottom: 2%;
   left: 50%;
   transform: translateX(-50%);
   z-index: 4;
   display: flex;
-  gap: 15px;
+  gap: 12px;
 }
 .actions button, .bet-actions button {
-  padding: 12px 24px;
-  font-size: 16px;
+  padding: 10px 20px;
+  font-size: 14px;
   border-radius: 8px;
   border: none;
   cursor: pointer;
@@ -291,21 +305,14 @@ html, body {
 /* Mensagens */
 #messageArea {
   position: absolute;
-  top: 80px;
+  top: 70px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 10;
   font-weight: bold;
-  font-size: 1.2rem;
-  background: rgba(0, 0, 0, 0.6);
-  padding: 8px 25px;
+  font-size: 1rem;
+  background: rgba(0,0,0,0.6);
+  padding: 6px 20px;
   border-radius: 20px;
   white-space: nowrap;
-}
-
-/* Remover limitação de largura em telas pequenas */
-@media (max-width: 600px) {
-  .player-slot { min-width: 120px; }
-  .player-slot .avatar { width: 45px; height: 45px; }
-  .my-hand .card { width: 60px; height: 85px; }
 }
