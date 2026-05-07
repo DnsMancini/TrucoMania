@@ -1,28 +1,187 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: Arial; background: #1a4d1a; color: white; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: #1a4d1a;
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+}
 .hidden { display: none !important; }
-.screen { width: 100%; max-width: 600px; padding: 20px; }
+.screen { width: 100%; max-width: 800px; padding: 20px; }
 #lobby { text-align: center; }
-.menu input, .menu button { padding: 10px; margin: 5px; font-size: 16px; }
+.menu input, .menu button { padding: 10px; margin: 5px; font-size: 16px; border-radius: 5px; border: none; }
+.menu button { background: #5cb85c; color: white; cursor: pointer; }
+.menu button:hover { background: #4cae4c; }
 .join-area { margin-top: 10px; }
 
-.top-bar { display: flex; justify-content: space-between; margin-bottom: 10px; }
-.vira-area { text-align: center; margin: 10px 0; }
+#mesaFundo {
+  background: url('/img/mesa.png') no-repeat center center/cover;
+  border-radius: 20px;
+  padding: 20px;
+  min-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(0,0,0,0.7);
+  border-radius: 10px;
+  padding: 5px 15px;
+  font-weight: bold;
+}
+.team-score { display: flex; align-items: center; gap: 5px; }
+.bandeira { width: 30px; height: 20px; object-fit: cover; border-radius: 3px; }
+.timeA { color: #5cb85c; }
+.timeB { color: #d9534f; }
 
-.table-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 20px 0; }
-.player-slot { background: rgba(255,255,255,0.1); padding: 10px; border-radius: 8px; text-align: center; }
-.player-slot .name { font-weight: bold; }
-.player-slot .hand { display: flex; justify-content: center; gap: 5px; }
-.player-slot.active { box-shadow: 0 0 10px yellow; }
+.vira-area {
+  text-align: center;
+  margin: 10px 0;
+  background: rgba(255,255,255,0.2);
+  border-radius: 8px;
+  padding: 5px;
+  font-size: 18px;
+}
 
-.card { width: 45px; height: 65px; background: white; color: black; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 18px; margin: 2px; }
-.card.back { background: #ccc; color: #333; }
+.table-grid {
+  display: grid;
+  grid-template: 1fr 1fr / 1fr 1fr;
+  gap: 10px;
+  margin: 15px 0;
+}
+.player-slot {
+  background: rgba(0,0,0,0.5);
+  border-radius: 12px;
+  padding: 8px;
+  text-align: center;
+  position: relative;
+  min-height: 80px;
+}
+.player-slot.active {
+  box-shadow: 0 0 15px gold;
+  background: rgba(255,215,0,0.3);
+}
+.player-slot .avatar {
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  position: absolute;
+  top: -15px;
+  left: 10px;
+  border: 2px solid white;
+  background: white;
+  object-fit: cover;
+}
+.player-slot .name {
+  font-weight: bold;
+  margin-top: 15px;
+  display: block;
+  font-size: 14px;
+}
+.player-slot .hand {
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+  margin-top: 5px;
+}
 
-.table-area { display: flex; justify-content: center; gap: 10px; min-height: 80px; margin: 10px 0; }
+/* Cartas */
+.card {
+  width: 60px;
+  height: 85px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  transition: transform 0.2s;
+  position: relative;
+  color: #000;
+  font-weight: bold;
+  text-shadow: 1px 1px 0 white;
+}
+.card.back {
+  background-image: url('/img/carta-copag-vermelha.png');
+  background-size: cover;
+  width: 60px;
+  height: 85px;
+  font-size: 0;
+}
+.player-slot .hand .card {
+  width: 45px;
+  height: 65px;
+}
+.my-hand {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin: 15px 0;
+}
+.my-hand .card {
+  cursor: pointer;
+  width: 70px;
+  height: 98px;
+}
+.my-hand .card:hover {
+  transform: translateY(-10px);
+}
+.selectable {
+  box-shadow: 0 0 15px yellow;
+  animation: pulse 0.8s infinite alternate;
+}
+@keyframes pulse {
+  from { box-shadow: 0 0 8px yellow; }
+  to { box-shadow: 0 0 20px gold; }
+}
 
-.my-hand { display: flex; justify-content: center; gap: 10px; margin: 20px 0; }
-.my-hand .card { cursor: pointer; }
+.card-value {
+  font-size: 20px;
+  font-weight: bold;
+  color: #000;
+  background: rgba(255,255,255,0.7);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
 
-.actions, .bet-actions { text-align: center; margin: 10px 0; }
-.actions button, .bet-actions button { padding: 8px 15px; margin: 5px; font-size: 14px; }
-#messageArea { text-align: center; font-weight: bold; }
+/* Mesa (cartas jogadas) */
+.table-area {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  min-height: 85px;
+  margin: 10px 0;
+}
+.actions, .bet-actions {
+  text-align: center;
+  margin: 10px 0;
+}
+.actions button, .bet-actions button {
+  padding: 8px 16px;
+  margin: 5px;
+  font-size: 14px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-weight: bold;
+  background: #f0ad4e;
+  color: white;
+}
+.actions button:hover, .bet-actions button:hover {
+  background: #ec971f;
+}
+#messageArea {
+  text-align: center;
+  font-weight: bold;
+  min-height: 24px;
+  padding: 5px;
+  background: rgba(0,0,0,0.5);
+  border-radius: 8px;
+  margin-top: 5px;
+}
