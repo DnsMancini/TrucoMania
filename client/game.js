@@ -101,10 +101,10 @@ socket.on('handStart', (data) => {
   trucoStatus.textContent = 'Truco: Nenhum';
   trucoDisplay.textContent = 'TRUCO';
   btnTruco.classList.remove('oculto');
-  btnCorrer.classList.add('oculto');
+  btnCorrer.classList.remove('oculto');
   aguardandoResposta = false;
   viraEl.classList.remove('oculto');
-  viraEl.classList.remove('virada'); // garante fundo branco
+  viraEl.classList.remove('virada');
   viraEl.innerHTML = createCardHTML(data.vira);
   mesaCartas.innerHTML = '';
   atualizarNomes(data.players);
@@ -135,13 +135,11 @@ socket.on('handStart', (data) => {
 socket.on('turn', ({ currentPlayer }) => {
   isMyTurn = (currentPlayer === myPlayerIndex);
   if (!aguardandoResposta) {
+    btnTruco.classList.remove('oculto');
+    btnCorrer.classList.remove('oculto');
     if (currentPlayer === myPlayerIndex) {
-      btnTruco.classList.remove('oculto');
-      btnCorrer.classList.add('oculto');
       startTurnTimer();
     } else {
-      btnTruco.classList.add('oculto');
-      btnCorrer.classList.add('oculto');
       clearTurnTimer();
     }
   }
@@ -171,13 +169,10 @@ socket.on('roundResult', ({ round, winner }) => {
   infoRodada.textContent = `Rodada ${round + 2} de 3`;
   const bolinhas = painelHistorico.querySelectorAll('.bolinha-rodada');
   if (bolinhas[round]) {
-    let corClasse = 'bolinha-ouro'; // empate
+    let corClasse = 'bolinha-ouro';
     if (winner !== -1) {
-      if (winner % 2 === myPlayerIndex % 2) {
-        corClasse = 'bolinha-verde';
-      } else {
-        corClasse = 'bolinha-azul';
-      }
+      if (winner % 2 === myPlayerIndex % 2) corClasse = 'bolinha-verde';
+      else corClasse = 'bolinha-azul';
     }
     bolinhas[round].className = 'bolinha-rodada ' + corClasse;
   }
@@ -225,7 +220,7 @@ socket.on('betCalled', ({ challenger, level }) => {
 
 socket.on('betAccepted', ({ handValue }) => {
   trucoStatus.textContent = `Truco: ${handValue} pts`;
-  btnCorrer.classList.add('oculto');
+  btnCorrer.classList.remove('oculto');
   btnTruco.classList.remove('oculto');
   aguardandoResposta = false;
 });
@@ -245,16 +240,22 @@ btnTruco.onclick = () => {
 };
 
 btnCorrer.onclick = () => {
-  socket.emit('respondBet', 'flee');
+  if (!isMyTurn || !gameActive) return;
+  if (aguardandoResposta) {
+    socket.emit('respondBet', 'flee');
+  } else {
+    socket.emit('fleeHand');
+  }
   clearTurnTimer();
 };
 
-// Cria HTML de carta com cantos visíveis
+// Cria HTML de carta com valor central grande + cantos
 function createCardHTML(card) {
   const suitSym = suitSymbol(card.suit);
   const corClasse = (card.suit === 'copas' || card.suit === 'ouros') ? 'naipe-vermelho' : 'naipe-preto';
   return `
     <div class="carta-corner top-left ${corClasse}">${card.rank}${suitSym}</div>
+    <div class="carta-center ${corClasse}">${card.rank}${suitSym}</div>
     <div class="carta-corner bottom-right ${corClasse}">${card.rank}${suitSym}</div>
   `;
 }
