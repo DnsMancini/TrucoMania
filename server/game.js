@@ -65,7 +65,8 @@ class Game4P {
     else if (this.scores[0] >= 11 || this.scores[1] >= 11) { this.handValue = 3; this.maoDe11 = true; }
     else { this.handValue = 1; this.maoDe11 = false; }
 
-    this.currentPlayer = (this.dealerIndex + 1) % 4;
+    // Sentido anti‑horário: próximo jogador é o anterior (dealerIndex - 1, ou +3 mod 4)
+    this.currentPlayer = (this.dealerIndex + 3) % 4;
     this.turnStage = 'play';
     this.betState = null;
     this.roundWins = [0, 0];
@@ -105,7 +106,8 @@ class Game4P {
 
     if (this.playersInRound === 4) this.resolveRound();
     else {
-      this.currentPlayer = (playerIndex + 1) % 4;
+      // Sentido anti‑horário: próximo jogador = (playerIndex + 3) % 4
+      this.currentPlayer = (playerIndex + 3) % 4;
       this.emit('turn', { currentPlayer: this.currentPlayer }, 'all');
     }
     return true;
