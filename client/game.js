@@ -11,9 +11,9 @@ const joinBtn = document.getElementById('joinBtn');
 // Elementos do jogo
 const teamAScoreEl = document.getElementById('teamAScore');
 const teamBScoreEl = document.getElementById('teamBScore');
-const trucoDisplay = document.getElementById('trucoDisplay'); // não usado agora, podemos remover
-const trucoStatusEl = document.getElementById('trucoStatus'); // dentro do infoLive
-const infoRodadaEl = document.getElementById('infoRodada');   // dentro do infoLive
+const trucoDisplay = document.getElementById('trucoDisplay');
+const trucoStatusEl = document.getElementById('trucoStatus');
+const infoRodadaEl = document.getElementById('infoRodada');
 const btnTruco = document.getElementById('btnTruco');
 const btnCorrer = document.getElementById('btnCorrer');
 const viraEl = document.getElementById('vira');

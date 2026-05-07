@@ -16,9 +16,10 @@
 body {
   margin: 0;
   background: #0b0b0b;
-  font-family: Arial;
+  font-family: Arial, sans-serif;
   color: white;
   overflow: hidden;
+  touch-action: manipulation; /* melhora resposta em telas sensíveis */
 }
 
 #gameWrapper {
@@ -30,6 +31,7 @@ body {
   justify-content: center;
 }
 
+/* Aviso de orientação (mostrado apenas em paisagem no mobile) */
 .avisoOrientacao {
   display: none;
   position: fixed;
@@ -42,6 +44,7 @@ body {
   align-items: center;
   text-align: center;
   z-index: 9999;
+  flex-direction: column;
 }
 
 .mesa {
@@ -98,6 +101,7 @@ body {
   transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.22), 0 10px 22px rgba(0,0,0,0.45);
   pointer-events: auto;
+  -webkit-tap-highlight-color: transparent; /* evita destaque azul no mobile */
 }
 
 .game-button-truco {
@@ -121,7 +125,7 @@ body {
   z-index: 1100;
 }
 
-/* Informações ao vivo (substitui o antigo #painelRodada) */
+/* Informações ao vivo (canto superior esquerdo) */
 #infoLive {
   position: fixed;
   top: calc(var(--safe-top) + 8px);
@@ -161,8 +165,6 @@ body {
   display: none;
   white-space: nowrap;
 }
-
-/* Antigo #mensagem removido, ajustes abaixo */
 
 .game-button:hover {
   filter: brightness(1.08);
@@ -207,6 +209,7 @@ body {
   background-repeat: no-repeat;
 }
 
+/* Posicionamento Desktop (horizontal) */
 #p0 { bottom: 0; left: 50%; transform: translate(-50%, 66%); }
 #p1 { left: 0; top: 50%; transform: translate(-58%, -182%); }
 #p2 { top: 0; left: 50%; transform: translate(-50%, -85%); z-index: 1300; }
@@ -306,6 +309,7 @@ body {
 .c2 { top: calc(50% - var(--offset-y) - clamp(22px, 4vh, 34px)); left: 50%; transform: translate(-50%, -50%); }
 .c3 { top: 50%; left: calc(50% + var(--offset-x)); transform: translate(-50%, -50%); }
 
+/* Placar */
 .placar-times { display: flex; justify-content: flex-end; gap: 6px; }
 .placar-time + .placar-time { margin-left: -6px; }
 .placar-time {
@@ -393,7 +397,7 @@ body {
   z-index: 2200;
 }
 
-/* Mãos dos oponentes (inalteradas) */
+/* Mãos dos oponentes (desktop) */
 #hand2 .carta { margin-left: -39px; }
 #hand2 .carta:first-child { margin-left: 0; }
 #hand2 .carta:nth-child(1) { transform: rotate(-9deg); }
@@ -408,6 +412,7 @@ body {
 #hand1 .carta:nth-child(2), #hand3 .carta:nth-child(2) { transform: rotate(90deg); }
 #hand1 .carta:nth-child(3), #hand3 .carta:nth-child(3) { transform: rotate(98deg); }
 
+/* Histórico de rodadas */
 #painelHistorico {
   position: fixed;
   left: calc(var(--safe-left) + 8px);
@@ -552,8 +557,170 @@ body {
 .naipe-vermelho { color: #c1121f; }
 .naipe-preto { color: #111; }
 
-@media (max-width: 1200px), (max-height: 760px) {
-  #infoLive { left: calc(var(--safe-left) + 8px); top: calc(var(--safe-top) + 8px); font-size: 12px; }
-  #placar { right: var(--safe-right); top: var(--safe-top); font-size: 15px; }
-  #painelHistorico { left: calc(var(--safe-left) + 8px); bottom: 20px; width: 40px; min-height: 110px; }
+/* ========== ESTILOS MOBILE (retrato) ========== */
+@media (max-width: 768px) and (orientation: portrait) {
+  :root {
+    --table-size: 82vw;  /* mesa menor */
+  }
+
+  .avisoOrientacao {
+    display: none !important; /* não mostrar aviso no retrato */
+  }
+
+  /* Exibe aviso e esconde jogo apenas em paisagem no mobile */
+  @media (orientation: landscape) {
+    .avisoOrientacao {
+      display: flex !important;
+    }
+    #gameWrapper > *:not(.avisoOrientacao) {
+      display: none !important;
+    }
+  }
+
+  .mesa {
+    width: var(--table-size);
+    height: var(--table-size);
+  }
+
+  .carta {
+    width: 68px;
+    height: 100px;
+    border-radius: 8px;
+  }
+  .cartaMesa {
+    width: 48px;
+    height: 68px;
+  }
+  .carta-center {
+    font-size: 26px;
+  }
+  .cartaMesa .carta-center {
+    font-size: 18px;
+  }
+  .carta-corner {
+    font-size: 11px;
+  }
+
+  /* Ajuste da mão */
+  #mao {
+    bottom: 20px;
+  }
+  #mao .playerCard {
+    margin-left: -14px;
+  }
+
+  /* Reposicionamento dos jogadores (ordem: embaixo, direita, cima, esquerda) */
+  #p0 {
+    bottom: 100px;  /* sobe um pouco para dar espaço à mão */
+    left: 50%;
+    transform: translate(-50%, 0);
+  }
+  #p3 {
+    right: -10px;
+    top: 50%;
+    transform: translate(0, -50%);
+  }
+  #p2 {
+    top: 10px;
+    left: 50%;
+    transform: translate(-50%, 0);
+  }
+  #p1 {
+    left: -10px;
+    top: 50%;
+    transform: translate(0, -50%);
+  }
+
+  /* Mãos dos oponentes no mobile */
+  #hand1 { /* esquerda */
+    left: 8px;
+    top: 50%;
+    transform: translate(0, -50%);
+    flex-direction: column;
+  }
+  #hand2 { /* topo */
+    top: 60px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  #hand3 { /* direita */
+    right: 8px;
+    top: 50%;
+    transform: translate(0, -50%);
+    flex-direction: column;
+  }
+
+  /* Ajuste de rotações e espaçamentos para mãos mobile */
+  #hand1 .carta, #hand3 .carta {
+    margin-top: -49px;
+  }
+  #hand1 .carta:first-child, #hand3 .carta:first-child {
+    margin-top: 0;
+  }
+  #hand2 .carta {
+    margin-left: -30px;
+  }
+  #hand2 .carta:first-child {
+    margin-left: 0;
+  }
+
+  /* Placar mobile */
+  #placar {
+    top: var(--safe-top);
+    right: var(--safe-right);
+    font-size: 13px;
+  }
+  .placar-time {
+    width: 110px;
+    padding-top: 14px;
+  }
+  .placar-time-pontos {
+    font-size: 24px;
+  }
+
+  /* Botões mobile */
+  .game-button {
+    min-width: 120px;
+    height: 44px;
+    font-size: 13px;
+  }
+  .game-button-truco {
+    left: 10px;
+    bottom: calc(130px + var(--safe-bottom));
+  }
+  .game-button-correr {
+    right: 10px;
+    bottom: calc(130px + var(--safe-bottom));
+  }
+
+  /* Info live */
+  #infoLive {
+    top: calc(var(--safe-top) + 4px);
+    left: calc(var(--safe-left) + 4px);
+    font-size: 12px;
+    padding: 5px 8px;
+  }
+  #infoRodada {
+    font-size: 14px;
+  }
+  #trucoStatus {
+    font-size: 11px;
+  }
+
+  /* Cronômetro */
+  .cronometro {
+    font-size: 36px;
+    padding: 12px 20px;
+  }
+
+  /* Histórico de rodadas */
+  #painelHistorico {
+    left: calc(var(--safe-left) + 4px);
+    bottom: 100px;
+    width: 36px;
+    min-height: 100px;
+  }
+  .bolinha-rodada {
+    width: 14px; height: 14px;
+  }
 }
