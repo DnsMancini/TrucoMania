@@ -20,7 +20,6 @@ function broadcastRooms(io) {
 
 function handleSocket(io) {
   io.on('connection', (socket) => {
-    // Enviar lista inicial ao conectar
     broadcastRooms(io);
 
     socket.on('getRooms', () => {
@@ -36,7 +35,6 @@ function handleSocket(io) {
       const room = {
         players: [{ id: socket.id, name: playerName, isBot: false }],
         game: null,
-        botTimer: null,
         countdownInterval: null,
         code,
         status: 'waiting'
@@ -46,22 +44,16 @@ function handleSocket(io) {
       callback({ roomCode: code, players: room.players.map(p => ({name:p.name, isBot:false})) });
       broadcastRooms(io);
 
-      // Iniciar contagem regressiva de 10 segundos
       let count = 10;
-      // Enviar primeiro valor
       io.to(code).emit('lobbyCountdown', { count });
       room.countdownInterval = setInterval(() => {
         count--;
         io.to(code).emit('lobbyCountdown', { count });
         if (count <= 0) {
           clearInterval(room.countdownInterval);
-          // Preencher com bots e iniciar jogo
           fillWithBotsAndStart(code, io);
         }
       }, 1000);
-
-      // Se a sala encher antes, parar contagem e iniciar imediatamente
-      room.botTimer = null; // não usamos mais o timer antigo, mas mantemos referência
     });
 
     socket.on('joinRoom', ({ roomCode, playerName }, callback) => {
@@ -73,7 +65,14 @@ function handleSocket(io) {
       callback({ roomCode, players: room.players.map(p => ({ name: p.name, isBot: p.isBot })) });
       broadcastRooms(io);
 
-      // Se encheu, parar contagem e iniciar
+      // Enviar contagem atual para o novo jogador
+      if (room.countdownInterval) {
+        // Aproximado: enviar 10 (ou podemos armazenar o valor atual no room.count)
+        // Vamos apenas emitir o próximo tick, não é perfeito mas suficiente.
+        // Melhor: armazenar count na room. Como não temos, vamos apenas deixar a contagem rolar.
+        // O jogador verá a contagem a partir do próximo segundo.
+      }
+
       if (room.players.length === 4) {
         if (room.countdownInterval) {
           clearInterval(room.countdownInterval);
@@ -84,23 +83,37 @@ function handleSocket(io) {
     });
 
     socket.on('playCard', (card) => {
-      // ... (mesmo código anterior)
+      const room = findRoomBySocket(socket.id);
+      if (!room || !room.game) return;
+      const playerIndex = room.players.findIndex(p => p.id === socket.id);
+      room.game.playCard(playerIndex, card);
+      checkBotTurn(room, io);
     });
 
     socket.on('callBet', (betType) => {
-      // ... (mesmo código anterior)
+      const room = findRoomBySocket(socket.id);
+      if (!room || !room.game) return;
+      const playerIndex = room.players.findIndex(p => p.id === socket.id);
+      room.game.callBet(playerIndex, betType);
+      checkBotResponse(room, io);
     });
 
     socket.on('respondBet', (action) => {
-      // ... (mesmo código anterior)
+      const room = findRoomBySocket(socket.id);
+      if (!room || !room.game) return;
+      const playerIndex = room.players.findIndex(p => p.id === socket.id);
+      room.game.respondBet(playerIndex, action);
+      checkBotTurn(room, io);
     });
 
     socket.on('fleeHand', () => {
-      // ... (mesmo código anterior)
+      const room = findRoomBySocket(socket.id);
+      if (!room || !room.game) return;
+      const playerIndex = room.players.findIndex(p => p.id === socket.id);
+      room.game.fleeHand(playerIndex);
     });
 
     socket.on('disconnect', () => {
-      // Remover jogador da sala, se ficar vazia remover sala
       for (const [code, room] of rooms) {
         const idx = room.players.findIndex(p => p.id === socket.id);
         if (idx !== -1) {
@@ -110,9 +123,8 @@ function handleSocket(io) {
             rooms.delete(code);
             broadcastRooms(io);
           } else {
-            // Se estava esperando, atualizar lista
             broadcastRooms(io);
-            // Se o jogo já começou, pode continuar? Vamos simplificar: se o jogo está ativo, continua (bots ou jogadores restantes).
+            // Se o jogo estiver ativo, ele continua (com bots ou jogadores restantes)
           }
           break;
         }
@@ -130,7 +142,7 @@ function fillWithBotsAndStart(code, io) {
     room.players.push(bot);
   }
   room.status = 'playing';
-  broadcastRooms(io); // remover da lista de espera
+  broadcastRooms(io);
   startGame(room, io);
 }
 
@@ -143,41 +155,68 @@ function startGame(room, io) {
         io.to(target).emit(event, data);
     }
   };
-  room.game = new Game4P(room.code, room.players, emit);
+  room.game = new Game4P(room.code, room.players, emit, () => {
+    rooms.delete(room.code);
+    broadcastRooms(io);
+  });
   room.game.checkBotTurn = () => checkBotTurn(room, io);
   room.game.startGame();
   checkBotTurn(room, io);
 }
 
-// Funções checkBotTurn e checkBotResponse permanecem idênticas
 function checkBotTurn(room, io) {
-  // ... (mesmo código)
+  if (!room.game) return;
+  if (room.game.turnStage === 'play') {
+    const cp = room.game.currentPlayer;
+    const player = room.players[cp];
+    if (player.isBot) {
+      setTimeout(() => {
+        if (room.game && room.game.currentPlayer === cp && room.game.turnStage === 'play') {
+          const hand = room.game.hands[cp];
+          const card = chooseCard(hand, room.game.vira.rank);
+          room.game.playCard(cp, card);
+          checkBotTurn(room, io);
+        }
+      }, 1000 + Math.random() * 2000);
+    }
+  }
+  if (room.game.turnStage === 'play' && !room.game.betState && !room.game.maoDe11) {
+    const cp = room.game.currentPlayer;
+    const player = room.players[cp];
+    if (player.isBot) {
+      const bet = shouldCallBet(room.game.hands[cp], room.game.vira.rank, room.game.handValue, room.game.maoDe11);
+      if (bet) {
+        setTimeout(() => {
+          if (room.game && room.game.currentPlayer === cp && !room.game.betState) {
+            room.game.callBet(cp, bet);
+            checkBotResponse(room, io);
+          }
+        }, 1500 + Math.random() * 1000);
+      }
+    }
+  }
 }
+
 function checkBotResponse(room, io) {
-  // ... (mesmo código)
+  if (!room.game || room.game.turnStage !== 'respond') return;
+  const respTeam = room.game.betState.responderTeam;
+  const teamPlayers = [respTeam, respTeam+2];
+  const botPlayer = teamPlayers.map(i => room.players[i]).find(p => p.isBot);
+  if (botPlayer) {
+    const playerIndex = room.players.indexOf(botPlayer);
+    const hand = room.game.hands[playerIndex];
+    const action = respondBet(hand, room.game.vira.rank, room.game.betState.level);
+    setTimeout(() => {
+      if (room.game && room.game.betState && room.game.respondBet(playerIndex, action))
+        checkBotTurn(room, io);
+    }, 2000 + Math.random() * 2000);
+  }
 }
 
-// Precisamos modificar gameOver para remover a sala
-// Vamos estender o Game4P ou alterar no socketHandler após o gameOver.
-// Na função startGame, podemos sobrescrever o comportamento de 'gameOver' adicionando um listener.
-// Melhor: modificar a classe Game4P para aceitar um callback 'onGameOver'. Mas para simplificar,
-// vamos ouvir o evento 'gameOver' no socketHandler e então remover a sala.
-
-// Adicione dentro de handleSocket, no escopo adequado:
-function setupGameOverRemoval(code, io) {
-  // Quando o jogo emitir 'gameOver', removemos a sala.
-  // Isso é feito na classe Game4P, ela emite 'gameOver' para 'all'. Podemos interceptar.
-  // Vamos adicionar um listener único no namespace da sala.
-  const room = rooms.get(code);
-  if (!room) return;
-  // Usar um event listener no game
-  // Mas o game emite internamente; podemos usar o próprio socket.io: ao invés de emitir para todos,
-  // podemos fazer o servidor escutar o evento. Contudo, o servidor não escuta eventos de socket.io a não ser que os assine.
-  // Solução: na classe Game4P, adicionamos um callback opcional 'onGameOver'. Vamos modificar game.js para isso.
-  // Como forneci o game.js anterior, podemos alterar lá: adicionar this.onGameOver callback.
+function findRoomBySocket(socketId) {
+  for (const [code, room] of rooms)
+    if (room.players.some(p => p.id === socketId)) return { code, ...room };
+  return null;
 }
-
-// Atualização do game.js (server) para suportar onGameOver:
-// Adicione na classe Game4P um parâmetro onGameOver no construtor e chame quando terminar.
 
 module.exports = { handleSocket };

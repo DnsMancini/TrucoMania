@@ -8,7 +8,6 @@ const createBtn = document.getElementById('createBtn');
 const roomInput = document.getElementById('roomInput');
 const joinBtn = document.getElementById('joinBtn');
 const roomsListEl = document.getElementById('roomsList');
-const lobbyStatusEl = document.getElementById('lobbyStatus');
 const contagemEl = document.getElementById('contagemRegressiva');
 const contagemNumero = document.getElementById('contagemNumero');
 
@@ -53,7 +52,6 @@ let playerHand = [];
 let gameActive = false;
 let aguardandoResposta = false;
 let isMyTurn = false;
-
 let turnTimerInterval = null;
 let timeLeft = 25;
 let currentGameCode = null;
@@ -91,19 +89,21 @@ function joinRoomFromList(code) {
 function enterWaitingRoom(res) {
   lobbyDiv.classList.add('game-hidden');
   gameWrapper.classList.remove('game-hidden');
-  // Exibir contagem regressiva
   contagemEl.classList.remove('oculto');
   contagemNumero.textContent = '10';
   // Ocultar elementos do jogo
-  document.getElementById('mao').innerHTML = '';
-  document.getElementById('mesaCartas').innerHTML = '';
+  maoDiv.innerHTML = '';
+  mesaCartas.innerHTML = '';
   viraEl.classList.add('oculto');
   btnTruco.classList.add('oculto');
   btnCorrer.classList.add('oculto');
   telaFinal.classList.remove('show');
 }
 
-// Atualizar lista de salas
+socket.on('connect', () => {
+  socket.emit('getRooms');
+});
+
 socket.on('roomsUpdate', (rooms) => {
   if (!roomsListEl) return;
   roomsListEl.innerHTML = '';
@@ -123,7 +123,6 @@ socket.on('roomsUpdate', (rooms) => {
   });
 });
 
-// Contagem regressiva
 socket.on('lobbyCountdown', ({ count }) => {
   contagemNumero.textContent = count;
   if (count <= 0) {
@@ -249,10 +248,7 @@ socket.on('gameOver', ({ winnerTeam }) => {
   telaFinal.classList.add('show');
   textoFinal.textContent = winnerTeam === myPlayerIndex % 2 ? 'VOCÊ VENCEU!' : 'VOCÊ PERDEU!';
   resumoFinal.textContent = 'Clique em Voltar ao Lobby para jogar novamente.';
-  document.getElementById('btnVoltarLobby').onclick = () => {
-    // Ao voltar ao lobby, recarregar a página (simples)
-    location.reload();
-  };
+  document.getElementById('btnVoltarLobby').onclick = () => location.reload();
   document.getElementById('btnBuscarNova').onclick = () => location.reload();
 });
 
@@ -378,6 +374,3 @@ function atualizarNomes(players) {
     if (el) el.textContent = (players[i]?.name || '') + (players[i]?.isBot ? ' (Bot)' : '');
   }
 }
-
-// Solicitar lista ao carregar
-socket.emit('getRooms');
