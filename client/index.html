@@ -1,1 +1,53 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Truco Mania</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <div id="lobby" class="screen">
+      <h1>🃏 Truco Mania</h1>
+      <div class="menu">
+        <input type="text" id="nameInput" placeholder="Seu nome" maxlength="15" />
+        <button id="createBtn">Criar Sala</button>
+        <div class="join-area">
+          <input type="text" id="roomInput" placeholder="Código da sala" maxlength="6" />
+          <button id="joinBtn">Entrar</button>
+        </div>
+      </div>
+    </div>
 
+    <div id="game" class="screen hidden">
+      <div class="top-bar">
+        <div class="opponent-info">
+          <span id="oppName"></span> | <span id="oppScore">0</span>
+        </div>
+        <div class="room-code" id="roomCodeDisplay"></div>
+        <div class="player-info">
+          <span id="playerName"></span> | <span id="playerScore">0</span>
+        </div>
+      </div>
+
+      <div class="vira-area">
+        <p>Vira: <span id="viraCard"></span></p>
+      </div>
+
+      <div class="opponent-hand" id="oppHand"></div>
+
+      <div class="table" id="tableArea"></div>
+
+      <div class="player-hand" id="playerHand"></div>
+
+      <div class="actions" id="actionsArea"></div>
+      <div class="bet-actions" id="betActions"></div>
+      <div id="messageArea"></div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
