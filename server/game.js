@@ -153,7 +153,6 @@ class Game4P {
         if (this.onMatchOver) this.onMatchOver(winningTeam);
         return;
       }
-      // Novo set: zera pontos e agenda próxima mão
       this.scores = [0, 0];
       this.dealerIndex = (this.dealerIndex + 1) % 4;
       if (this.onBeforeNewHand) this.onBeforeNewHand();
@@ -165,7 +164,6 @@ class Game4P {
       return;
     }
 
-    // Ainda não fechou set: próxima mão
     this.dealerIndex = (this.dealerIndex + 1) % 4;
     if (this.onBeforeNewHand) this.onBeforeNewHand();
     const checkBot = this.checkBotTurn;

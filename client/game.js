@@ -280,7 +280,6 @@ socket.on('betAccepted', ({ handValue }) => {
 socket.on('turnToRespond', () => {});
 
 socket.on('playerStatusUpdate', (players) => {
-  // Armazenamos último status para detectar mudanças e exibir mensagem
   if (!window.lastOnlineStatus) window.lastOnlineStatus = {};
   players.forEach((p, i) => {
     const slotKey = 'p' + i;
@@ -289,7 +288,6 @@ socket.on('playerStatusUpdate', (players) => {
     el.textContent = (p.name || '') + (p.isBot ? ' (Bot)' : '') + (p.online ? '' : ' (Off)');
     el.className = p.online ? 'name' : 'name offline';
     
-    // Verificar mudança
     const prevOnline = window.lastOnlineStatus[slotKey];
     if (prevOnline !== undefined && prevOnline !== p.online) {
       const msg = p.online ? `${p.name} está online` : `${p.name} está offline`;

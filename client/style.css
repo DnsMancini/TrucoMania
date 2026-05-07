@@ -363,10 +363,12 @@ body {
   z-index: 1200;
 }
 
+/* Mão do jogador (agora fora de #game, fixa na viewport) */
 #mao {
   position: fixed;
   bottom: 10px;
-  left: 0; right: 0;
+  left: 0;
+  right: 0;
   width: 100%;
   display: flex;
   justify-content: center;
@@ -387,6 +389,7 @@ body {
   z-index: 2200;
 }
 
+/* Mãos dos oponentes (desktop) */
 #hand2 .carta { margin-left: -39px; }
 #hand2 .carta:first-child { margin-left: 0; }
 #hand2 .carta:nth-child(1) { transform: rotate(-9deg); }
@@ -588,8 +591,10 @@ body {
   .cartaMesa .carta-center { font-size: 18px; }
   .carta-corner { font-size: 11px; }
 
+  /* Mão do jogador no mobile: colada na borda inferior */
   #mao {
-    bottom: 20px;
+    bottom: 0;
+    padding-bottom: 10px;
   }
   #mao .playerCard {
     margin-left: -14px;
@@ -667,11 +672,11 @@ body {
   }
   .game-button-truco {
     left: 10px;
-    bottom: calc(90px + var(--safe-bottom));
+    bottom: calc(80px + var(--safe-bottom));
   }
   .game-button-correr {
     right: 10px;
-    bottom: calc(90px + var(--safe-bottom));
+    bottom: calc(80px + var(--safe-bottom));
   }
 
   #infoLive {

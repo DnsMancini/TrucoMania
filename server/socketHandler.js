@@ -130,11 +130,9 @@ function handleSocket(io) {
       if (player && !player.isBot) {
         player.online = false;
         emitPlayerStatus(room, io);
-        // Iniciar timer para substituição entre mãos
         const timer = setTimeout(() => {
           if (room.players.includes(player)) {
-            player.pendingReplace = true; // será substituído na próxima mão
-            // Se neste momento podemos substituir imediatamente? Apenas marcamos.
+            player.pendingReplace = true;
           }
         }, OFFLINE_TIMEOUT);
         room.offlineTimers.set(socket.id, timer);
@@ -183,7 +181,6 @@ function startGame(room, io) {
 }
 
 function processPendingJoins(room, io) {
-  // Substituir bots por humanos pendentes
   while (room.pendingJoin.length > 0) {
     const botIndex = room.players.findIndex(p => p.isBot);
     if (botIndex === -1) break;
@@ -191,7 +188,6 @@ function processPendingJoins(room, io) {
     room.players[botIndex] = { id: socket.id, name: playerName, isBot: false, online: true, pendingReplace: false };
     socket.join(room.code);
   }
-  // Substituir jogadores marcados para replace (offline há > 90s)
   for (let i = 0; i < room.players.length; i++) {
     const p = room.players[i];
     if (!p.isBot && p.pendingReplace) {
