@@ -64,6 +64,13 @@ function handleSocket(io) {
       checkBotTurn(room, io);
     });
 
+    socket.on('fleeHand', () => {
+      const room = findRoomBySocket(socket.id);
+      if (!room || !room.game) return;
+      const playerIndex = room.players.findIndex(p => p.id === socket.id);
+      room.game.fleeHand(playerIndex);
+    });
+
     socket.on('disconnect', () => {
       const room = findRoomBySocket(socket.id);
       if (room) {
@@ -96,7 +103,7 @@ function startGame(room, io) {
     }
   };
   room.game = new Game4P(room.code, room.players, emit);
-  room.game.checkBotTurn = () => checkBotTurn(room, io); // callback
+  room.game.checkBotTurn = () => checkBotTurn(room, io);
   room.game.startGame();
   checkBotTurn(room, io);
 }
