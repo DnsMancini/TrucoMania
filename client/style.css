@@ -69,7 +69,6 @@ body {
   pointer-events: none;
   z-index: 1900;
 }
-#game > * { }
 
 #ui {
   position: fixed;
@@ -92,7 +91,7 @@ body {
   font-size: 14px;
   color: #f7f8fb;
   cursor: pointer;
-  z-index: 2000;
+  z-index: 2600;
   transform: scale(1.03);
   transform-origin: bottom center;
   transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
@@ -165,7 +164,7 @@ body {
 .game-hidden { display: none !important; }
 
 .player {
-  --avatar-size: 80px;  /* tamanho único para todos */
+  --avatar-size: 80px;
   position: absolute;
   display: flex;
   flex-direction: column;
@@ -274,7 +273,7 @@ body {
   box-sizing: border-box;
   isolation: isolate;
 }
-.placar-time::before { content: none; } /* removido, usaremos background-image direto */
+.placar-time::before { content: none; }
 .placar-time-nome { font-size: 12px; font-weight: 800; letter-spacing: 0.6px; color: #eef3ee; text-transform: uppercase; }
 .placar-time-pontos { font-size: 30px; line-height: 1; font-weight: 900; margin-top: 2px; color: #eef3ee; }
 
@@ -338,6 +337,7 @@ body {
   justify-content: center;
   align-items: flex-end;
   gap: 0;
+  z-index: 2100;
 }
 #mao .playerCard { margin-left: -18px; }
 #mao .playerCard:first-child { margin-left: 0; }
@@ -451,13 +451,4 @@ body {
   #painelRodada { left: 12px; top: 12px; width: 156px; padding: 10px 12px; }
   #placar { right: var(--safe-right); top: var(--safe-top); font-size: 15px; }
   #painelHistorico { left: calc(var(--safe-left) + 8px); bottom: 20px; width: 40px; min-height: 110px; }
-}
-/* Garante que as cartas da mão recebam clique */
-#mao {
-  z-index: 2100; /* acima do #game que tem 1900 */
-}
-
-/* Aumenta z-index dos botões para ficarem acima de tudo */
-#btnTruco, #btnCorrer {
-  z-index: 2600; /* maior que qualquer outro */
 }

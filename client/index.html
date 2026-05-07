@@ -9,7 +9,7 @@
 </head>
 <body>
   <div id="app">
-    <!-- LOBBY (mantido igual) -->
+    <!-- LOBBY -->
     <div id="lobby" class="lobby">
       <div class="lobby-card">
         <h1 style="text-align:center; color:#f1c40f;">🃏 Truco Mania</h1>
@@ -63,22 +63,7 @@
         <!-- Carta Vira (sobre a mesa) -->
         <div id="vira" class="carta virada oculto"></div>
 
-        <!-- Placar -->
-        <div id="placar">
-          <div class="placar-times">
-            <div class="placar-time placar-time--nos">
-              <span class="placar-time-nome">Nós</span>
-              <span class="placar-time-pontos" id="teamAScore">0</span>
-            </div>
-            <div class="placar-time placar-time--eles">
-              <span class="placar-time-nome">Eles</span>
-              <span class="placar-time-pontos" id="teamBScore">0</span>
-            </div>
-          </div>
-          <span class="placar-status" id="trucoStatus">Truco: Nenhum</span>
-        </div>
-
-        <!-- Painel de rodada -->
+        <!-- Painel de rodada (ESQUERDA) -->
         <div id="painelRodada">
           <div id="infoRodada">Rodada 1 de 3</div>
           <div id="trucoDisplay">TRUCO</div>
@@ -97,9 +82,6 @@
         <button id="btnTruco">TRUCO</button>
         <button id="btnCorrer" class="oculto">CORRER</button>
 
-        <!-- Contador de turno -->
-        <div class="contadorTurno oculto" id="contadorTurno">10</div>
-
         <!-- Mensagem -->
         <div id="mensagem"></div>
 
@@ -114,6 +96,21 @@
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- Placar fora do #game, colado no canto superior direito -->
+      <div id="placar">
+        <div class="placar-times">
+          <div class="placar-time placar-time--nos">
+            <span class="placar-time-nome">Nós</span>
+            <span class="placar-time-pontos" id="teamAScore">0</span>
+          </div>
+          <div class="placar-time placar-time--eles">
+            <span class="placar-time-nome">Eles</span>
+            <span class="placar-time-pontos" id="teamBScore">0</span>
+          </div>
+        </div>
+        <span class="placar-status" id="trucoStatus">Truco: Nenhum</span>
       </div>
 
       <!-- UI overlay -->
