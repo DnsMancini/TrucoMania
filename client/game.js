@@ -148,6 +148,12 @@ socket.on('cardPlayed', ({ player, card }) => {
 });
 
 socket.on('roundResult', ({ round, winner }) => {
+  // Atualiza indicador de rodada (1ª, 2ª, 3ª)
+  const spans = rodadasIndicador.querySelectorAll('span');
+  // Não temos mais 'rodadasIndicador' global? No HTML atual é id 'infoRodada'?
+  // Vamos usar o id 'infoRodada' diretamente:
+  infoRodada.textContent = `Rodada ${round + 2} de 3`; // round 0->"Rodada 2 de 3"
+  
   const bolinhas = painelHistorico.querySelectorAll('.bolinha-rodada');
   if (bolinhas[round]) {
     bolinhas[round].className = 'bolinha-rodada bolinha-ouro';
