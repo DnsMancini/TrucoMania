@@ -47,6 +47,7 @@ let myPlayerIndex = null;
 let playerHand = [];
 let gameActive = false;
 let aguardandoResposta = false;
+let isMyTurn = false;
 
 createBtn.onclick = () => {
   const name = nameInput.value.trim() || 'Jogador';
@@ -86,6 +87,7 @@ socket.on('handStart', (data) => {
   gameActive = true;
   playerHand = data.hand;
   myPlayerIndex = data.player;
+  isMyTurn = (data.currentPlayer === myPlayerIndex);
   renderizarMao(playerHand);
   teamAScoreEl.textContent = data.scores[0];
   teamBScoreEl.textContent = data.scores[1];
@@ -122,6 +124,7 @@ socket.on('handStart', (data) => {
 });
 
 socket.on('turn', ({ currentPlayer }) => {
+  isMyTurn = (currentPlayer === myPlayerIndex);
   if (!aguardandoResposta) {
     if (currentPlayer === myPlayerIndex) {
       btnTruco.classList.remove('oculto');
@@ -134,7 +137,13 @@ socket.on('turn', ({ currentPlayer }) => {
 });
 
 socket.on('cardPlayed', ({ player, card }) => {
-  if (player !== myPlayerIndex) {
+  if (player === myPlayerIndex) {
+    const idx = playerHand.findIndex(c => c.suit === card.suit && c.rank === card.rank);
+    if (idx !== -1) {
+      playerHand.splice(idx, 1);
+      renderizarMao(playerHand);
+    }
+  } else {
     const handEl = player === 1 ? hand1 : player === 2 ? hand2 : hand3;
     if (handEl.children.length > 0) handEl.removeChild(handEl.lastChild);
   }
@@ -148,12 +157,8 @@ socket.on('cardPlayed', ({ player, card }) => {
 });
 
 socket.on('roundResult', ({ round, winner }) => {
-  // Atualiza indicador de rodada (1ª, 2ª, 3ª)
-  const spans = rodadasIndicador.querySelectorAll('span');
-  // Não temos mais 'rodadasIndicador' global? No HTML atual é id 'infoRodada'?
-  // Vamos usar o id 'infoRodada' diretamente:
-  infoRodada.textContent = `Rodada ${round + 2} de 3`; // round 0->"Rodada 2 de 3"
-  
+  // Atualiza informação de rodada (simples)
+  infoRodada.textContent = `Rodada ${round + 2} de 3`; // round 0 -> Rodada 2 de 3
   const bolinhas = painelHistorico.querySelectorAll('.bolinha-rodada');
   if (bolinhas[round]) {
     bolinhas[round].className = 'bolinha-rodada bolinha-ouro';
@@ -164,6 +169,7 @@ socket.on('roundResult', ({ round, winner }) => {
 socket.on('handEnd', ({ winnerTeam, points, scores }) => {
   gameActive = false;
   aguardandoResposta = false;
+  isMyTurn = false;
   teamAScoreEl.textContent = scores[0];
   teamBScoreEl.textContent = scores[1];
   if (points === 6) audioSeis.play().catch(e => console.warn('Áudio seis:', e));
@@ -181,6 +187,7 @@ socket.on('handEnd', ({ winnerTeam, points, scores }) => {
 
 socket.on('gameOver', ({ winnerTeam }) => {
   aguardandoResposta = false;
+  isMyTurn = false;
   telaFinal.classList.add('show');
   textoFinal.textContent = winnerTeam === myPlayerIndex % 2 ? 'VOCÊ VENCEU!' : 'VOCÊ PERDEU!';
   resumoFinal.textContent = 'Clique em Voltar ao Lobby para jogar novamente.';
@@ -223,9 +230,9 @@ function renderizarMao(hand) {
     carta.innerHTML = `<span class="center ${corClasse}">${c.rank}${suitSymbol(c.suit)}</span>`;
     carta.style.pointerEvents = 'auto';
     carta.addEventListener('click', () => {
+      if (!isMyTurn || !gameActive) return;
       socket.emit('playCard', c);
-      playerHand.splice(idx, 1);
-      renderizarMao(playerHand);
+      // Não removemos a carta aqui – aguardamos confirmação do servidor
     });
     maoDiv.appendChild(carta);
   });

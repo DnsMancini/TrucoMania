@@ -96,6 +96,7 @@ function startGame(room, io) {
     }
   };
   room.game = new Game4P(room.code, room.players, emit);
+  room.game.checkBotTurn = () => checkBotTurn(room, io); // callback
   room.game.startGame();
   checkBotTurn(room, io);
 }

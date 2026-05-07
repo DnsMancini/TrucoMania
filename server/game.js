@@ -47,6 +47,7 @@ class Game4P {
     this.roundWins = [0, 0];
     this.currentRound = 0;
     this.playersInRound = 0;
+    this.checkBotTurn = null; // callback
   }
 
   startGame() { this.startNewHand(); }
@@ -124,30 +125,19 @@ class Game4P {
     }
 
     let winnerTeam = -1;
-    if (bestPlayer !== -1) {
-      winnerTeam = bestPlayer % 2;
-      this.roundWins[winnerTeam]++;
-    }
+    if (bestPlayer !== -1) { winnerTeam = bestPlayer % 2; this.roundWins[winnerTeam]++; }
     this.emit('roundResult', { round: this.currentRound, winner: bestPlayer }, 'all');
 
-    // Verifica vitória por 2 rodadas
     if (this.roundWins[0] >= 2 || this.roundWins[1] >= 2) {
       const winningTeam = this.roundWins[0] >= 2 ? 0 : 1;
       this.endHand(winningTeam);
       return;
     }
 
-    // Se completou 3 rodadas sem vencedor, encerrar a mão
-    if (this.currentRound >= 2) { // 0,1,2 -> 3 rodadas
-      // Decide pelo time que venceu a primeira rodada (roundWins > 0)
-      if (this.roundWins[0] > this.roundWins[1]) {
-        this.endHand(0);
-      } else if (this.roundWins[1] > this.roundWins[0]) {
-        this.endHand(1);
-      } else {
-        // Empate absoluto: concede ao time 0 (poderia ser aleatório)
-        this.endHand(0);
-      }
+    if (this.currentRound >= 2) {
+      if (this.roundWins[0] > this.roundWins[1]) this.endHand(0);
+      else if (this.roundWins[1] > this.roundWins[0]) this.endHand(1);
+      else this.endHand(0); // empate total, time 0 ganha
       return;
     }
 
@@ -165,7 +155,11 @@ class Game4P {
       return;
     }
     this.dealerIndex = (this.dealerIndex + 1) % 4;
-    setTimeout(() => this.startNewHand(), 1500);
+    const checkBot = this.checkBotTurn;
+    setTimeout(() => {
+      this.startNewHand();
+      if (checkBot) checkBot();
+    }, 1500);
   }
 
   callBet(playerIndex, betType) {
@@ -204,7 +198,10 @@ class Game4P {
         return false;
       }
       this.dealerIndex = (this.dealerIndex + 1) % 4;
-      setTimeout(() => this.startNewHand(), 1500);
+      setTimeout(() => {
+        this.startNewHand();
+        if (this.checkBotTurn) this.checkBotTurn();
+      }, 1500);
       return true;
     }
 
