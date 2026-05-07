@@ -101,7 +101,6 @@ class Game2P {
 
     // Mão de 11
     if (this.scores[0] >= 11 && this.scores[1] >= 11) {
-      // Ambos com 11: mão especial (vale 6, sem aposta)
       this.handValue = 6;
       this.maoDe11 = true;
     } else if (this.scores[0] >= 11 || this.scores[1] >= 11) {
@@ -120,21 +119,21 @@ class Game2P {
     this.roundCards = [];
 
     // Envia mão para cada jogador
-    // Envia mão para cada jogador
     for (let i = 0; i < 2; i++) {
       this.emit('handStart', {
-      player: i,
-    hand: this.hands[i],
-    vira: this.vira,
-    currentPlayer: this.currentPlayer,
-    dealer: this.dealerIndex,
-    handValue: this.handValue,
-    scores: this.scores,
-    maoDe11: this.maoDe11,
-    // ADICIONE:
-    players: this.players.map(p => p.name)  // array com nomes
-  }, this.players[i].id);
-}
+        player: i,
+        hand: this.hands[i],
+        vira: this.vira,
+        currentPlayer: this.currentPlayer,
+        dealer: this.dealerIndex,
+        handValue: this.handValue,
+        scores: this.scores,
+        maoDe11: this.maoDe11,
+        players: this.players.map(p => p.name)   // nomes dos jogadores
+      }, this.players[i].id);
+    }
+  }   // <-- FECHA startNewHand
+
   playCard(playerIndex, card) {
     if (this.turnStage !== 'play' || playerIndex !== this.currentPlayer) return;
     const hand = this.hands[playerIndex];
