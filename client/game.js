@@ -78,9 +78,7 @@ function enterRoom(res) {
 function atualizarNomes(players) {
   for (let i = 0; i < 4; i++) {
     const el = nomesSlots['p' + i];
-    if (el) {
-      el.textContent = (players[i]?.name || '') + (players[i]?.isBot ? ' (Bot)' : '');
-    }
+    if (el) el.textContent = (players[i]?.name || '') + (players[i]?.isBot ? ' (Bot)' : '');
   }
 }
 
@@ -98,7 +96,7 @@ socket.on('handStart', (data) => {
   btnCorrer.classList.add('oculto');
   aguardandoResposta = false;
   viraEl.classList.remove('oculto');
-  viraEl.innerHTML = `<span class="center">${data.vira.rank}${suitSymbol(data.vira.suit)}</span>`;
+  viraEl.innerHTML = `<span class="center ${data.vira.suit === 'copas' || data.vira.suit === 'ouros' ? 'naipe-vermelho' : 'naipe-preto'}">${data.vira.rank}${suitSymbol(data.vira.suit)}</span>`;
   mesaCartas.innerHTML = '';
   atualizarNomes(data.players);
 
@@ -119,7 +117,7 @@ socket.on('handStart', (data) => {
     b.className = 'bolinha-rodada bolinha-branca';
   });
 
-  audioDistribuir.play().catch(() => {});
+  audioDistribuir.play().catch(e => console.warn('Áudio distribuir:', e));
   esconderMensagem();
 });
 
@@ -143,9 +141,10 @@ socket.on('cardPlayed', ({ player, card }) => {
   const posicoes = ['c0', 'c1', 'c2', 'c3'];
   const cartaDiv = document.createElement('div');
   cartaDiv.className = `cartaMesa ${posicoes[player]}`;
-  cartaDiv.innerHTML = `<span class="center">${card.rank}${suitSymbol(card.suit)}</span>`;
+  const corClasse = (card.suit === 'copas' || card.suit === 'ouros') ? 'naipe-vermelho' : 'naipe-preto';
+  cartaDiv.innerHTML = `<span class="center ${corClasse}">${card.rank}${suitSymbol(card.suit)}</span>`;
   mesaCartas.appendChild(cartaDiv);
-  audioCarta.play().catch(() => {});
+  audioCarta.play().catch(e => console.warn('Áudio carta:', e));
 });
 
 socket.on('roundResult', ({ round, winner }) => {
@@ -161,9 +160,9 @@ socket.on('handEnd', ({ winnerTeam, points, scores }) => {
   aguardandoResposta = false;
   teamAScoreEl.textContent = scores[0];
   teamBScoreEl.textContent = scores[1];
-  if (points === 6) audioSeis.play().catch(() => {});
-  else if (points === 9) audioNove.play().catch(() => {});
-  else if (points === 12) audioDoze.play().catch(() => {});
+  if (points === 6) audioSeis.play().catch(e => console.warn('Áudio seis:', e));
+  else if (points === 9) audioNove.play().catch(e => console.warn('Áudio nove:', e));
+  else if (points === 12) audioDoze.play().catch(e => console.warn('Áudio doze:', e));
   btnTruco.classList.add('oculto');
   btnCorrer.classList.add('oculto');
   maoDiv.innerHTML = '';
@@ -188,7 +187,7 @@ socket.on('betCalled', ({ challenger, level }) => {
   btnTruco.classList.add('oculto');
   btnCorrer.classList.remove('oculto');
   aguardandoResposta = true;
-  audioTruco.play().catch(() => {});
+  audioTruco.play().catch(e => console.warn('Áudio truco:', e));
 });
 
 socket.on('betAccepted', ({ handValue }) => {
@@ -214,7 +213,8 @@ function renderizarMao(hand) {
     const carta = document.createElement('div');
     carta.className = 'carta playerCard';
     carta.setAttribute('data-index', idx);
-    carta.innerHTML = `<span class="center ${c.suit === 'copas' || c.suit === 'ouros' ? 'naipe-vermelho' : 'naipe-preto'}">${c.rank}${suitSymbol(c.suit)}</span>`;
+    const corClasse = (c.suit === 'copas' || c.suit === 'ouros') ? 'naipe-vermelho' : 'naipe-preto';
+    carta.innerHTML = `<span class="center ${corClasse}">${c.rank}${suitSymbol(c.suit)}</span>`;
     carta.style.pointerEvents = 'auto';
     carta.addEventListener('click', () => {
       socket.emit('playCard', c);

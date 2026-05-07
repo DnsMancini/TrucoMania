@@ -136,9 +136,9 @@ body {
 }
 
 #painelRodada {
-  position: absolute;
-  top: 16px;
-  left: -180px;
+  position: fixed;
+  top: calc(var(--safe-top) + 8px);
+  left: calc(var(--safe-left) + 8px);
   width: 170px;
   background: linear-gradient(155deg, rgba(20,20,20,0.95), rgba(5,5,5,0.9));
   border: 2px solid rgba(241,196,15,0.75);
@@ -448,7 +448,7 @@ body {
 .cartaMesa .bottom-right { font-size: 12px; transform: rotate(180deg); }
 
 @media (max-width: 1200px), (max-height: 760px) {
-  #painelRodada { left: 12px; top: 12px; width: 156px; padding: 10px 12px; }
+  #painelRodada { left: calc(var(--safe-left) + 8px); top: calc(var(--safe-top) + 8px); width: 156px; padding: 10px 12px; }
   #placar { right: var(--safe-right); top: var(--safe-top); font-size: 15px; }
   #painelHistorico { left: calc(var(--safe-left) + 8px); bottom: 20px; width: 40px; min-height: 110px; }
 }
