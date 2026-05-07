@@ -22,6 +22,7 @@ const trucoStatusSpan = document.getElementById('trucoStatus');
 const trucoBtn = document.getElementById('trucoBtn');
 const correrBtn = document.getElementById('correrBtn');
 const parceiroNomeEl = document.getElementById('parceiroNome');
+const viraCardEl = document.getElementById('viraCard');
 
 // Slots
 const slots = {
@@ -38,6 +39,7 @@ const audioDistribuir = document.getElementById('audioDistribuir');
 const audioNove = document.getElementById('audioNove');
 const audioSeis = document.getElementById('audioSeis');
 const audioDoze = document.getElementById('audioDoze');
+
 
 let myPlayerIndex = null;
 let playerHand = [];
@@ -77,6 +79,7 @@ socket.on('handStart', (data) => {
   playerHand = data.hand;
   myPlayerIndex = data.player;
   renderMyHand(playerHand);
+  viraCardEl.textContent = `${data.vira.rank}${suitSymbol(data.vira.suit)}`;
   teamAScoreEl.textContent = data.scores[0];
   teamBScoreEl.textContent = data.scores[1];
   gameActive = true;
