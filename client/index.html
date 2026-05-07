@@ -12,16 +12,16 @@
     <!-- LOBBY -->
     <div id="lobby" class="lobby">
       <div class="lobby-card">
-        <h1 style="text-align:center; color:#f1c40f;">🃏 Truco Mania</h1>
-        <div class="menu" style="text-align:center; margin-top:20px;">
-          <input type="text" id="nameInput" placeholder="Seu nome" maxlength="15" style="padding:10px; font-size:16px; border-radius:8px; border:none;" />
-          <button id="createBtn" style="padding:10px 20px; margin:5px; font-size:16px; border-radius:8px; border:none; background:#5cb85c; color:white; cursor:pointer;">Criar Sala</button>
-          <div class="join-area" style="margin-top:10px;">
-            <input type="text" id="roomInput" placeholder="Código da sala" maxlength="6" style="padding:10px; font-size:16px; border-radius:8px; border:none;" />
-            <button id="joinBtn" style="padding:10px 20px; margin:5px; font-size:16px; border-radius:8px; border:none; background:#5cb85c; color:white; cursor:pointer;">Entrar</button>
+        <h1 class="lobby-title">🃏 Truco Mania</h1>
+        <div class="lobby-menu">
+          <input type="text" id="nameInput" class="lobby-input" placeholder="Seu nome" maxlength="15" />
+          <button id="createBtn" class="lobby-button lobby-button-primary">Criar Sala</button>
+          <div class="lobby-join-area">
+            <input type="text" id="roomInput" class="lobby-input" placeholder="Código da sala" maxlength="6" />
+            <button id="joinBtn" class="lobby-button lobby-button-primary">Entrar</button>
           </div>
         </div>
-        <div id="lobbyStatus" style="text-align:center; margin-top:15px; color:#ccc;"></div>
+        <div id="lobbyStatus" class="lobby-status"></div>
       </div>
     </div>
 
@@ -31,10 +31,8 @@
       <div class="mesa"></div>
 
       <div id="game">
-        <!-- Cartas na mesa -->
         <div id="mesaCartas"></div>
 
-        <!-- Jogadores (posicionados ao redor) -->
         <div class="player" id="p0">
           <div class="avatar avatar-voce"></div>
           <span class="name">Você</span>
@@ -52,24 +50,19 @@
           <span class="name"></span>
         </div>
 
-        <!-- Mãos dos oponentes -->
         <div class="botHand" id="hand1"></div>
         <div class="botHand" id="hand2"></div>
         <div class="botHand" id="hand3"></div>
 
-        <!-- Mão do jogador -->
         <div id="mao"></div>
 
-        <!-- Carta Vira (sobre a mesa) -->
-        <div id="vira" class="carta virada oculto"></div>
+        <div id="vira" class="carta oculto"></div>
 
-        <!-- Painel de rodada (ESQUERDA) -->
         <div id="painelRodada">
           <div id="infoRodada">Rodada 1 de 3</div>
           <div id="trucoDisplay">TRUCO</div>
         </div>
 
-        <!-- Histórico de rodadas -->
         <div id="painelHistorico">
           <div id="historicoRodadas">
             <div class="bolinha-rodada bolinha-branca"></div>
@@ -78,14 +71,15 @@
           </div>
         </div>
 
-        <!-- Botões de ação -->
-        <button id="btnTruco">TRUCO</button>
-        <button id="btnCorrer" class="oculto">CORRER</button>
+        <button id="btnTruco" class="game-button game-button-truco">TRUCO</button>
+        <button id="btnCorrer" class="game-button game-button-correr oculto">CORRER</button>
 
-        <!-- Mensagem -->
+        <div id="cronometro" class="cronometro oculto">
+          <span id="cronometroNum"></span>
+        </div>
+
         <div id="mensagem"></div>
 
-        <!-- Tela de fim de jogo -->
         <div class="telaFinal" id="telaFinal">
           <div class="tela-final-card">
             <div id="textoFinal"></div>
@@ -98,7 +92,6 @@
         </div>
       </div>
 
-      <!-- Placar fora do #game, colado no canto superior direito -->
       <div id="placar">
         <div class="placar-times">
           <div class="placar-time placar-time--nos">
@@ -113,12 +106,10 @@
         <span class="placar-status" id="trucoStatus">Truco: Nenhum</span>
       </div>
 
-      <!-- UI overlay -->
       <div id="ui"></div>
     </div>
   </div>
 
-  <!-- Áudios -->
   <audio id="audioTruco" src="/audio/Truco.mp3"></audio>
   <audio id="audioCarta" src="/audio/jogarcarta.mp3"></audio>
   <audio id="audioDistribuir" src="/audio/Distribuicaocartas.mp3"></audio>

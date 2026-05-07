@@ -27,6 +27,8 @@ const mensagemEl = document.getElementById('mensagem');
 const telaFinal = document.getElementById('telaFinal');
 const textoFinal = document.getElementById('textoFinal');
 const resumoFinal = document.getElementById('resumoFinal');
+const cronometroEl = document.getElementById('cronometro');
+const cronometroNum = document.getElementById('cronometroNum');
 
 // Áudios
 const audioTruco = document.getElementById('audioTruco');
@@ -48,6 +50,10 @@ let playerHand = [];
 let gameActive = false;
 let aguardandoResposta = false;
 let isMyTurn = false;
+
+// Timer
+let turnTimerInterval = null;
+let timeLeft = 25;
 
 createBtn.onclick = () => {
   const name = nameInput.value.trim() || 'Jogador';
@@ -98,7 +104,8 @@ socket.on('handStart', (data) => {
   btnCorrer.classList.add('oculto');
   aguardandoResposta = false;
   viraEl.classList.remove('oculto');
-  viraEl.innerHTML = `<span class="center ${data.vira.suit === 'copas' || data.vira.suit === 'ouros' ? 'naipe-vermelho' : 'naipe-preto'}">${data.vira.rank}${suitSymbol(data.vira.suit)}</span>`;
+  viraEl.classList.remove('virada'); // garante fundo branco
+  viraEl.innerHTML = createCardHTML(data.vira);
   mesaCartas.innerHTML = '';
   atualizarNomes(data.players);
 
@@ -121,6 +128,8 @@ socket.on('handStart', (data) => {
 
   audioDistribuir.play().catch(e => console.warn('Áudio distribuir:', e));
   esconderMensagem();
+  clearTurnTimer();
+  if (isMyTurn && !aguardandoResposta) startTurnTimer();
 });
 
 socket.on('turn', ({ currentPlayer }) => {
@@ -129,9 +138,11 @@ socket.on('turn', ({ currentPlayer }) => {
     if (currentPlayer === myPlayerIndex) {
       btnTruco.classList.remove('oculto');
       btnCorrer.classList.add('oculto');
+      startTurnTimer();
     } else {
       btnTruco.classList.add('oculto');
       btnCorrer.classList.add('oculto');
+      clearTurnTimer();
     }
   }
 });
@@ -143,6 +154,7 @@ socket.on('cardPlayed', ({ player, card }) => {
       playerHand.splice(idx, 1);
       renderizarMao(playerHand);
     }
+    clearTurnTimer();
   } else {
     const handEl = player === 1 ? hand1 : player === 2 ? hand2 : hand3;
     if (handEl.children.length > 0) handEl.removeChild(handEl.lastChild);
@@ -150,18 +162,24 @@ socket.on('cardPlayed', ({ player, card }) => {
   const posicoes = ['c0', 'c1', 'c2', 'c3'];
   const cartaDiv = document.createElement('div');
   cartaDiv.className = `cartaMesa ${posicoes[player]}`;
-  const corClasse = (card.suit === 'copas' || card.suit === 'ouros') ? 'naipe-vermelho' : 'naipe-preto';
-  cartaDiv.innerHTML = `<span class="center ${corClasse}">${card.rank}${suitSymbol(card.suit)}</span>`;
+  cartaDiv.innerHTML = createCardHTML(card);
   mesaCartas.appendChild(cartaDiv);
   audioCarta.play().catch(e => console.warn('Áudio carta:', e));
 });
 
 socket.on('roundResult', ({ round, winner }) => {
-  // Atualiza informação de rodada (simples)
-  infoRodada.textContent = `Rodada ${round + 2} de 3`; // round 0 -> Rodada 2 de 3
+  infoRodada.textContent = `Rodada ${round + 2} de 3`;
   const bolinhas = painelHistorico.querySelectorAll('.bolinha-rodada');
   if (bolinhas[round]) {
-    bolinhas[round].className = 'bolinha-rodada bolinha-ouro';
+    let corClasse = 'bolinha-ouro'; // empate
+    if (winner !== -1) {
+      if (winner % 2 === myPlayerIndex % 2) {
+        corClasse = 'bolinha-verde';
+      } else {
+        corClasse = 'bolinha-azul';
+      }
+    }
+    bolinhas[round].className = 'bolinha-rodada ' + corClasse;
   }
   setTimeout(() => { mesaCartas.innerHTML = ''; }, 1200);
 });
@@ -170,6 +188,7 @@ socket.on('handEnd', ({ winnerTeam, points, scores }) => {
   gameActive = false;
   aguardandoResposta = false;
   isMyTurn = false;
+  clearTurnTimer();
   teamAScoreEl.textContent = scores[0];
   teamBScoreEl.textContent = scores[1];
   if (points === 6) audioSeis.play().catch(e => console.warn('Áudio seis:', e));
@@ -188,6 +207,7 @@ socket.on('handEnd', ({ winnerTeam, points, scores }) => {
 socket.on('gameOver', ({ winnerTeam }) => {
   aguardandoResposta = false;
   isMyTurn = false;
+  clearTurnTimer();
   telaFinal.classList.add('show');
   textoFinal.textContent = winnerTeam === myPlayerIndex % 2 ? 'VOCÊ VENCEU!' : 'VOCÊ PERDEU!';
   resumoFinal.textContent = 'Clique em Voltar ao Lobby para jogar novamente.';
@@ -213,12 +233,31 @@ socket.on('betAccepted', ({ handValue }) => {
 socket.on('turnToRespond', () => {});
 
 socket.on('playerLeft', () => {
+  clearTurnTimer();
   alert('Oponente saiu do jogo.');
   location.reload();
 });
 
-btnTruco.onclick = () => socket.emit('callBet', 'truco');
-btnCorrer.onclick = () => socket.emit('respondBet', 'flee');
+btnTruco.onclick = () => {
+  if (!isMyTurn || !gameActive || aguardandoResposta) return;
+  socket.emit('callBet', 'truco');
+  clearTurnTimer();
+};
+
+btnCorrer.onclick = () => {
+  socket.emit('respondBet', 'flee');
+  clearTurnTimer();
+};
+
+// Cria HTML de carta com cantos visíveis
+function createCardHTML(card) {
+  const suitSym = suitSymbol(card.suit);
+  const corClasse = (card.suit === 'copas' || card.suit === 'ouros') ? 'naipe-vermelho' : 'naipe-preto';
+  return `
+    <div class="carta-corner top-left ${corClasse}">${card.rank}${suitSym}</div>
+    <div class="carta-corner bottom-right ${corClasse}">${card.rank}${suitSym}</div>
+  `;
+}
 
 function renderizarMao(hand) {
   maoDiv.innerHTML = '';
@@ -226,16 +265,52 @@ function renderizarMao(hand) {
     const carta = document.createElement('div');
     carta.className = 'carta playerCard';
     carta.setAttribute('data-index', idx);
-    const corClasse = (c.suit === 'copas' || c.suit === 'ouros') ? 'naipe-vermelho' : 'naipe-preto';
-    carta.innerHTML = `<span class="center ${corClasse}">${c.rank}${suitSymbol(c.suit)}</span>`;
+    carta.innerHTML = createCardHTML(c);
     carta.style.pointerEvents = 'auto';
     carta.addEventListener('click', () => {
       if (!isMyTurn || !gameActive) return;
       socket.emit('playCard', c);
-      // Não removemos a carta aqui – aguardamos confirmação do servidor
+      clearTurnTimer();
     });
     maoDiv.appendChild(carta);
   });
+}
+
+// --- Cronômetro ---
+function startTurnTimer() {
+  clearTurnTimer();
+  cronometroEl.classList.add('oculto');
+  timeLeft = 25;
+  cronometroNum.textContent = '';
+  turnTimerInterval = setInterval(() => {
+    timeLeft--;
+    if (timeLeft <= 0) {
+      clearTurnTimer();
+      autoPlayRandomCard();
+      return;
+    }
+    if (timeLeft <= 5) {
+      cronometroEl.classList.remove('oculto');
+      cronometroNum.textContent = timeLeft;
+    } else {
+      cronometroEl.classList.add('oculto');
+    }
+  }, 1000);
+}
+
+function clearTurnTimer() {
+  if (turnTimerInterval) {
+    clearInterval(turnTimerInterval);
+    turnTimerInterval = null;
+  }
+  cronometroEl.classList.add('oculto');
+}
+
+function autoPlayRandomCard() {
+  if (playerHand.length > 0 && gameActive && isMyTurn) {
+    const card = playerHand[Math.floor(Math.random() * playerHand.length)];
+    socket.emit('playCard', card);
+  }
 }
 
 function mostrarMensagem(texto) {

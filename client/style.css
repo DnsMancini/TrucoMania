@@ -78,7 +78,8 @@ body {
 }
 #ui > * { pointer-events: auto; }
 
-#btnTruco, #btnCorrer {
+/* Botões do jogo */
+.game-button {
   position: fixed;
   min-width: 138px;
   height: 48px;
@@ -96,14 +97,17 @@ body {
   transform-origin: bottom center;
   transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.22), 0 10px 22px rgba(0,0,0,0.45);
+  pointer-events: auto; /* garante clique mesmo dentro de #game */
 }
-#btnTruco {
+
+.game-button-truco {
   left: 20px;
   bottom: calc(154px + var(--safe-bottom));
   background: linear-gradient(180deg, #d82727 0%, #a71212 55%, #7b0a0a 100%);
   border-color: #ff6a5b;
 }
-#btnCorrer {
+
+.game-button-correr {
   right: 20px;
   bottom: calc(154px + var(--safe-bottom));
   background: linear-gradient(180deg, #505a67 0%, #323a45 55%, #212832 100%);
@@ -150,12 +154,12 @@ body {
 #infoRodada { font-weight: 700; color: #f1c40f; font-size: 17px; line-height: 1.3; margin-bottom: 8px; }
 #trucoStatus { color: #fff; font-weight: 700; font-size: 17px; line-height: 1.3; }
 
-#btnTruco:hover, #btnCorrer:hover {
+.game-button:hover {
   filter: brightness(1.08);
   transform: scale(1.06) translateY(-1px);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.26), 0 14px 26px rgba(0,0,0,0.52);
 }
-#btnTruco:active, #btnCorrer:active {
+.game-button:active {
   transform: scale(1.02) translateY(1px);
   filter: brightness(0.98);
 }
@@ -218,6 +222,8 @@ body {
   font-weight: bold;
   font-size: 18px;
   user-select: none;
+  position: relative;
+  overflow: hidden;
 }
 
 .carta.virada {
@@ -227,6 +233,23 @@ body {
 .carta.playerCard {
   background: linear-gradient(145deg, #ffffff, #eaeaea);
   color: #111;
+}
+
+/* Cantos de carta */
+.carta-corner {
+  position: absolute;
+  font-size: 14px;
+  font-weight: bold;
+  line-height: 1;
+}
+.top-left {
+  top: 4px;
+  left: 6px;
+}
+.bottom-right {
+  bottom: 4px;
+  right: 6px;
+  transform: rotate(180deg);
 }
 
 #mesaCartas {
@@ -396,6 +419,82 @@ body {
 .bolinha-branca { background: radial-gradient(circle at 30% 26%, #ffffff 0%, #ececec 56%, #b8b8b8 100%); }
 .bolinha-ouro { background: radial-gradient(circle at 30% 26%, #ffe8a3 0%, #d4af37 52%, #8a6a00 100%); }
 
+/* Cronômetro */
+.cronometro {
+  position: fixed;
+  top: 60%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0,0,0,0.85);
+  border: 2px solid #f1c40f;
+  border-radius: 12px;
+  padding: 16px 24px;
+  color: #f1c40f;
+  font-size: 48px;
+  font-weight: bold;
+  z-index: 3000;
+  text-align: center;
+}
+.cronometro.oculto { display: none; }
+
+/* Lobby */
+.lobby {
+  min-height: var(--viewport-height);
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: radial-gradient(circle at top, #1d5d3a 0%, #0b0b0b 65%);
+}
+.lobby-card {
+  width: min(720px, 92vw);
+  background: rgba(10,10,10,0.88);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.lobby-title {
+  text-align: center;
+  color: #f1c40f;
+}
+
+.lobby-menu {
+  text-align: center;
+  margin-top: 20px;
+}
+
+.lobby-input {
+  padding: 10px;
+  font-size: 16px;
+  border-radius: 8px;
+  border: none;
+}
+
+.lobby-button {
+  padding: 10px 20px;
+  margin: 5px;
+  font-size: 16px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+}
+
+.lobby-button-primary {
+  background: #5cb85c;
+  color: white;
+}
+
+.lobby-join-area {
+  margin-top: 10px;
+}
+
+.lobby-status {
+  text-align: center;
+  margin-top: 15px;
+  color: #ccc;
+}
+
+/* Tela final */
 .telaFinal {
   position: fixed;
   top: 0; left: 0;
@@ -420,32 +519,9 @@ body {
   to { transform: scale(1); opacity: 1; }
 }
 
-/* Lobby */
-.lobby {
-  min-height: var(--viewport-height);
-  display: grid;
-  place-items: center;
-  padding: 20px;
-  background: radial-gradient(circle at top, #1d5d3a 0%, #0b0b0b 65%);
-}
-.lobby-card {
-  width: min(720px, 92vw);
-  background: rgba(10,10,10,0.88);
-  border: 1px solid rgba(255,255,255,0.18);
-  border-radius: 16px;
-  padding: 24px;
-}
-
 /* Cores naipes */
 .naipe-vermelho { color: #c1121f; }
 .naipe-preto { color: #111; }
-
-/* Outros ajustes */
-.cartaMesa .top-left,
-.carta.playerCard .top-left,
-.carta.playerCard .bottom-right { font-size: 14px; }
-.cartaMesa .center { font-size: 26px; }
-.cartaMesa .bottom-right { font-size: 12px; transform: rotate(180deg); }
 
 @media (max-width: 1200px), (max-height: 760px) {
   #painelRodada { left: calc(var(--safe-left) + 8px); top: calc(var(--safe-top) + 8px); width: 156px; padding: 10px 12px; }
