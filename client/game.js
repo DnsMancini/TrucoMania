@@ -75,31 +75,31 @@ function posicionarSeta(currentPlayer) {
   // Mapear índice original do jogador para posição visual (após rotação)
   const rotated = rotateArrayForPlayer([0, 1, 2, 3], myPlayerIndex);
   const visualPos = rotated.indexOf(currentPlayer);
-  const slotId = SLOT_ORDER[visualPos];
-  const slotEl = document.getElementById(slotId);
-  if (!slotEl) {
-    turnIndicator.classList.remove('visible');
-    return;
-  }
+  const rootStyle = getComputedStyle(document.documentElement);
+  const tableSizeRaw = rootStyle.getPropertyValue('--table-size').trim();
+  const tableSize = Number.parseFloat(tableSizeRaw);
+  const sizePx = Number.isFinite(tableSize) ? (window.innerWidth * tableSize) / 100 : Math.min(window.innerWidth, window.innerHeight) * 0.74;
 
-  const slotRect = slotEl.getBoundingClientRect();
-  const indicatorX = slotRect.left + slotRect.width / 2;
-  const indicatorY = slotRect.top - 20;
+  const centerX = window.innerWidth / 2;
+  const centerY = window.innerHeight / 2;
+  const halfTable = sizePx / 2;
 
-  // Alvo: carta do meio da mão do jogador da vez.
-  const handEl = visualPos === 0 ? maoDiv : HAND_SLOTS[visualPos];
-  const cards = handEl ? handEl.querySelectorAll('.carta') : [];
-  const middleCard = cards.length ? cards[Math.floor(cards.length / 2)] : null;
-
+  let indicatorX = centerX;
+  let indicatorY = centerY;
   let rotation = 0;
-  if (middleCard) {
-    const cardRect = middleCard.getBoundingClientRect();
-    const targetX = cardRect.left + cardRect.width / 2;
-    const targetY = cardRect.top + cardRect.height / 2;
-    const dx = targetX - indicatorX;
-    const dy = targetY - indicatorY;
-    // A seta padrão (0°) aponta para baixo.
-    rotation = (Math.atan2(dy, dx) * 180 / Math.PI) - 90;
+
+  if (visualPos === 0) {
+    indicatorY = centerY + halfTable;
+    rotation = 0;
+  } else if (visualPos === 1) {
+    indicatorX = centerX - halfTable;
+    rotation = 90;
+  } else if (visualPos === 2) {
+    indicatorY = centerY - halfTable;
+    rotation = 180;
+  } else if (visualPos === 3) {
+    indicatorX = centerX + halfTable;
+    rotation = -90;
   }
 
   turnIndicator.style.left = indicatorX + 'px';
