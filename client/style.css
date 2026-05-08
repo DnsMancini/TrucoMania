@@ -555,7 +555,7 @@ body {
   #hand1 .carta { margin-top: -42px; }
   #hand3 .carta { margin-top: -42px; }
   #hand2 .carta { margin-left: -27px; }
-  #hand2 { top: calc(50% - var(--table-size) / 2 - 5px); }
+  #hand2 { top: calc(50% - var(--table-size) / 2 - 93px); }
   #vira { transform: translate(-50%, -50%) scale(0.8); }
 }
 
