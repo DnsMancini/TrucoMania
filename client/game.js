@@ -400,7 +400,7 @@ function atualizarBotaoTruco() {
 
   if (isRespondingToBet) {
     btnTruco.classList.remove('oculto');
-    btnTruco.textContent = currentBetLevel === 'valequatro' ? 'ACEITAR' : 'ACEITAR / AUMENTAR';
+    btnTruco.textContent = currentBetLevel === 'valedoze' ? 'ACEITAR' : 'ACEITAR / AUMENTAR';
     return;
   }
 
@@ -412,8 +412,10 @@ function atualizarBotaoTruco() {
   btnTruco.classList.remove('oculto');
   if (currentHandValue >= 12) {
     btnTruco.classList.add('oculto');
+  } else if (currentHandValue >= 9) {
+    btnTruco.textContent = 'VALE DOZE';
   } else if (currentHandValue >= 6) {
-    btnTruco.textContent = 'VALE QUATRO';
+    btnTruco.textContent = 'VALE NOVE';
   } else if (currentHandValue >= 3) {
     btnTruco.textContent = 'RETRUCO';
   } else {
@@ -425,12 +427,15 @@ btnTruco.onclick = () => {
   if (!gameActive) return;
 
   if (isRespondingToBet) {
-    const canRaise = currentBetLevel === 'truco' || currentBetLevel === 'retruco';
+    const canRaise = currentBetLevel === 'truco' || currentBetLevel === 'retruco' || currentBetLevel === 'valenove';
     if (!canRaise) {
       socket.emit('respondBet', 'accept');
     } else {
       const aumentar = !window.confirm('OK = Aceitar\nCancelar = Aumentar aposta');
-      socket.emit('respondBet', aumentar ? (currentBetLevel === 'truco' ? 'retruco' : 'valequatro') : 'accept');
+      let raiseTo = 'retruco';
+      if (currentBetLevel === 'retruco') raiseTo = 'valenove';
+      else if (currentBetLevel === 'valenove') raiseTo = 'valedoze';
+      socket.emit('respondBet', aumentar ? raiseTo : 'accept');
     }
     clearTurnTimer();
     return;
@@ -438,7 +443,8 @@ btnTruco.onclick = () => {
 
   if (!isMyTurn || aguardandoResposta) return;
   let betType = 'truco';
-  if (currentHandValue >= 6) betType = 'valequatro';
+  if (currentHandValue >= 9) betType = 'valedoze';
+  else if (currentHandValue >= 6) betType = 'valenove';
   else if (currentHandValue >= 3) betType = 'retruco';
   socket.emit('callBet', betType);
   clearTurnTimer();

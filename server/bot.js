@@ -20,6 +20,8 @@ function shouldCallBet(hand, viraRank, handValue, isMaoDe11) {
   if (max >= manilhaStrength && avg > 8) return 'truco';
   if (handValue < 3 && avg > 9) return 'truco';
   if (handValue === 3 && avg > 10 && Math.random() < 0.4) return 'retruco';
+  if (handValue === 6 && avg > 11 && Math.random() < 0.35) return 'valenove';
+  if (handValue === 9 && avg > 12 && Math.random() < 0.25) return 'valedoze';
   return null;
 }
 
@@ -39,10 +41,15 @@ function respondBet(hand, viraRank, betLevel) {
   }
   if (betLevel === 'retruco') {
     if (highCards >= 2 || hasZap) return 'accept';
-    if (avg > 8) return Math.random() < 0.3 ? 'valequatro' : 'accept';
+    if (avg > 8) return Math.random() < 0.3 ? 'valenove' : 'accept';
     return Math.random() < 0.4 ? 'accept' : 'flee';
   }
-  if (betLevel === 'valequatro') return avg > 8 ? 'accept' : 'flee';
+  if (betLevel === 'valenove') {
+    if (highCards >= 2 || hasZap) return Math.random() < 0.25 ? 'valedoze' : 'accept';
+    if (avg > 8.5) return Math.random() < 0.2 ? 'valedoze' : 'accept';
+    return Math.random() < 0.35 ? 'accept' : 'flee';
+  }
+  if (betLevel === 'valedoze') return avg > 9 ? 'accept' : 'flee';
   return 'flee';
 }
 
