@@ -452,6 +452,40 @@ body {
 .naipe-vermelho { color: #c1121f; }
 .naipe-preto { color: #111; }
 
+/* ===== INDICADOR DE VEZ (triângulo brilhante) ===== */
+#turnIndicator {
+  position: fixed;
+  bottom: 140px;            /* acima da mão */
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 20px solid transparent;
+  border-right: 20px solid transparent;
+  border-bottom: 30px solid #f1c40f;
+  filter: drop-shadow(0 0 10px #f1c40f) drop-shadow(0 0 20px #f1c40f);
+  animation: glow 1.5s ease-in-out infinite alternate;
+  z-index: 2700;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+#turnIndicator.visible {
+  opacity: 1;
+}
+
+@keyframes glow {
+  0% {
+    filter: drop-shadow(0 0 5px #f1c40f) drop-shadow(0 0 10px #f1c40f);
+    border-bottom-color: #f1c40f;
+  }
+  100% {
+    filter: drop-shadow(0 0 15px #f1c40f) drop-shadow(0 0 30px #f1c40f);
+    border-bottom-color: #ffea80;
+  }
+}
+
 /* ===== MOBILE (retrato) ===== */
 @media (max-width: 1024px) and (orientation: portrait) {
   :root { --table-size: 82vw; }

@@ -12,7 +12,7 @@ const contagemEl = document.getElementById('contagemRegressiva');
 const contagemNumero = document.getElementById('contagemNumero');
 
 // Elementos do jogo
-const gameContainer = document.getElementById('game'); // não rotacionaremos mais
+const gameContainer = document.getElementById('game');
 const mesaCartas = document.getElementById('mesaCartas');
 const viraEl = document.getElementById('vira');
 const hand1 = document.getElementById('hand1');
@@ -48,9 +48,7 @@ const nomesSlots = {
   p3: document.querySelector('#p3 .name')
 };
 
-// Mapeamento visual: slots fixos x posição relativa (0=bottom, 1=right, 2=top, 3=left)
 const SLOT_ORDER = ['p0', 'p3', 'p2', 'p1'];
-// Mãos correspondentes: índice relativo 1 (right) -> hand3, 2 (top) -> hand2, 3 (left) -> hand1
 const HAND_SLOTS = [null, hand3, hand2, hand1];
 
 let myPlayerIndex = null;
@@ -61,6 +59,19 @@ let isMyTurn = false;
 let turnTimerInterval = null;
 let timeLeft = 25;
 let currentGameCode = null;
+
+// ========== INDICADOR DE VEZ ==========
+const turnIndicator = document.createElement('div');
+turnIndicator.id = 'turnIndicator';
+document.body.appendChild(turnIndicator);
+
+function atualizarIndicador() {
+  if (isMyTurn && gameActive) {
+    turnIndicator.classList.add('visible');
+  } else {
+    turnIndicator.classList.remove('visible');
+  }
+}
 
 // ========== UTILITÁRIOS ==========
 function rotateArrayForPlayer(arr, startIndex) {
@@ -118,6 +129,7 @@ function enterWaitingRoom(res) {
   btnTruco.classList.add('oculto');
   btnCorrer.classList.add('oculto');
   telaFinal.classList.remove('show');
+  turnIndicator.classList.remove('visible');
 }
 
 socket.on('connect', () => {
@@ -152,41 +164,33 @@ socket.on('handStart', (data) => {
   playerHand = data.hand;
   myPlayerIndex = data.player;
 
-  // 1. Rotacionar a lista para perspectiva local
   const rotatedPlayers = rotateArrayForPlayer(data.players, myPlayerIndex);
-
-  // 2. Atualizar nomes nos slots visuais
   for (let i = 0; i < 4; i++) {
     const slotEl = nomesSlots[SLOT_ORDER[i]];
     const player = rotatedPlayers[i];
     if (slotEl) slotEl.textContent = (player?.name || '') + (player?.isBot ? ' (Bot)' : '');
   }
 
-  // 3. Preparar mãos dos oponentes (sempre criar 3 cartas viradas)
   for (let i = 1; i <= 3; i++) {
-    const handEl = HAND_SLOTS[i];
-    handEl.innerHTML = '';
+    HAND_SLOTS[i].innerHTML = '';
     const op = rotatedPlayers[i];
-    // Independente de ser bot ou humano, mostrar três cartas viradas
     for (let j = 0; j < 3; j++) {
       const carta = document.createElement('div');
       carta.className = 'carta virada';
-      handEl.appendChild(carta);
+      HAND_SLOTS[i].appendChild(carta);
     }
   }
 
-  // 4. Renderizar minha mão
   renderizarMao(playerHand);
-
-  // 5. Scores e info
   teamAScoreEl.textContent = data.scores[0];
   teamBScoreEl.textContent = data.scores[1];
   infoRodadaEl.textContent = 'Rodada 1 de 3';
   trucoStatusEl.textContent = 'Truco: Nenhum';
+  isMyTurn = (data.currentPlayer === myPlayerIndex);
+  atualizarIndicador();
   atualizarInfoLive();
 
-  // 6. Botões apenas na minha vez
-  if (data.currentPlayer === myPlayerIndex && !aguardandoResposta) {
+  if (isMyTurn && !aguardandoResposta) {
     btnTruco.classList.remove('oculto');
     btnCorrer.classList.remove('oculto');
   } else {
@@ -194,22 +198,17 @@ socket.on('handStart', (data) => {
     btnCorrer.classList.add('oculto');
   }
   aguardandoResposta = false;
-
-  // 7. Vira
   viraEl.classList.remove('oculto', 'virada');
   viraEl.innerHTML = createCardHTML(data.vira);
-
-  // 8. Mesa limpa
   mesaCartas.innerHTML = '';
 
-  // 9. Bolinhas
   painelHistorico.querySelectorAll('.bolinha-rodada').forEach(b => {
     b.className = 'bolinha-rodada bolinha-branca';
   });
 
   audioDistribuir.play().catch(e => {});
   clearTurnTimer();
-  if (data.currentPlayer === myPlayerIndex && !aguardandoResposta) startTurnTimer();
+  if (isMyTurn && !aguardandoResposta) startTurnTimer();
 });
 
 socket.on('turn', ({ currentPlayer }) => {
@@ -225,6 +224,7 @@ socket.on('turn', ({ currentPlayer }) => {
       clearTurnTimer();
     }
   }
+  atualizarIndicador();
   atualizarInfoLive();
 });
 
@@ -237,7 +237,6 @@ socket.on('cardPlayed', ({ player, card }) => {
     }
     clearTurnTimer();
   } else {
-    // Descobrir a qual mão pertence esse jogador (baseado na rotação)
     const rotatedPlayers = rotateArrayForPlayer(
       Array.from({ length: 4 }, (_, i) => ({ id: i })),
       myPlayerIndex
@@ -251,7 +250,6 @@ socket.on('cardPlayed', ({ player, card }) => {
     }
   }
 
-  // Adicionar carta na mesa (posições fixas, mesma para todos)
   const posicoes = ['c0', 'c1', 'c2', 'c3'];
   const cartaDiv = document.createElement('div');
   cartaDiv.className = `cartaMesa ${posicoes[player]}`;
@@ -291,6 +289,7 @@ socket.on('handEnd', ({ winnerTeam, points, scores }) => {
   hand3.innerHTML = '';
   viraEl.classList.add('oculto');
   mostrarMensagem(winnerTeam === myPlayerIndex % 2 ? 'Seu time ganhou a mão!' : 'Time adversário ganhou a mão.');
+  atualizarIndicador();
   atualizarInfoLive();
 });
 
@@ -304,6 +303,7 @@ socket.on('matchOver', ({ winnerTeam }) => {
   resumoFinal.textContent = 'Clique em Voltar ao Lobby para jogar novamente.';
   document.getElementById('btnVoltarLobby').onclick = () => location.reload();
   document.getElementById('btnBuscarNova').onclick = () => location.reload();
+  turnIndicator.classList.remove('visible');
 });
 
 socket.on('betCalled', () => {
