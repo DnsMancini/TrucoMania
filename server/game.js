@@ -40,6 +40,7 @@ class Game4P {
     this.roundWins = [0, 0];
     this.currentRound = 0;
     this.playersInRound = 0;
+    this.roundStarter = 0;
     this.checkBotTurn = null;
   }
 
@@ -65,6 +66,7 @@ class Game4P {
     this.currentRound = 0;
     this.roundCards = [];
     this.playersInRound = 0;
+    this.roundStarter = this.currentPlayer;
 
     for (let i = 0; i < 4; i++) {
       if (!this.players[i].isBot) {
@@ -90,6 +92,8 @@ class Game4P {
     const cardIdx = hand.findIndex(c => c.suit === card.suit && c.rank === card.rank);
     if (cardIdx === -1) return false;
     const played = hand.splice(cardIdx, 1)[0];
+
+    if (this.playersInRound === 0) this.roundStarter = playerIndex;
 
     if (!this.roundCards[this.currentRound]) this.roundCards[this.currentRound] = new Array(4).fill(null);
     this.roundCards[this.currentRound][playerIndex] = played;
@@ -137,7 +141,8 @@ class Game4P {
 
     this.currentRound++;
     this.playersInRound = 0;
-    if (bestPlayer !== -1) this.currentPlayer = bestPlayer;
+    this.currentPlayer = bestPlayer !== -1 ? bestPlayer : this.roundStarter;
+    this.roundStarter = this.currentPlayer;
     this.emit('turn', { currentPlayer: this.currentPlayer }, 'all');
   }
 
