@@ -556,7 +556,21 @@ body {
   #hand3 .carta { margin-top: -42px; }
   #hand2 .carta { margin-left: -27px; }
   #hand2 { top: calc(50% - var(--table-size) / 2 - 93px); }
-  #vira { transform: translate(-50%, -50%) scale(0.8); }
+  #vira {
+    width: 60px;
+    height: 85px;
+    transform: translate(-50%, -50%);
+  }
+  .c0 { top: calc(50% + 55px); left: 50%; }
+  .c1 { top: 50%; left: calc(50% - 70px); }
+  .c2 { top: calc(50% - 55px); left: 50%; }
+  .c3 { top: 50%; left: calc(50% + 70px); }
+  .game-button-truco {
+    bottom: calc(130px + var(--safe-bottom));
+  }
+  .game-button-correr {
+    bottom: calc(130px + var(--safe-bottom));
+  }
 }
 
 @media (max-width: 1024px) and (orientation: landscape) {
