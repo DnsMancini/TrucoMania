@@ -59,34 +59,37 @@ let isMyTurn = false;
 let turnTimerInterval = null;
 let timeLeft = 25;
 let currentGameCode = null;
-let currentHandValue = 1; // valor da mão atual (1, 3, 6 ou 12)
+let currentHandValue = 1; // valor da mão atual
 
-// ========== INDICADOR DE VEZ ==========
+// ========== INDICADOR DE VEZ (seta dinâmica) ==========
 const turnIndicator = document.createElement('div');
 turnIndicator.id = 'turnIndicator';
 document.body.appendChild(turnIndicator);
 
-function atualizarIndicador() {
-  if (isMyTurn && gameActive) {
-    turnIndicator.classList.add('visible');
-  } else {
+function posicionarSeta(currentPlayer) {
+  if (!gameActive || currentPlayer === undefined || currentPlayer === null) {
     turnIndicator.classList.remove('visible');
+    return;
   }
+  // Mapear índice original do jogador para posição visual (após rotação)
+  const rotated = rotateArrayForPlayer([0, 1, 2, 3], myPlayerIndex);
+  const visualPos = rotated.indexOf(currentPlayer);
+  const slotId = SLOT_ORDER[visualPos];
+  const slotEl = document.getElementById(slotId);
+  if (!slotEl) {
+    turnIndicator.classList.remove('visible');
+    return;
+  }
+  const rect = slotEl.getBoundingClientRect();
+  // Centralizar acima do avatar
+  turnIndicator.style.left = (rect.left + rect.width / 2) + 'px';
+  turnIndicator.style.top = (rect.top - 20) + 'px'; // um pouco acima
+  turnIndicator.style.transform = 'translate(-50%, 0)';
+  turnIndicator.classList.add('visible');
 }
 
-function atualizarBotaoTruco() {
-  if (!gameActive || aguardandoResposta || !isMyTurn) return;
-
-  btnTruco.classList.remove('oculto');
-  if (currentHandValue >= 12) {
-    btnTruco.classList.add('oculto'); // não pode mais trucar
-  } else if (currentHandValue >= 6) {
-    btnTruco.textContent = 'VALE QUATRO';
-  } else if (currentHandValue >= 3) {
-    btnTruco.textContent = 'RETRUCO';
-  } else {
-    btnTruco.textContent = 'TRUCO';
-  }
+function esconderSeta() {
+  turnIndicator.classList.remove('visible');
 }
 
 // ========== UTILITÁRIOS ==========
@@ -145,7 +148,7 @@ function enterWaitingRoom(res) {
   btnTruco.classList.add('oculto');
   btnCorrer.classList.add('oculto');
   telaFinal.classList.remove('show');
-  turnIndicator.classList.remove('visible');
+  esconderSeta();
 }
 
 socket.on('connect', () => {
@@ -204,7 +207,7 @@ socket.on('handStart', (data) => {
   infoRodadaEl.textContent = 'Rodada 1 de 3';
   trucoStatusEl.textContent = 'Truco: Nenhum';
   isMyTurn = (data.currentPlayer === myPlayerIndex);
-  atualizarIndicador();
+  posicionarSeta(data.currentPlayer);
   atualizarInfoLive();
 
   if (isMyTurn && !aguardandoResposta) {
@@ -230,6 +233,7 @@ socket.on('handStart', (data) => {
 
 socket.on('turn', ({ currentPlayer }) => {
   isMyTurn = (currentPlayer === myPlayerIndex);
+  posicionarSeta(currentPlayer);
   if (!aguardandoResposta) {
     if (isMyTurn) {
       btnCorrer.classList.remove('oculto');
@@ -241,7 +245,6 @@ socket.on('turn', ({ currentPlayer }) => {
       clearTurnTimer();
     }
   }
-  atualizarIndicador();
   atualizarInfoLive();
 });
 
@@ -306,7 +309,7 @@ socket.on('handEnd', ({ winnerTeam, points, scores }) => {
   hand3.innerHTML = '';
   viraEl.classList.add('oculto');
   mostrarMensagem(winnerTeam === myPlayerIndex % 2 ? 'Seu time ganhou a mão!' : 'Time adversário ganhou a mão.');
-  atualizarIndicador();
+  esconderSeta();
   atualizarInfoLive();
 });
 
@@ -320,7 +323,7 @@ socket.on('matchOver', ({ winnerTeam }) => {
   resumoFinal.textContent = 'Clique em Voltar ao Lobby para jogar novamente.';
   document.getElementById('btnVoltarLobby').onclick = () => location.reload();
   document.getElementById('btnBuscarNova').onclick = () => location.reload();
-  turnIndicator.classList.remove('visible');
+  esconderSeta();
 });
 
 socket.on('betCalled', ({ level }) => {
@@ -342,9 +345,25 @@ socket.on('betAccepted', ({ handValue }) => {
 });
 
 // ========== BOTÕES ==========
+function atualizarBotaoTruco() {
+  if (!gameActive || aguardandoResposta || !isMyTurn) {
+    btnTruco.classList.add('oculto');
+    return;
+  }
+  btnTruco.classList.remove('oculto');
+  if (currentHandValue >= 12) {
+    btnTruco.classList.add('oculto');
+  } else if (currentHandValue >= 6) {
+    btnTruco.textContent = 'VALE QUATRO';
+  } else if (currentHandValue >= 3) {
+    btnTruco.textContent = 'RETRUCO';
+  } else {
+    btnTruco.textContent = 'TRUCO';
+  }
+}
+
 btnTruco.onclick = () => {
   if (!isMyTurn || !gameActive || aguardandoResposta) return;
-
   let betType = 'truco';
   if (currentHandValue >= 6) betType = 'valequatro';
   else if (currentHandValue >= 3) betType = 'retruco';
@@ -362,6 +381,38 @@ btnCorrer.onclick = () => {
   clearTurnTimer();
 };
 
-// ========== FUNÇÕES AUXILIARES (inalteradas) ==========
-// ... (mantenha todas as funções: atualizarInfoLive, renderizarMao, startTurnTimer, clearTurnTimer,
-//      autoPlayRandomCard, mostrarMensagem, suitSymbol)
+// ========== FUNÇÕES AUXILIARES ==========
+function atualizarInfoLive() {
+  if (!gameActive) return;
+  const base = infoRodadaEl.textContent.replace(/<span.*<\/span>/, '').trim();
+  infoRodadaEl.innerHTML = base + (isMyTurn
+    ? ' <span style="color:#5cb85c;">🎯 Sua vez!</span>'
+    : ' <span style="color:#f1c40f;">⏳ Aguardando oponente</span>');
+}
+
+function renderizarMao(hand) {
+  maoDiv.innerHTML = '';
+  hand.forEach((c) => {
+    const carta = document.createElement('div');
+    carta.className = 'carta playerCard';
+    carta.innerHTML = createCardHTML(c);
+    carta.style.pointerEvents = 'auto';
+    carta.addEventListener('click', () => {
+      console.log('Carta clicada! gameActive:', gameActive, 'isMyTurn:', isMyTurn);
+      if (!isMyTurn || !gameActive) return;
+      socket.emit('playCard', c);
+      clearTurnTimer();
+    });
+    maoDiv.appendChild(carta);
+  });
+}
+
+function startTurnTimer() { /* ... igual ... */ }
+function clearTurnTimer() { /* ... igual ... */ }
+function autoPlayRandomCard() { /* ... igual ... */ }
+function mostrarMensagem(texto) { /* ... igual ... */ }
+
+function suitSymbol(suit) {
+  const map = { paus: '♣', copas: '♥', espadas: '♠', ouros: '♦' };
+  return map[suit] || suit;
+}
