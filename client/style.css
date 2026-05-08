@@ -6,7 +6,6 @@
   --viewport-height: 100dvh;
   --ui-z: 2600;
   --overlay-z: 3000;
-  --hand-bottom-offset: 6px;
   --table-size: min(90vw, 90vh);
   --table-center-x: 50%;
   --table-center-y: 50%;
@@ -184,26 +183,9 @@ body {
 
 /* ===== MÃOS DOS BOTS (dentro do #game, relativos à mesa) ===== */
 .botHand { position: absolute; display: flex; gap: 0; }
-#hand1 {
-  position: fixed;
-  left: var(--safe-left);
-  top: 50%;
-  transform: translateY(-50%);
-  flex-direction: column;
-}
-#hand2 {
-  position: fixed;
-  top: var(--safe-top);
-  left: 50%;
-  transform: translateX(-50%);
-}
-#hand3 {
-  position: fixed;
-  right: var(--safe-right);
-  top: 50%;
-  transform: translateY(-50%);
-  flex-direction: column;
-}
+#hand1 { left: 0; top: 50%; transform: translate(0, -50%); flex-direction: column; }
+#hand2 { top: 90px; left: 50%; transform: translateX(-50%); }
+#hand3 { right: 0; top: 50%; transform: translate(0, -50%); flex-direction: column; }
 
 .carta {
   width: 85px; height: 125px;
