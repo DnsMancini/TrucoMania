@@ -60,6 +60,8 @@ let turnTimerInterval = null;
 let timeLeft = 25;
 let currentGameCode = null;
 let currentHandValue = 1; // valor da mão atual
+let isRespondingToBet = false;
+let currentBetLevel = null;
 
 // ========== INDICADOR DE VEZ (seta dinâmica) ==========
 const turnIndicator = document.createElement('div');
@@ -238,6 +240,8 @@ socket.on('handStart', (data) => {
     btnCorrer.classList.add('oculto');
   }
   aguardandoResposta = false;
+  isRespondingToBet = false;
+  currentBetLevel = null;
   viraEl.classList.remove('oculto', 'virada');
   viraEl.innerHTML = createCardHTML(data.vira);
   mesaCartas.innerHTML = '';
@@ -316,6 +320,8 @@ socket.on('roundResult', ({ round, winner }) => {
 socket.on('handEnd', ({ winnerTeam, points, scores }) => {
   gameActive = false;
   aguardandoResposta = false;
+  isRespondingToBet = false;
+  currentBetLevel = null;
   isMyTurn = false;
   clearTurnTimer();
   teamAScoreEl.textContent = scores[0];
@@ -337,6 +343,8 @@ socket.on('handEnd', ({ winnerTeam, points, scores }) => {
 
 socket.on('matchOver', ({ winnerTeam }) => {
   aguardandoResposta = false;
+  isRespondingToBet = false;
+  currentBetLevel = null;
   isMyTurn = false;
   clearTurnTimer();
   contagemEl.classList.add('oculto');
@@ -348,11 +356,26 @@ socket.on('matchOver', ({ winnerTeam }) => {
   esconderSeta();
 });
 
-socket.on('betCalled', ({ level }) => {
-  btnTruco.classList.add('oculto');
-  btnCorrer.classList.remove('oculto');
+socket.on('betCalled', ({ level, responderTeam }) => {
+  currentBetLevel = level;
   aguardandoResposta = true;
+  isRespondingToBet = responderTeam === (myPlayerIndex % 2);
+
+  if (isRespondingToBet) {
+    btnCorrer.classList.remove('oculto');
+    atualizarBotaoTruco();
+  } else {
+    btnTruco.classList.add('oculto');
+    btnCorrer.classList.add('oculto');
+  }
+
   audioTruco.play().catch(e => {});
+});
+
+socket.on('turnToRespond', () => {
+  isRespondingToBet = true;
+  atualizarBotaoTruco();
+  btnCorrer.classList.remove('oculto');
 });
 
 socket.on('betAccepted', ({ handValue }) => {
@@ -363,15 +386,29 @@ socket.on('betAccepted', ({ handValue }) => {
     atualizarBotaoTruco();
   }
   aguardandoResposta = false;
+  isRespondingToBet = false;
+  currentBetLevel = null;
   atualizarInfoLive();
 });
 
 // ========== BOTÕES ==========
 function atualizarBotaoTruco() {
-  if (!gameActive || aguardandoResposta || !isMyTurn) {
+  if (!gameActive) {
     btnTruco.classList.add('oculto');
     return;
   }
+
+  if (isRespondingToBet) {
+    btnTruco.classList.remove('oculto');
+    btnTruco.textContent = currentBetLevel === 'valequatro' ? 'ACEITAR' : 'ACEITAR / AUMENTAR';
+    return;
+  }
+
+  if (aguardandoResposta || !isMyTurn) {
+    btnTruco.classList.add('oculto');
+    return;
+  }
+
   btnTruco.classList.remove('oculto');
   if (currentHandValue >= 12) {
     btnTruco.classList.add('oculto');
@@ -385,7 +422,21 @@ function atualizarBotaoTruco() {
 }
 
 btnTruco.onclick = () => {
-  if (!isMyTurn || !gameActive || aguardandoResposta) return;
+  if (!gameActive) return;
+
+  if (isRespondingToBet) {
+    const canRaise = currentBetLevel === 'truco' || currentBetLevel === 'retruco';
+    if (!canRaise) {
+      socket.emit('respondBet', 'accept');
+    } else {
+      const aumentar = !window.confirm('OK = Aceitar\nCancelar = Aumentar aposta');
+      socket.emit('respondBet', aumentar ? (currentBetLevel === 'truco' ? 'retruco' : 'valequatro') : 'accept');
+    }
+    clearTurnTimer();
+    return;
+  }
+
+  if (!isMyTurn || aguardandoResposta) return;
   let betType = 'truco';
   if (currentHandValue >= 6) betType = 'valequatro';
   else if (currentHandValue >= 3) betType = 'retruco';
@@ -394,10 +445,11 @@ btnTruco.onclick = () => {
 };
 
 btnCorrer.onclick = () => {
-  if (!isMyTurn || !gameActive) return;
-  if (aguardandoResposta) {
+  if (!gameActive) return;
+  if (isRespondingToBet) {
     socket.emit('respondBet', 'flee');
   } else {
+    if (!isMyTurn) return;
     socket.emit('fleeHand');
   }
   clearTurnTimer();
