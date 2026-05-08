@@ -138,7 +138,7 @@ body {
   align-items: center;
   text-align: center;
   font-size: 12px;
-  --avatar-size: 80px;
+  --avatar-size: 48px;
   z-index: 2000;
 }
 .avatar {
@@ -182,11 +182,11 @@ body {
   transform: translateY(-50%);
 }
 
-/* ===== MÃOS DOS BOTS (dentro do #game, relativos à mesa) ===== */
-.botHand { position: absolute; display: flex; gap: 0; }
-#hand1 { left: 0; top: 50%; transform: translate(0, -50%); flex-direction: column; }
-#hand2 { top: 90px; left: 50%; transform: translateX(-50%); }
-#hand3 { right: 0; top: 50%; transform: translate(0, -50%); flex-direction: column; }
+/* ===== MÃOS DOS BOTS (fixos no viewport, sem espaço nas bordas) ===== */
+.botHand { position: fixed; display: flex; gap: 0; }
+#hand1 { left: 0; top: 50%; transform: translate(0, -50%); flex-direction: column; z-index: 2000; }
+#hand2 { top: 40px; left: 50%; transform: translateX(-50%); z-index: 2000; }
+#hand3 { right: 0; top: 50%; transform: translate(0, -50%); flex-direction: column; z-index: 2000; }
 
 .carta {
   width: 85px; height: 125px;
@@ -531,7 +531,7 @@ body {
   #p1 { left: 10px; }
   #p2 { top: 10px; }
   #p3 { right: 10px; }
-  .player { --avatar-size: 60px; }
+  .player { --avatar-size: 36px; }
   /* ─── Cartas bots / laterais / superior 30% menores ─── */
   #hand1 .carta,
   #hand2 .carta,
