@@ -511,11 +511,11 @@ body {
     min-width: 120px; height: 44px; font-size: 13px;
   }
   .game-button-truco {
-    left: 10px;
+    left: calc(50% - var(--table-size) / 2);
     bottom: calc(90px + var(--safe-bottom));
   }
   .game-button-correr {
-    right: 10px;
+    right: calc(50% - var(--table-size) / 2);
     bottom: calc(90px + var(--safe-bottom));
   }
   #infoLive { font-size: 12px; padding: 5px 8px; }
@@ -555,6 +555,8 @@ body {
   #hand1 .carta { margin-top: -42px; }
   #hand3 .carta { margin-top: -42px; }
   #hand2 .carta { margin-left: -27px; }
+  #hand2 { top: calc(50% - var(--table-size) / 2 - 5px); }
+  #vira { transform: translate(-50%, -50%) scale(0.8); }
 }
 
 @media (max-width: 1024px) and (orientation: landscape) {
