@@ -167,15 +167,20 @@ body {
 .botHand { position: absolute; display: flex; gap: 0; }
 #hand1 {
   position: fixed;
-  left: calc(10px + var(--safe-left));
+  left: var(--safe-left);
   top: 50%;
   transform: translateY(-50%);
   flex-direction: column;
 }
-#hand2 { top: 90px; left: 50%; transform: translateX(-50%); }
+#hand2 {
+  position: fixed;
+  top: var(--safe-top);
+  left: 50%;
+  transform: translateX(-50%);
+}
 #hand3 {
   position: fixed;
-  right: calc(10px + var(--safe-right));
+  right: var(--safe-right);
   top: 50%;
   transform: translateY(-50%);
   flex-direction: column;
@@ -251,7 +256,7 @@ body {
 /* Mão do jogador (sempre na base da tela, fora do #game) */
 #mao {
   position: fixed;
-  bottom: 20px;
+  bottom: var(--safe-bottom);
   left: 50%;
   transform: translateX(-50%);
   display: flex;
