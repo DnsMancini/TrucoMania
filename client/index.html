@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Truco Mania</title>
-  <link rel="stylesheet" href="style.css?v=3" />
+  <link rel="stylesheet" href="style.css?v=4" />
   <link rel="icon" href="/img/carta-copag-vermelha.png" />
 </head>
 <body>
@@ -21,18 +21,14 @@
             <button id="joinBtn" class="lobby-button lobby-button-primary">Entrar</button>
           </div>
         </div>
-        <div id="roomsList" class="rooms-list">
-          <!-- Salas serão inseridas aqui -->
-        </div>
+        <div id="roomsList" class="rooms-list"></div>
         <div id="lobbyStatus" class="lobby-status"></div>
       </div>
     </div>
 
     <!-- JOGO -->
     <div id="gameWrapper" class="game-hidden">
-      <div class="avisoOrientacao">
-        <div>🔄 Gire o dispositivo para jogar</div>
-      </div>
+      <div class="avisoOrientacao"><div>🔄 Gire o dispositivo para jogar</div></div>
       <div class="mesa"></div>
 
       <div id="game">
@@ -60,7 +56,6 @@
         <div class="botHand" id="hand3"></div>
 
         <div id="mao"></div>
-
         <div id="vira" class="carta oculto"></div>
 
         <div id="infoLive">
@@ -76,19 +71,8 @@
           </div>
         </div>
 
-        <button id="btnTruco" class="game-button game-button-truco">TRUCO</button>
-        <button id="btnCorrer" class="game-button game-button-correr oculto">CORRER</button>
-
-        <div id="cronometro" class="cronometro oculto">
-          <span id="cronometroNum"></span>
-        </div>
-
-        <!-- Contagem regressiva antes do jogo -->
-        <div id="contagemRegressiva" class="contagem-regressiva oculto">
-          <span id="contagemNumero">10</span>
-        </div>
-
-        <!-- Toast para mensagens temporárias -->
+        <div id="cronometro" class="cronometro oculto"><span id="cronometroNum"></span></div>
+        <div id="contagemRegressiva" class="contagem-regressiva oculto"><span id="contagemNumero">10</span></div>
         <div id="toast"></div>
 
         <div class="telaFinal" id="telaFinal">
@@ -103,6 +87,10 @@
         </div>
       </div>
 
+      <!-- Botões fora do #game (não rotacionam) -->
+      <button id="btnTruco" class="game-button game-button-truco">TRUCO</button>
+      <button id="btnCorrer" class="game-button game-button-correr oculto">CORRER</button>
+
       <div id="placar">
         <div class="placar-times">
           <div class="placar-time placar-time--nos">
@@ -116,7 +104,6 @@
         </div>
         <span class="placar-status" id="trucoStatusPlacar">Truco: Nenhum</span>
       </div>
-
       <div id="ui"></div>
     </div>
   </div>
