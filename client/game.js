@@ -1,6 +1,6 @@
 const socket = io(window.location.origin);
 
-// Elementos do DOM
+// Lobby
 const lobbyDiv = document.getElementById('lobby');
 const gameWrapper = document.getElementById('gameWrapper');
 const nameInput = document.getElementById('nameInput');
@@ -11,7 +11,8 @@ const roomsListEl = document.getElementById('roomsList');
 const contagemEl = document.getElementById('contagemRegressiva');
 const contagemNumero = document.getElementById('contagemNumero');
 
-const gameContainer = document.getElementById('game');
+// Elementos do jogo
+const gameContainer = document.getElementById('game'); // não rotacionaremos mais
 const mesaCartas = document.getElementById('mesaCartas');
 const viraEl = document.getElementById('vira');
 const hand1 = document.getElementById('hand1');
@@ -32,6 +33,7 @@ const resumoFinal = document.getElementById('resumoFinal');
 const cronometroEl = document.getElementById('cronometro');
 const cronometroNum = document.getElementById('cronometroNum');
 
+// Áudios
 const audioTruco = document.getElementById('audioTruco');
 const audioCarta = document.getElementById('audioCarta');
 const audioDistribuir = document.getElementById('audioDistribuir');
@@ -46,7 +48,9 @@ const nomesSlots = {
   p3: document.querySelector('#p3 .name')
 };
 
+// Mapeamento visual: slots fixos x posição relativa (0=bottom, 1=right, 2=top, 3=left)
 const SLOT_ORDER = ['p0', 'p3', 'p2', 'p1'];
+// Mãos correspondentes: índice relativo 1 (right) -> hand3, 2 (top) -> hand2, 3 (left) -> hand1
 const HAND_SLOTS = [null, hand3, hand2, hand1];
 
 let myPlayerIndex = null;
@@ -57,33 +61,19 @@ let isMyTurn = false;
 let turnTimerInterval = null;
 let timeLeft = 25;
 let currentGameCode = null;
-let currentRotation = 0; // armazena a rotação atual para aplicar inversa
 
 // ========== UTILITÁRIOS ==========
 function rotateArrayForPlayer(arr, startIndex) {
   return arr.map((_, i) => arr[(startIndex + i) % arr.length]);
 }
 
-function applyRotation(angleDeg) {
-  // Aplica rotação ao container principal
-  gameContainer.style.transform = `translate(-50%, -50%) rotate(${angleDeg}deg)`;
-  currentRotation = angleDeg;
-  // Rotação inversa para elementos de texto dentro do container
-  const inverse = -angleDeg;
-  document.querySelectorAll('.player .name').forEach(el => {
-    el.style.transform = `rotate(${inverse}deg)`;
-  });
-  if (viraEl) viraEl.style.transform = `translate(-50%, -50%) scale(0.85) rotate(${inverse}deg)`;
-  // As cartas da mesa terão rotação inversa aplicada individualmente ao serem criadas
-}
-
-function createCardHTML(card, extraRotation = 0) {
+function createCardHTML(card) {
   const suitSym = suitSymbol(card.suit);
   const corClasse = (card.suit === 'copas' || card.suit === 'ouros') ? 'naipe-vermelho' : 'naipe-preto';
   return `
-    <div class="carta-corner top-left ${corClasse}" style="transform: rotate(${extraRotation}deg);">${card.rank}${suitSym}</div>
-    <div class="carta-center ${corClasse}" style="transform: translate(-50%, -50%) rotate(${extraRotation}deg);">${card.rank}${suitSym}</div>
-    <div class="carta-corner bottom-right ${corClasse}" style="transform: rotate(${extraRotation}deg);">${card.rank}${suitSym}</div>
+    <div class="carta-corner top-left ${corClasse}">${card.rank}${suitSym}</div>
+    <div class="carta-center ${corClasse}">${card.rank}${suitSym}</div>
+    <div class="carta-corner bottom-right ${corClasse}">${card.rank}${suitSym}</div>
   `;
 }
 
@@ -130,7 +120,9 @@ function enterWaitingRoom(res) {
   telaFinal.classList.remove('show');
 }
 
-socket.on('connect', () => socket.emit('getRooms'));
+socket.on('connect', () => {
+  socket.emit('getRooms');
+});
 
 socket.on('roomsUpdate', (rooms) => {
   if (!roomsListEl) return;
@@ -160,32 +152,30 @@ socket.on('handStart', (data) => {
   playerHand = data.hand;
   myPlayerIndex = data.player;
 
-  // 1. Rotacionar a mesa para perspectiva local
-  const angle = myPlayerIndex * -90;
-  applyRotation(angle);
-
-  // 2. Atualizar nomes
+  // 1. Rotacionar a lista para perspectiva local
   const rotatedPlayers = rotateArrayForPlayer(data.players, myPlayerIndex);
+
+  // 2. Atualizar nomes nos slots visuais
   for (let i = 0; i < 4; i++) {
     const slotEl = nomesSlots[SLOT_ORDER[i]];
     const player = rotatedPlayers[i];
     if (slotEl) slotEl.textContent = (player?.name || '') + (player?.isBot ? ' (Bot)' : '');
   }
 
-  // 3. Mãos dos oponentes
+  // 3. Preparar mãos dos oponentes (sempre criar 3 cartas viradas)
   for (let i = 1; i <= 3; i++) {
-    HAND_SLOTS[i].innerHTML = '';
+    const handEl = HAND_SLOTS[i];
+    handEl.innerHTML = '';
     const op = rotatedPlayers[i];
-    if (op && !op.isBot) {
-      for (let j = 0; j < 3; j++) {
-        const carta = document.createElement('div');
-        carta.className = 'carta virada';
-        HAND_SLOTS[i].appendChild(carta);
-      }
+    // Independente de ser bot ou humano, mostrar três cartas viradas
+    for (let j = 0; j < 3; j++) {
+      const carta = document.createElement('div');
+      carta.className = 'carta virada';
+      handEl.appendChild(carta);
     }
   }
 
-  // 4. Sua mão
+  // 4. Renderizar minha mão
   renderizarMao(playerHand);
 
   // 5. Scores e info
@@ -195,7 +185,7 @@ socket.on('handStart', (data) => {
   trucoStatusEl.textContent = 'Truco: Nenhum';
   atualizarInfoLive();
 
-  // 6. Botões apenas na sua vez
+  // 6. Botões apenas na minha vez
   if (data.currentPlayer === myPlayerIndex && !aguardandoResposta) {
     btnTruco.classList.remove('oculto');
     btnCorrer.classList.remove('oculto');
@@ -207,7 +197,7 @@ socket.on('handStart', (data) => {
 
   // 7. Vira
   viraEl.classList.remove('oculto', 'virada');
-  viraEl.innerHTML = createCardHTML(data.vira, -angle); // rotação inversa
+  viraEl.innerHTML = createCardHTML(data.vira);
 
   // 8. Mesa limpa
   mesaCartas.innerHTML = '';
@@ -247,20 +237,25 @@ socket.on('cardPlayed', ({ player, card }) => {
     }
     clearTurnTimer();
   } else {
+    // Descobrir a qual mão pertence esse jogador (baseado na rotação)
     const rotatedPlayers = rotateArrayForPlayer(
       Array.from({ length: 4 }, (_, i) => ({ id: i })),
       myPlayerIndex
     );
     const relIndex = rotatedPlayers.findIndex(p => p.id === player);
-    if (relIndex > 0 && HAND_SLOTS[relIndex].children.length > 0) {
-      HAND_SLOTS[relIndex].removeChild(HAND_SLOTS[relIndex].lastChild);
+    if (relIndex > 0) {
+      const handEl = HAND_SLOTS[relIndex];
+      if (handEl && handEl.children.length > 0) {
+        handEl.removeChild(handEl.lastChild);
+      }
     }
   }
 
+  // Adicionar carta na mesa (posições fixas, mesma para todos)
   const posicoes = ['c0', 'c1', 'c2', 'c3'];
   const cartaDiv = document.createElement('div');
   cartaDiv.className = `cartaMesa ${posicoes[player]}`;
-  cartaDiv.innerHTML = createCardHTML(card, -currentRotation); // rotação inversa para legibilidade
+  cartaDiv.innerHTML = createCardHTML(card);
   mesaCartas.appendChild(cartaDiv);
   audioCarta.play().catch(e => {});
 });
@@ -299,13 +294,13 @@ socket.on('handEnd', ({ winnerTeam, points, scores }) => {
   atualizarInfoLive();
 });
 
-socket.on('gameOver', ({ winnerTeam }) => {
+socket.on('matchOver', ({ winnerTeam }) => {
   aguardandoResposta = false;
   isMyTurn = false;
   clearTurnTimer();
   contagemEl.classList.add('oculto');
   telaFinal.classList.add('show');
-  textoFinal.textContent = winnerTeam === myPlayerIndex % 2 ? 'VOCÊ VENCEU!' : 'VOCÊ PERDEU!';
+  textoFinal.textContent = winnerTeam === myPlayerIndex % 2 ? 'VOCÊ VENCEU A PARTIDA!' : 'VOCÊ PERDEU A PARTIDA!';
   resumoFinal.textContent = 'Clique em Voltar ao Lobby para jogar novamente.';
   document.getElementById('btnVoltarLobby').onclick = () => location.reload();
   document.getElementById('btnBuscarNova').onclick = () => location.reload();
@@ -363,7 +358,7 @@ function renderizarMao(hand) {
   hand.forEach((c) => {
     const carta = document.createElement('div');
     carta.className = 'carta playerCard';
-    carta.innerHTML = createCardHTML(c); // mão não precisa de rotação extra (está fora do #game)
+    carta.innerHTML = createCardHTML(c);
     carta.addEventListener('click', () => {
       if (!isMyTurn || !gameActive) return;
       socket.emit('playCard', c);

@@ -65,17 +65,16 @@ body {
   box-shadow: inset 0 0 80px rgba(0,0,0,0.9), 0 30px 80px rgba(0,0,0,0.9);
 }
 
-/* Container principal que será rotacionado */
+/* Container principal NÃO rotaciona mais */
 #game {
   position: fixed;
   top: var(--table-center-y);
   left: var(--table-center-x);
   width: var(--table-size);
   height: var(--table-size);
-  transform: translate(-50%, -50%) rotate(0deg);
+  transform: translate(-50%, -50%);
   pointer-events: none;
   z-index: 1900;
-  transition: transform 0.5s ease;
 }
 
 #ui {
@@ -130,7 +129,7 @@ body {
   filter: brightness(0.98);
 }
 
-/* ===== ELEMENTOS DENTRO DO #GAME (serão rotacionados inversamente) ===== */
+/* ===== ELEMENTOS DENTRO DO #GAME ===== */
 .player {
   position: absolute;
   display: flex;
@@ -158,7 +157,7 @@ body {
   background-repeat: no-repeat;
 }
 
-/* Posições absolutas dos 4 jogadores (dentro do #game, antes da rotação) */
+/* Posições fixas dos 4 jogadores */
 #p0 { bottom: 10px; left: 50%; transform: translate(-50%, 0); }
 #p1 { left: 10px; top: 50%; transform: translate(0, -50%); }
 #p2 { top: 10px; left: 50%; transform: translate(-50%, 0); }
@@ -216,8 +215,7 @@ body {
   position: absolute;
   top: 50%; left: 50%;
   width: min(420px, 76%); height: min(260px, 52%);
-  transform: translate(-50%, -50%) rotate(0deg);
-  transition: transform 0.4s ease;
+  transform: translate(-50%, -50%);
   z-index: 1200;
   pointer-events: none;
 }
@@ -349,7 +347,7 @@ body {
 .bolinha-branca { background: radial-gradient(circle at 30% 26%, #fff, #ececec, #b8b8b8); }
 .bolinha-ouro { background: radial-gradient(circle at 30% 26%, #ffe8a3, #d4af37, #8a6a00); }
 
-/* Vira (dentro do #game, terá rotação inversa aplicada no JS) */
+/* Vira */
 #vira {
   position: absolute;
   top: 50%; left: 50%;
