@@ -520,6 +520,25 @@ body {
   .contagem-regressiva { width: 150px; height: 150px; }
   .contagem-regressiva span { font-size: 60px; }
   #mao { bottom: var(--safe-bottom); }
+
+  /* Mãos dos bots presas nas bordas da TELA no mobile */
+  #hand1 {
+    left: calc(2px + var(--safe-left));
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  #hand2 {
+    position: fixed;
+    top: calc(var(--safe-top) + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  #hand3 {
+    right: calc(2px + var(--safe-right));
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
   /* Ajuste avatares mobile */
   #p0 { bottom: -20px; }
   #p1 { left: -60px; }
