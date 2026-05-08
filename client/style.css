@@ -531,6 +531,27 @@ body {
   #p2 { top: 10px; }
   #p3 { right: 10px; }
   .player { --avatar-size: 60px; }
+  /* ─── Cartas bots / laterais / superior 30% menores ─── */
+  #hand1 .carta,
+  #hand2 .carta,
+  #hand3 .carta {
+    width: 60px;
+    height: 88px;
+    font-size: 13px;
+  }
+  #hand1 .carta .carta-center,
+  #hand2 .carta .carta-center,
+  #hand3 .carta .carta-center {
+    font-size: 24px;
+  }
+  #hand1 .carta .carta-corner,
+  #hand2 .carta .carta-corner,
+  #hand3 .carta .carta-corner {
+    font-size: 10px;
+  }
+  #hand1 .carta { margin-top: -42px; }
+  #hand3 .carta { margin-top: -42px; }
+  #hand2 .carta { margin-left: -27px; }
 }
 
 @media (max-width: 1024px) and (orientation: landscape) {
