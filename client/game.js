@@ -12,6 +12,7 @@ const contagemEl = document.getElementById('contagemRegressiva');
 const contagemNumero = document.getElementById('contagemNumero');
 
 // Elementos do jogo
+const gameContainer = document.getElementById('game'); // para rotação
 const teamAScoreEl = document.getElementById('teamAScore');
 const teamBScoreEl = document.getElementById('teamBScore');
 const trucoStatusEl = document.getElementById('trucoStatus');
@@ -91,7 +92,6 @@ function enterWaitingRoom(res) {
   gameWrapper.classList.remove('game-hidden');
   contagemEl.classList.remove('oculto');
   contagemNumero.textContent = '10';
-  // Limpar jogo anterior
   maoDiv.innerHTML = '';
   mesaCartas.innerHTML = '';
   viraEl.classList.add('oculto');
@@ -137,14 +137,19 @@ socket.on('handStart', (data) => {
   gameActive = true;
   playerHand = data.hand;
   myPlayerIndex = data.player;
+
+  // ** Rotacionar a mesa para que o jogador veja sua posição na base **
+  if (gameContainer) {
+    gameContainer.style.transform = `translate(-50%, -50%) rotate(${myPlayerIndex * -90}deg)`;
+  }
+
   isMyTurn = (data.currentPlayer === myPlayerIndex);
   renderizarMao(playerHand);
   teamAScoreEl.textContent = data.scores[0];
   teamBScoreEl.textContent = data.scores[1];
   infoRodadaEl.textContent = 'Rodada 1 de 3';
   trucoStatusEl.textContent = 'Truco: Nenhum';
-  atualizarInfoLive(); // atualiza o texto de vez
-  // Mostrar botões apenas se for minha vez
+  atualizarInfoLive();
   if (isMyTurn && !aguardandoResposta) {
     btnTruco.classList.remove('oculto');
     btnCorrer.classList.remove('oculto');
@@ -266,7 +271,7 @@ socket.on('gameOver', ({ winnerTeam }) => {
 
 socket.on('betCalled', ({ challenger, level }) => {
   btnTruco.classList.add('oculto');
-  btnCorrer.classList.remove('oculto'); // apenas para quem for responder; ajustaremos via turnToRespond? Simplificando, todos do time adversário veem o botão Correr
+  btnCorrer.classList.remove('oculto');
   aguardandoResposta = true;
   audioTruco.play().catch(e => console.warn('Áudio truco:', e));
 });
@@ -306,12 +311,11 @@ btnCorrer.onclick = () => {
 
 // ========== FUNÇÕES AUXILIARES ==========
 function atualizarInfoLive() {
-  // Adiciona uma linha extra para indicar vez ou espera
   if (gameActive) {
     if (isMyTurn) {
-      infoRodadaEl.innerHTML = infoRodadaEl.textContent + ' <span style="color:#5cb85c;">🎯 Sua vez!</span>';
+      infoRodadaEl.innerHTML = infoRodadaEl.textContent.replace(/<span.*<\/span>/, '') + ' <span style="color:#5cb85c;">🎯 Sua vez!</span>';
     } else {
-      infoRodadaEl.innerHTML = infoRodadaEl.textContent + ' <span style="color:#f1c40f;">⏳ Aguardando oponente</span>';
+      infoRodadaEl.innerHTML = infoRodadaEl.textContent.replace(/<span.*<\/span>/, '') + ' <span style="color:#f1c40f;">⏳ Aguardando oponente</span>';
     }
   }
 }
