@@ -331,13 +331,13 @@ body {
 }
 .placar-time--nos {
   background-image: url("/img/bandeiraverde.png");
-  background-size: contain;
+  background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
 }
 .placar-time--eles {
   background-image: url("/img/bandeirabranca.png");
-  background-size: contain;
+  background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
 }
