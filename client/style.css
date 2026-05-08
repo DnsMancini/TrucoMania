@@ -518,11 +518,11 @@ body {
     right: calc(50% - var(--table-size) / 2);
     bottom: calc(90px + var(--safe-bottom));
   }
-  #infoLive { font-size: 12px; padding: 5px 8px; }
+  #infoLive { display: none; }
   #infoRodada { font-size: 14px; }
   #trucoStatus { font-size: 11px; }
   .cronometro { font-size: 36px; padding: 12px 20px; }
-  #painelHistorico { bottom: 60px; width: 36px; min-height: 100px; }
+  #painelHistorico { bottom: 20px; width: 36px; min-height: 100px; }
   .bolinha-rodada { width: 14px; height: 14px; }
   .contagem-regressiva { width: 150px; height: 150px; }
   .contagem-regressiva span { font-size: 60px; }
@@ -561,9 +561,9 @@ body {
     height: 85px;
     transform: translate(-50%, -50%);
   }
-  .c0 { top: calc(50% + 55px); left: 50%; }
+  .c0 { top: calc(50% + 100px); left: 50%; }
   .c1 { top: 50%; left: calc(50% - 70px); }
-  .c2 { top: calc(50% - 55px); left: 50%; }
+  .c2 { top: calc(50% - 100px); left: 50%; }
   .c3 { top: 50%; left: calc(50% + 70px); }
   .game-button-truco {
     bottom: calc(130px + var(--safe-bottom));
