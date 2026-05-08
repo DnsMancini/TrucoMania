@@ -45,7 +45,7 @@ function handleSocket(io) {
       callback({ roomCode: code, players: room.players.map(p => ({name:p.name, isBot:false, online:true})) });
       broadcastRooms(io);
 
-      let count = 10;
+      let count = 3;
       io.to(code).emit('lobbyCountdown', { count });
       room.countdownInterval = setInterval(() => {
         count--;

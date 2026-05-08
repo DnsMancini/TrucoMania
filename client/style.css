@@ -75,6 +75,7 @@ body {
   transform: translate(-50%, -50%);
   pointer-events: none;
   z-index: 1900;
+  overflow: visible;
 }
 
 #ui {
@@ -157,11 +158,11 @@ body {
   background-repeat: no-repeat;
 }
 
-/* Posições fixas dos 4 jogadores */
-#p0 { bottom: 10px; left: 50%; transform: translate(-50%, 0); }
-#p1 { left: 10px; top: 50%; transform: translate(0, -50%); }
-#p2 { top: 10px; left: 50%; transform: translate(-50%, 0); }
-#p3 { right: 10px; top: 50%; transform: translate(0, -50%); }
+/* Posições fixas dos 4 jogadores — fora da mesa circular, perto das cartas */
+#p0 { bottom: -30px; left: 50%; transform: translate(-50%, 0); }
+#p1 { left: -80px; top: 50%; transform: translate(0, -50%); }
+#p2 { top: -80px; left: 50%; transform: translate(-50%, 0); }
+#p3 { right: -80px; top: 50%; transform: translate(0, -50%); }
 
 .botHand { position: absolute; display: flex; gap: 0; }
 #hand1 { left: 0; top: 50%; transform: translate(0, -50%); flex-direction: column; }
@@ -506,6 +507,11 @@ body {
   .bolinha-rodada { width: 14px; height: 14px; }
   .contagem-regressiva { width: 150px; height: 150px; }
   .contagem-regressiva span { font-size: 60px; }
+  /* Ajuste avatares mobile */
+  #p0 { bottom: -20px; }
+  #p1 { left: -60px; }
+  #p2 { top: -60px; }
+  #p3 { right: -60px; }
 }
 
 @media (max-width: 1024px) and (orientation: landscape) {

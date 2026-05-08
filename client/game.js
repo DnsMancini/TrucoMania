@@ -81,10 +81,22 @@ function posicionarSeta(currentPlayer) {
     return;
   }
   const rect = slotEl.getBoundingClientRect();
+
+  // Ângulos de rotação para a seta apontar no sentido anti‑horário
+  // A seta padrão (0°) aponta para BAIXO (▾)
+  // Sentido anti‑horário: p0(bottom) → p3(right) → p2(top) → p1(left) → p0
+  const rotationMap = {
+    'p0': 90,   // bottom → aponta direita  (para p3)
+    'p3': 180,  // right  → aponta cima     (para p2)
+    'p2': 270,  // top    → aponta esquerda (para p1)
+    'p1': 0     // left   → aponta baixo    (para p0)
+  };
+  const rotation = rotationMap[slotId] || 0;
+
   // Centralizar acima do avatar
   turnIndicator.style.left = (rect.left + rect.width / 2) + 'px';
   turnIndicator.style.top = (rect.top - 20) + 'px'; // um pouco acima
-  turnIndicator.style.transform = 'translate(-50%, 0)';
+  turnIndicator.style.transform = `translate(-50%, 0) rotate(${rotation}deg)`;
   turnIndicator.classList.add('visible');
 }
 
@@ -94,7 +106,7 @@ function esconderSeta() {
 
 // ========== UTILITÁRIOS ==========
 function rotateArrayForPlayer(arr, startIndex) {
-  return arr.map((_, i) => arr[(startIndex + i) % arr.length]);
+  return arr.map((_, i) => arr[(startIndex - i + arr.length) % arr.length]);
 }
 
 function createCardHTML(card) {
