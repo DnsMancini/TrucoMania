@@ -165,9 +165,21 @@ body {
 #p3 { right: -80px; top: 50%; transform: translate(0, -50%); }
 
 .botHand { position: absolute; display: flex; gap: 0; }
-#hand1 { left: 0; top: 50%; transform: translate(0, -50%); flex-direction: column; }
+#hand1 {
+  position: fixed;
+  left: calc(10px + var(--safe-left));
+  top: 50%;
+  transform: translateY(-50%);
+  flex-direction: column;
+}
 #hand2 { top: 90px; left: 50%; transform: translateX(-50%); }
-#hand3 { right: 0; top: 50%; transform: translate(0, -50%); flex-direction: column; }
+#hand3 {
+  position: fixed;
+  right: calc(10px + var(--safe-right));
+  top: 50%;
+  transform: translateY(-50%);
+  flex-direction: column;
+}
 
 .carta {
   width: 85px; height: 125px;
