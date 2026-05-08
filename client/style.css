@@ -319,7 +319,7 @@ body {
   top: 0; right: 0;
   z-index: 1200;
 }
-.placar-times { display: flex; justify-content: flex-end; gap: 6px; }
+.placar-times { display: flex; justify-content: flex-end; gap: 0; }
 .placar-time {
   width: clamp(132px, 18vw, 165px);
   aspect-ratio: 165/93;
@@ -556,6 +556,7 @@ body {
   #hand3 .carta { margin-top: -42px; }
   #hand2 .carta { margin-left: -27px; }
   #hand2 { top: calc(50% - var(--table-size) / 2 - 93px); }
+  #trucoStatusPlacar { display: none; }
   #vira {
     width: 60px;
     height: 85px;

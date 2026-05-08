@@ -292,7 +292,7 @@ socket.on('cardPlayed', ({ player, card }) => {
 
   const rotatedPlayers = rotateArrayForPlayer([0, 1, 2, 3], myPlayerIndex);
   const relPos = rotatedPlayers.indexOf(player);
-  const posicoes = ['c0', 'c1', 'c2', 'c3'];
+  const posicoes = ['c0', 'c3', 'c2', 'c1'];
   const cartaDiv = document.createElement('div');
   cartaDiv.className = `cartaMesa ${posicoes[relPos >= 0 ? relPos : player]}`;
   cartaDiv.innerHTML = createCardHTML(card);
