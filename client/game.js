@@ -71,6 +71,7 @@ function posicionarSeta(currentPlayer) {
     turnIndicator.classList.remove('visible');
     return;
   }
+
   // Mapear índice original do jogador para posição visual (após rotação)
   const rotated = rotateArrayForPlayer([0, 1, 2, 3], myPlayerIndex);
   const visualPos = rotated.indexOf(currentPlayer);
@@ -80,22 +81,29 @@ function posicionarSeta(currentPlayer) {
     turnIndicator.classList.remove('visible');
     return;
   }
-  const rect = slotEl.getBoundingClientRect();
 
-  // Ângulos de rotação para a seta apontar no sentido anti‑horário
-  // A seta padrão (0°) aponta para BAIXO (▾)
-  // Sentido anti‑horário: p0(bottom) → p3(right) → p2(top) → p1(left) → p0
-  const rotationMap = {
-    'p0': 90,   // bottom → aponta direita  (para p3)
-    'p3': 180,  // right  → aponta cima     (para p2)
-    'p2': 270,  // top    → aponta esquerda (para p1)
-    'p1': 0     // left   → aponta baixo    (para p0)
-  };
-  const rotation = rotationMap[slotId] || 0;
+  const slotRect = slotEl.getBoundingClientRect();
+  const indicatorX = slotRect.left + slotRect.width / 2;
+  const indicatorY = slotRect.top - 20;
 
-  // Centralizar acima do avatar
-  turnIndicator.style.left = (rect.left + rect.width / 2) + 'px';
-  turnIndicator.style.top = (rect.top - 20) + 'px'; // um pouco acima
+  // Alvo: carta do meio da mão do jogador da vez.
+  const handEl = visualPos === 0 ? maoDiv : HAND_SLOTS[visualPos];
+  const cards = handEl ? handEl.querySelectorAll('.carta') : [];
+  const middleCard = cards.length ? cards[Math.floor(cards.length / 2)] : null;
+
+  let rotation = 0;
+  if (middleCard) {
+    const cardRect = middleCard.getBoundingClientRect();
+    const targetX = cardRect.left + cardRect.width / 2;
+    const targetY = cardRect.top + cardRect.height / 2;
+    const dx = targetX - indicatorX;
+    const dy = targetY - indicatorY;
+    // A seta padrão (0°) aponta para baixo.
+    rotation = (Math.atan2(dy, dx) * 180 / Math.PI) - 90;
+  }
+
+  turnIndicator.style.left = indicatorX + 'px';
+  turnIndicator.style.top = indicatorY + 'px';
   turnIndicator.style.transform = `translate(-50%, 0) rotate(${rotation}deg)`;
   turnIndicator.classList.add('visible');
 }
