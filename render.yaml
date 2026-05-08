@@ -5,10 +5,15 @@ services:
     region: oregon
     plan: free
     branch: main
+
+    autoDeploy: true
+
     buildCommand: npm install
     startCommand: node index.js
+
     envVars:
       - key: PORT
         value: 3000
+
       - key: CLIENT_URL
         value: https://trucomania.onrender.com
