@@ -270,9 +270,11 @@ socket.on('cardPlayed', ({ player, card }) => {
     }
   }
 
+  const rotatedPlayers = rotateArrayForPlayer([0, 1, 2, 3], myPlayerIndex);
+  const relPos = rotatedPlayers.indexOf(player);
   const posicoes = ['c0', 'c1', 'c2', 'c3'];
   const cartaDiv = document.createElement('div');
-  cartaDiv.className = `cartaMesa ${posicoes[player]}`;
+  cartaDiv.className = `cartaMesa ${posicoes[relPos >= 0 ? relPos : player]}`;
   cartaDiv.innerHTML = createCardHTML(card);
   mesaCartas.appendChild(cartaDiv);
   audioCarta.play().catch(e => {});
