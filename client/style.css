@@ -550,6 +550,8 @@ body {
   #hand3 .carta .carta-corner {
     font-size: 10px;
   }
+  #hand1 { left: -26px; }
+  #hand3 { right: -26px; }
   #hand1 .carta { margin-top: -42px; }
   #hand3 .carta { margin-top: -42px; }
   #hand2 .carta { margin-left: -27px; }
