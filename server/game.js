@@ -2,7 +2,7 @@ const SUITS = ['paus', 'copas', 'espadas', 'ouros'];
 const RANKS = ['4', '5', '6', '7', 'Q', 'J', 'K', 'A', '2', '3'];
 const { cardStrength } = require('./utils');
 
-const BET_VALUES = { truco: 3, retruco: 6, valequatro: 12 };
+const BET_VALUES = { truco: 3, retruco: 6, valenove: 9, valedoze: 12 };
 
 function buildDeck() {
   const deck = [];
@@ -220,7 +220,8 @@ class Game4P {
     if (this.betState) return false;
     if (betType === 'truco' && this.handValue >= 3) return false;
     if (betType === 'retruco' && this.handValue >= 6) return false;
-    if (betType === 'valequatro' && this.handValue >= 12) return false;
+    if (betType === 'valenove' && this.handValue >= 9) return false;
+    if (betType === 'valedoze' && this.handValue >= 12) return false;
 
     const challengerTeam = playerIndex % 2;
     const responderTeam = 1 - challengerTeam;
@@ -283,7 +284,8 @@ class Game4P {
 
     let nextLevel = null;
     if (action === 'retruco' && level === 'truco') nextLevel = 'retruco';
-    if (action === 'valequatro' && level === 'retruco') nextLevel = 'valequatro';
+    if (action === 'valenove' && level === 'retruco') nextLevel = 'valenove';
+    if (action === 'valedoze' && level === 'valenove') nextLevel = 'valedoze';
     if (nextLevel) {
       this.betState.level = nextLevel;
       this.betState.responderTeam = challenger % 2;
@@ -300,7 +302,8 @@ class Game4P {
   getBetValueBefore(level) {
     if (level === 'truco') return this.handValue;
     if (level === 'retruco') return 3;
-    if (level === 'valequatro') return 6;
+    if (level === 'valenove') return 6;
+    if (level === 'valedoze') return 9;
     return 1;
   }
 
