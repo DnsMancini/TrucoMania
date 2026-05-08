@@ -92,7 +92,7 @@ function handleSocket(io) {
       const room = findRoomBySocket(socket.id);
       if (!room || !room.game) return;
       const playerIndex = room.players.findIndex(p => p.id === socket.id);
-      updateActivity(room, socket.id);
+      updateActivity(room, socket.id, io);
       room.game.playCard(playerIndex, card);
       checkBotTurn(room, io);
     });
@@ -101,7 +101,7 @@ function handleSocket(io) {
       const room = findRoomBySocket(socket.id);
       if (!room || !room.game) return;
       const playerIndex = room.players.findIndex(p => p.id === socket.id);
-      updateActivity(room, socket.id);
+      updateActivity(room, socket.id, io);
       room.game.callBet(playerIndex, betType);
       checkBotResponse(room, io);
     });
@@ -110,7 +110,7 @@ function handleSocket(io) {
       const room = findRoomBySocket(socket.id);
       if (!room || !room.game) return;
       const playerIndex = room.players.findIndex(p => p.id === socket.id);
-      updateActivity(room, socket.id);
+      updateActivity(room, socket.id, io);
       room.game.respondBet(playerIndex, action);
       checkBotTurn(room, io);
     });
@@ -119,7 +119,7 @@ function handleSocket(io) {
       const room = findRoomBySocket(socket.id);
       if (!room || !room.game) return;
       const playerIndex = room.players.findIndex(p => p.id === socket.id);
-      updateActivity(room, socket.id);
+      updateActivity(room, socket.id, io);
       room.game.fleeHand(playerIndex);
     });
 
@@ -139,6 +139,21 @@ function handleSocket(io) {
       }
     });
   });
+}
+
+// Corrigida: agora recebe io e repassa para emitPlayerStatus
+function updateActivity(room, socketId, io) {
+  const timer = room.offlineTimers.get(socketId);
+  if (timer) {
+    clearTimeout(timer);
+    room.offlineTimers.delete(socketId);
+  }
+  const player = room.players.find(p => p.id === socketId);
+  if (player && !player.online) {
+    player.online = true;
+    player.pendingReplace = false;
+    emitPlayerStatus(room, io);
+  }
 }
 
 function fillWithBotsAndStart(code, io) {
@@ -206,20 +221,6 @@ function checkAllHumansGone(room, io) {
     io.to(room.code).emit('matchOver', { winnerTeam: -1, setWins: [0,0], message: 'Todos os jogadores saíram.' });
     rooms.delete(room.code);
     broadcastRooms(io);
-  }
-}
-
-function updateActivity(room, socketId) {
-  const timer = room.offlineTimers.get(socketId);
-  if (timer) {
-    clearTimeout(timer);
-    room.offlineTimers.delete(socketId);
-  }
-  const player = room.players.find(p => p.id === socketId);
-  if (player && !player.online) {
-    player.online = true;
-    player.pendingReplace = false;
-    emitPlayerStatus(room, io);
   }
 }
 

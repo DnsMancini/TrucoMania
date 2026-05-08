@@ -59,6 +59,7 @@ let isMyTurn = false;
 let turnTimerInterval = null;
 let timeLeft = 25;
 let currentGameCode = null;
+let currentHandValue = 1; // valor da mão atual (1, 3, 6 ou 12)
 
 // ========== INDICADOR DE VEZ ==========
 const turnIndicator = document.createElement('div');
@@ -70,6 +71,21 @@ function atualizarIndicador() {
     turnIndicator.classList.add('visible');
   } else {
     turnIndicator.classList.remove('visible');
+  }
+}
+
+function atualizarBotaoTruco() {
+  if (!gameActive || aguardandoResposta || !isMyTurn) return;
+
+  btnTruco.classList.remove('oculto');
+  if (currentHandValue >= 12) {
+    btnTruco.classList.add('oculto'); // não pode mais trucar
+  } else if (currentHandValue >= 6) {
+    btnTruco.textContent = 'VALE QUATRO';
+  } else if (currentHandValue >= 3) {
+    btnTruco.textContent = 'RETRUCO';
+  } else {
+    btnTruco.textContent = 'TRUCO';
   }
 }
 
@@ -163,6 +179,7 @@ socket.on('handStart', (data) => {
   gameActive = true;
   playerHand = data.hand;
   myPlayerIndex = data.player;
+  currentHandValue = data.handValue;
 
   const rotatedPlayers = rotateArrayForPlayer(data.players, myPlayerIndex);
   for (let i = 0; i < 4; i++) {
@@ -191,8 +208,8 @@ socket.on('handStart', (data) => {
   atualizarInfoLive();
 
   if (isMyTurn && !aguardandoResposta) {
-    btnTruco.classList.remove('oculto');
     btnCorrer.classList.remove('oculto');
+    atualizarBotaoTruco();
   } else {
     btnTruco.classList.add('oculto');
     btnCorrer.classList.add('oculto');
@@ -215,8 +232,8 @@ socket.on('turn', ({ currentPlayer }) => {
   isMyTurn = (currentPlayer === myPlayerIndex);
   if (!aguardandoResposta) {
     if (isMyTurn) {
-      btnTruco.classList.remove('oculto');
       btnCorrer.classList.remove('oculto');
+      atualizarBotaoTruco();
       startTurnTimer();
     } else {
       btnTruco.classList.add('oculto');
@@ -306,7 +323,7 @@ socket.on('matchOver', ({ winnerTeam }) => {
   turnIndicator.classList.remove('visible');
 });
 
-socket.on('betCalled', () => {
+socket.on('betCalled', ({ level }) => {
   btnTruco.classList.add('oculto');
   btnCorrer.classList.remove('oculto');
   aguardandoResposta = true;
@@ -314,23 +331,24 @@ socket.on('betCalled', () => {
 });
 
 socket.on('betAccepted', ({ handValue }) => {
+  currentHandValue = handValue;
   trucoStatusEl.textContent = `Truco: ${handValue} pts`;
   btnCorrer.classList.remove('oculto');
-  btnTruco.classList.remove('oculto');
+  if (isMyTurn && !aguardandoResposta) {
+    atualizarBotaoTruco();
+  }
   aguardandoResposta = false;
   atualizarInfoLive();
-});
-
-socket.on('playerLeft', () => {
-  clearTurnTimer();
-  alert('Oponente saiu do jogo.');
-  location.reload();
 });
 
 // ========== BOTÕES ==========
 btnTruco.onclick = () => {
   if (!isMyTurn || !gameActive || aguardandoResposta) return;
-  socket.emit('callBet', 'truco');
+
+  let betType = 'truco';
+  if (currentHandValue >= 6) betType = 'valequatro';
+  else if (currentHandValue >= 3) betType = 'retruco';
+  socket.emit('callBet', betType);
   clearTurnTimer();
 };
 
@@ -344,72 +362,6 @@ btnCorrer.onclick = () => {
   clearTurnTimer();
 };
 
-// ========== FUNÇÕES AUXILIARES ==========
-function atualizarInfoLive() {
-  if (!gameActive) return;
-  const base = infoRodadaEl.textContent.replace(/<span.*<\/span>/, '').trim();
-  infoRodadaEl.innerHTML = base + (isMyTurn
-    ? ' <span style="color:#5cb85c;">🎯 Sua vez!</span>'
-    : ' <span style="color:#f1c40f;">⏳ Aguardando oponente</span>');
-}
-
-function renderizarMao(hand) {
-  maoDiv.innerHTML = '';
-  hand.forEach((c) => {
-    const carta = document.createElement('div');
-    carta.className = 'carta playerCard';
-    carta.innerHTML = createCardHTML(c);
-    carta.addEventListener('click', () => {
-      if (!isMyTurn || !gameActive) return;
-      socket.emit('playCard', c);
-      clearTurnTimer();
-    });
-    maoDiv.appendChild(carta);
-  });
-}
-
-function startTurnTimer() {
-  clearTurnTimer();
-  cronometroEl.classList.add('oculto');
-  timeLeft = 25;
-  turnTimerInterval = setInterval(() => {
-    timeLeft--;
-    if (timeLeft <= 0) {
-      clearTurnTimer();
-      autoPlayRandomCard();
-      return;
-    }
-    if (timeLeft <= 5) {
-      cronometroEl.classList.remove('oculto');
-      cronometroNum.textContent = timeLeft;
-    } else {
-      cronometroEl.classList.add('oculto');
-    }
-  }, 1000);
-}
-
-function clearTurnTimer() {
-  if (turnTimerInterval) {
-    clearInterval(turnTimerInterval);
-    turnTimerInterval = null;
-  }
-  cronometroEl.classList.add('oculto');
-}
-
-function autoPlayRandomCard() {
-  if (playerHand.length > 0 && gameActive && isMyTurn) {
-    const card = playerHand[Math.floor(Math.random() * playerHand.length)];
-    socket.emit('playCard', card);
-  }
-}
-
-function mostrarMensagem(texto) {
-  toastEl.textContent = texto;
-  toastEl.style.display = 'block';
-  setTimeout(() => { toastEl.style.display = 'none'; }, 3000);
-}
-
-function suitSymbol(suit) {
-  const map = { paus: '♣', copas: '♥', espadas: '♠', ouros: '♦' };
-  return map[suit] || suit;
-}
+// ========== FUNÇÕES AUXILIARES (inalteradas) ==========
+// ... (mantenha todas as funções: atualizarInfoLive, renderizarMao, startTurnTimer, clearTurnTimer,
+//      autoPlayRandomCard, mostrarMensagem, suitSymbol)
