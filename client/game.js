@@ -14,8 +14,6 @@ const contagemNumero = document.getElementById('contagemNumero');
 // Elementos do jogo
 const teamAScoreEl = document.getElementById('teamAScore');
 const teamBScoreEl = document.getElementById('teamBScore');
-const setAScoreEl = document.getElementById('setAScore');
-const setBScoreEl = document.getElementById('setBScore');
 const trucoStatusEl = document.getElementById('trucoStatus');
 const infoRodadaEl = document.getElementById('infoRodada');
 const btnTruco = document.getElementById('btnTruco');
@@ -58,7 +56,7 @@ let turnTimerInterval = null;
 let timeLeft = 25;
 let currentGameCode = null;
 
-// ========== LOBBY FUNCTIONS ==========
+// ========== LOBBY ==========
 createBtn.onclick = () => {
   const name = nameInput.value.trim() || 'Jogador';
   socket.emit('createRoom', name, (res) => {
@@ -93,6 +91,7 @@ function enterWaitingRoom(res) {
   gameWrapper.classList.remove('game-hidden');
   contagemEl.classList.remove('oculto');
   contagemNumero.textContent = '10';
+  // Limpar jogo anterior
   maoDiv.innerHTML = '';
   mesaCartas.innerHTML = '';
   viraEl.classList.add('oculto');
@@ -101,6 +100,7 @@ function enterWaitingRoom(res) {
   telaFinal.classList.remove('show');
 }
 
+// Atualizar lista de salas
 socket.on('connect', () => {
   socket.emit('getRooms');
 });
@@ -116,7 +116,7 @@ socket.on('roomsUpdate', (rooms) => {
     const div = document.createElement('div');
     div.className = 'room-item';
     div.innerHTML = `
-      <span>Sala ${room.code} (${room.players}/4 jogadores) ${room.status === 'playing' ? '(em jogo)' : ''}</span>
+      <span>Sala ${room.code} (${room.players}/4 jogadores)</span>
       <button class="join-room-btn">Entrar</button>
     `;
     div.querySelector('.join-room-btn').addEventListener('click', () => joinRoomFromList(room.code));
@@ -141,12 +141,17 @@ socket.on('handStart', (data) => {
   renderizarMao(playerHand);
   teamAScoreEl.textContent = data.scores[0];
   teamBScoreEl.textContent = data.scores[1];
-  setAScoreEl.textContent = data.setWins[0];
-  setBScoreEl.textContent = data.setWins[1];
   infoRodadaEl.textContent = 'Rodada 1 de 3';
   trucoStatusEl.textContent = 'Truco: Nenhum';
-  btnTruco.classList.remove('oculto');
-  btnCorrer.classList.remove('oculto');
+  atualizarInfoLive(); // atualiza o texto de vez
+  // Mostrar botões apenas se for minha vez
+  if (isMyTurn && !aguardandoResposta) {
+    btnTruco.classList.remove('oculto');
+    btnCorrer.classList.remove('oculto');
+  } else {
+    btnTruco.classList.add('oculto');
+    btnCorrer.classList.add('oculto');
+  }
   aguardandoResposta = false;
   viraEl.classList.remove('oculto');
   viraEl.classList.remove('virada');
@@ -179,14 +184,17 @@ socket.on('handStart', (data) => {
 socket.on('turn', ({ currentPlayer }) => {
   isMyTurn = (currentPlayer === myPlayerIndex);
   if (!aguardandoResposta) {
-    btnTruco.classList.remove('oculto');
-    btnCorrer.classList.remove('oculto');
-    if (currentPlayer === myPlayerIndex) {
+    if (isMyTurn) {
+      btnTruco.classList.remove('oculto');
+      btnCorrer.classList.remove('oculto');
       startTurnTimer();
     } else {
+      btnTruco.classList.add('oculto');
+      btnCorrer.classList.add('oculto');
       clearTurnTimer();
     }
   }
+  atualizarInfoLive();
 });
 
 socket.on('cardPlayed', ({ player, card }) => {
@@ -223,15 +231,13 @@ socket.on('roundResult', ({ round, winner }) => {
   setTimeout(() => { mesaCartas.innerHTML = ''; }, 1200);
 });
 
-socket.on('handEnd', ({ winnerTeam, points, scores, setWins }) => {
+socket.on('handEnd', ({ winnerTeam, points, scores }) => {
   gameActive = false;
   aguardandoResposta = false;
   isMyTurn = false;
   clearTurnTimer();
   teamAScoreEl.textContent = scores[0];
   teamBScoreEl.textContent = scores[1];
-  setAScoreEl.textContent = setWins[0];
-  setBScoreEl.textContent = setWins[1];
   if (points === 6) audioSeis.play().catch(e => console.warn('Áudio seis:', e));
   else if (points === 9) audioNove.play().catch(e => console.warn('Áudio nove:', e));
   else if (points === 12) audioDoze.play().catch(e => console.warn('Áudio doze:', e));
@@ -243,29 +249,24 @@ socket.on('handEnd', ({ winnerTeam, points, scores, setWins }) => {
   hand3.innerHTML = '';
   viraEl.classList.add('oculto');
   mostrarMensagem(winnerTeam === myPlayerIndex % 2 ? 'Seu time ganhou a mão!' : 'Time adversário ganhou a mão.');
+  atualizarInfoLive();
 });
 
-socket.on('setWin', ({ winnerTeam, setWins }) => {
-  setAScoreEl.textContent = setWins[0];
-  setBScoreEl.textContent = setWins[1];
-  mostrarMensagem(winnerTeam === myPlayerIndex % 2 ? 'Set vencido!' : 'Set perdido!');
-});
-
-socket.on('matchOver', ({ winnerTeam, setWins }) => {
+socket.on('gameOver', ({ winnerTeam }) => {
   aguardandoResposta = false;
   isMyTurn = false;
   clearTurnTimer();
   contagemEl.classList.add('oculto');
   telaFinal.classList.add('show');
-  textoFinal.textContent = winnerTeam === myPlayerIndex % 2 ? 'VOCÊ VENCEU A PARTIDA!' : 'VOCÊ PERDEU A PARTIDA!';
-  resumoFinal.textContent = `Placar final: ${setWins[0]} x ${setWins[1]}`;
+  textoFinal.textContent = winnerTeam === myPlayerIndex % 2 ? 'VOCÊ VENCEU!' : 'VOCÊ PERDEU!';
+  resumoFinal.textContent = 'Clique em Voltar ao Lobby para jogar novamente.';
   document.getElementById('btnVoltarLobby').onclick = () => location.reload();
   document.getElementById('btnBuscarNova').onclick = () => location.reload();
 });
 
 socket.on('betCalled', ({ challenger, level }) => {
   btnTruco.classList.add('oculto');
-  btnCorrer.classList.remove('oculto');
+  btnCorrer.classList.remove('oculto'); // apenas para quem for responder; ajustaremos via turnToRespond? Simplificando, todos do time adversário veem o botão Correr
   aguardandoResposta = true;
   audioTruco.play().catch(e => console.warn('Áudio truco:', e));
 });
@@ -275,27 +276,10 @@ socket.on('betAccepted', ({ handValue }) => {
   btnCorrer.classList.remove('oculto');
   btnTruco.classList.remove('oculto');
   aguardandoResposta = false;
+  atualizarInfoLive();
 });
 
 socket.on('turnToRespond', () => {});
-
-socket.on('playerStatusUpdate', (players) => {
-  if (!window.lastOnlineStatus) window.lastOnlineStatus = {};
-  players.forEach((p, i) => {
-    const slotKey = 'p' + i;
-    const el = nomesSlots[slotKey];
-    if (!el) return;
-    el.textContent = (p.name || '') + (p.isBot ? ' (Bot)' : '') + (p.online ? '' : ' (Off)');
-    el.className = p.online ? 'name' : 'name offline';
-    
-    const prevOnline = window.lastOnlineStatus[slotKey];
-    if (prevOnline !== undefined && prevOnline !== p.online) {
-      const msg = p.online ? `${p.name} está online` : `${p.name} está offline`;
-      mostrarMensagem(msg);
-    }
-    window.lastOnlineStatus[slotKey] = p.online;
-  });
-});
 
 socket.on('playerLeft', () => {
   clearTurnTimer();
@@ -321,6 +305,17 @@ btnCorrer.onclick = () => {
 };
 
 // ========== FUNÇÕES AUXILIARES ==========
+function atualizarInfoLive() {
+  // Adiciona uma linha extra para indicar vez ou espera
+  if (gameActive) {
+    if (isMyTurn) {
+      infoRodadaEl.innerHTML = infoRodadaEl.textContent + ' <span style="color:#5cb85c;">🎯 Sua vez!</span>';
+    } else {
+      infoRodadaEl.innerHTML = infoRodadaEl.textContent + ' <span style="color:#f1c40f;">⏳ Aguardando oponente</span>';
+    }
+  }
+}
+
 function createCardHTML(card) {
   const suitSym = suitSymbol(card.suit);
   const corClasse = (card.suit === 'copas' || card.suit === 'ouros') ? 'naipe-vermelho' : 'naipe-preto';
@@ -400,10 +395,6 @@ function suitSymbol(suit) {
 function atualizarNomes(players) {
   for (let i = 0; i < 4; i++) {
     const el = nomesSlots['p' + i];
-    if (el) {
-      const p = players[i];
-      el.textContent = (p?.name || '') + (p?.isBot ? ' (Bot)' : '') + (p?.online ? '' : ' (Off)');
-      el.className = p?.online ? 'name' : 'name offline';
-    }
+    if (el) el.textContent = (players[i]?.name || '') + (players[i]?.isBot ? ' (Bot)' : '');
   }
 }
