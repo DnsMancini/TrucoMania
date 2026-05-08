@@ -144,19 +144,20 @@ body {
 .avatar {
   width: var(--avatar-size);
   height: var(--avatar-size);
-  border-radius: 50%;
+  border-radius: 12px;
   overflow: hidden;
-  background: linear-gradient(#555, #111);
+  background: linear-gradient(145deg, #2a2a2a, #111);
   margin-bottom: 4px;
+  border: 2px dashed rgba(255,255,255,0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
 }
-.avatar-voce { background-image: url("/img/voce.png"); }
-.avatar-bot1 { background-image: url("/img/bot1.png"); }
-.avatar-parceiro { background-image: url("/img/AvatarParceiro1.png"); }
-.avatar-bot2 { background-image: url("/img/bot2.png"); }
-.avatar-voce, .avatar-bot1, .avatar-parceiro, .avatar-bot2 {
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
+.avatar::after {
+  content: "📷";
+  font-size: 24px;
+  opacity: 0.3;
 }
 
 /* Posições fixas dos 4 jogadores (viewport) */
