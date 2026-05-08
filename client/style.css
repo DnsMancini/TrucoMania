@@ -275,7 +275,8 @@ body {
   position: absolute;
   top: var(--centro-y); left: var(--centro-x);
   width: min(420px, 76%); height: min(260px, 52%);
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%) rotate(0deg);
+  transition: transform 0.4s ease;
   z-index: 1200;
 }
 

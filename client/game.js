@@ -146,6 +146,9 @@ socket.on('handStart', (data) => {
   playerHand = data.hand;
   myPlayerIndex = data.player;
 
+  // 🔥 Rotacionar a área de cartas na mesa para a perspectiva local
+  mesaCartas.style.transform = `rotate(${myPlayerIndex * 90}deg)`;
+
   // Rotacionar lista de jogadores para a perspectiva local
   const rotatedPlayers = rotateArrayForPlayer(data.players, myPlayerIndex);
 
@@ -189,7 +192,7 @@ socket.on('handStart', (data) => {
   viraEl.classList.remove('oculto');
   viraEl.classList.remove('virada');
   viraEl.innerHTML = createCardHTML(data.vira);
-  mesaCartas.innerHTML = '';
+  mesaCartas.innerHTML = ''; // limpa as cartas da mesa (mantendo o container)
 
   painelHistorico.querySelectorAll('.bolinha-rodada').forEach(b => {
     b.className = 'bolinha-rodada bolinha-branca';
@@ -227,16 +230,17 @@ socket.on('cardPlayed', ({ player, card }) => {
   } else {
     // Descobrir qual mão pertence a esse jogador (baseado na rotação)
     const rotatedPlayers = rotateArrayForPlayer(
-      Array.from({ length: 4 }, (_, i) => ({ id: i })), // simplificado: só precisamos do índice relativo
+      Array.from({ length: 4 }, (_, i) => ({ id: i })),
       myPlayerIndex
     );
-    // rotatedPlayers agora contém os índices do servidor na ordem visual
     const relIndex = rotatedPlayers.findIndex(p => p.id === player);
     if (relIndex > 0) {
       const handEl = HAND_SLOTS[relIndex];
       if (handEl && handEl.children.length > 0) handEl.removeChild(handEl.lastChild);
     }
   }
+
+  // Adicionar a carta na mesa (as classes c0-c3 são automaticamente rotacionadas)
   const posicoes = ['c0', 'c1', 'c2', 'c3'];
   const cartaDiv = document.createElement('div');
   cartaDiv.className = `cartaMesa ${posicoes[player]}`;
@@ -276,6 +280,7 @@ socket.on('handEnd', ({ winnerTeam, points, scores }) => {
   hand2.innerHTML = '';
   hand3.innerHTML = '';
   viraEl.classList.add('oculto');
+  mesaCartas.style.transform = ''; // remove rotação para a próxima mão
   mostrarMensagem(winnerTeam === myPlayerIndex % 2 ? 'Seu time ganhou a mão!' : 'Time adversário ganhou a mão.');
   atualizarInfoLive();
 });
