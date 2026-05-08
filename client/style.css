@@ -6,6 +6,7 @@
   --viewport-height: 100dvh;
   --ui-z: 2600;
   --overlay-z: 3000;
+  --hand-bottom-offset: 6px;
   --table-size: min(90vw, 90vh);
   --table-center-x: 50%;
   --table-center-y: 50%;
@@ -256,7 +257,7 @@ body {
 /* Mão do jogador (sempre na base da tela, fora do #game) */
 #mao {
   position: fixed;
-  bottom: var(--safe-bottom);
+  bottom: calc(var(--safe-bottom) + var(--hand-bottom-offset));
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -524,7 +525,7 @@ body {
   .bolinha-rodada { width: 14px; height: 14px; }
   .contagem-regressiva { width: 150px; height: 150px; }
   .contagem-regressiva span { font-size: 60px; }
-  #mao { bottom: var(--safe-bottom); }
+  #mao { bottom: calc(var(--safe-bottom) + 2px); }
 
   /* Mãos dos bots presas nas bordas da TELA no mobile */
   #hand1 {
