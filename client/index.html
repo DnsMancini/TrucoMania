@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Truco Mania</title>
-  <link rel="stylesheet" href="style.css?v=2" />
+  <link rel="stylesheet" href="style.css?v=3" />
   <link rel="icon" href="/img/carta-copag-vermelha.png" />
 </head>
 <body>
@@ -59,6 +59,8 @@
         <div class="botHand" id="hand2"></div>
         <div class="botHand" id="hand3"></div>
 
+        <div id="mao"></div>
+
         <div id="vira" class="carta oculto"></div>
 
         <div id="infoLive">
@@ -81,10 +83,12 @@
           <span id="cronometroNum"></span>
         </div>
 
+        <!-- Contagem regressiva antes do jogo -->
         <div id="contagemRegressiva" class="contagem-regressiva oculto">
           <span id="contagemNumero">10</span>
         </div>
 
+        <!-- Toast para mensagens temporárias -->
         <div id="toast"></div>
 
         <div class="telaFinal" id="telaFinal">
@@ -99,16 +103,7 @@
         </div>
       </div>
 
-      <!-- Mão do jogador (FORA de #game para posicionamento fixo real) -->
-      <div id="mao"></div>
-
       <div id="placar">
-        <div class="set-wins">
-          <span>Sets:</span>
-          <span id="setAScore" class="set-pontos">0</span>
-          <span>-</span>
-          <span id="setBScore" class="set-pontos">0</span>
-        </div>
         <div class="placar-times">
           <div class="placar-time placar-time--nos">
             <span class="placar-time-nome">Nós</span>

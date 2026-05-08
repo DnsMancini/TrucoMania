@@ -70,6 +70,7 @@ body {
   transform: translate(-50%, -50%);
   pointer-events: none;
   z-index: 1900;
+  transition: transform 0.5s ease;
 }
 
 #ui {
@@ -137,8 +138,14 @@ body {
   z-index: 1200;
   pointer-events: none;
 }
-#infoRodada { font-size: 16px; margin-bottom: 4px; }
-#trucoStatus { font-size: 13px; color: #fff; }
+#infoRodada {
+  font-size: 16px;
+  margin-bottom: 4px;
+}
+#trucoStatus {
+  font-size: 13px;
+  color: #fff;
+}
 
 #toast {
   position: fixed;
@@ -289,21 +296,6 @@ body {
 .c2 { top: calc(50% - var(--offset-y) - clamp(22px, 4vh, 34px)); left: 50%; transform: translate(-50%, -50%); }
 .c3 { top: 50%; left: calc(50% + var(--offset-x)); transform: translate(-50%, -50%); }
 
-/* Placar e sets */
-.set-wins {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 4px;
-  font-size: 16px;
-  margin-bottom: 4px;
-  color: #eee;
-}
-.set-pontos {
-  font-weight: bold;
-  color: #f1c40f;
-}
-
 .placar-times { display: flex; justify-content: flex-end; gap: 6px; }
 .placar-time + .placar-time { margin-left: -6px; }
 .placar-time {
@@ -351,10 +343,13 @@ body {
 .placar-status { display: block; margin-top: 4px; text-align: center; font-size: 12px; color: #f1c40f; }
 #placar {
   position: fixed;
-  top: 0; right: 0; left: auto;
+  top: 0;
+  right: 0;
+  left: auto;
   min-width: 0;
   background: transparent;
-  padding: 0; margin: 0;
+  padding: 0;
+  margin: 0;
   border-radius: 0;
   font-weight: 700;
   font-size: 17px;
@@ -363,12 +358,10 @@ body {
   z-index: 1200;
 }
 
-/* Mão do jogador (agora fora de #game, fixa na viewport) */
 #mao {
   position: fixed;
   bottom: 10px;
-  left: 0;
-  right: 0;
+  left: 0; right: 0;
   width: 100%;
   display: flex;
   justify-content: center;
@@ -389,7 +382,6 @@ body {
   z-index: 2200;
 }
 
-/* Mãos dos oponentes (desktop) */
 #hand2 .carta { margin-left: -39px; }
 #hand2 .carta:first-child { margin-left: 0; }
 #hand2 .carta:nth-child(1) { transform: rotate(-9deg); }
@@ -476,6 +468,7 @@ body {
   border-radius: 16px;
   padding: 24px;
 }
+
 .lobby-title { text-align: center; color: #f1c40f; }
 .lobby-menu { text-align: center; margin-top: 20px; }
 .lobby-input { padding: 10px; font-size: 16px; border-radius: 8px; border: none; }
@@ -535,6 +528,7 @@ body {
   text-shadow: 0 0 20px rgba(241,196,15,0.8);
 }
 
+/* Tela final */
 .telaFinal {
   position: fixed;
   top: 0; left: 0;
@@ -553,19 +547,15 @@ body {
 }
 .telaFinal.show { opacity: 1; pointer-events: auto; }
 #textoFinal { animation: zoom 0.5s ease; text-align: center; padding: 0 24px; max-width: min(92vw, 720px); }
+
 @keyframes zoom {
   from { transform: scale(0.5); opacity: 0; }
   to { transform: scale(1); opacity: 1; }
 }
 
+/* Cores naipes */
 .naipe-vermelho { color: #c1121f; }
 .naipe-preto { color: #111; }
-
-/* Status offline */
-.player .name.offline {
-  color: #999;
-  text-decoration: line-through;
-}
 
 /* ========== MOBILE (retrato) ========== */
 @media (max-width: 1024px) and (orientation: portrait) {
@@ -591,78 +581,33 @@ body {
   .cartaMesa .carta-center { font-size: 18px; }
   .carta-corner { font-size: 11px; }
 
-  /* Mão do jogador no mobile: colada na borda inferior */
   #mao {
-    bottom: 0;
-    padding-bottom: 10px;
+    bottom: 20px;
   }
   #mao .playerCard {
     margin-left: -14px;
   }
 
-  #p0 {
-    bottom: 110px;
-    left: 50%;
-    transform: translate(-50%, 0);
-  }
-  #p3 {
-    right: -10px;
-    top: 50%;
-    transform: translate(0, -50%);
-  }
-  #p2 {
-    top: 10px;
-    left: 50%;
-    transform: translate(-50%, 0);
-  }
-  #p1 {
-    left: -10px;
-    top: 50%;
-    transform: translate(0, -50%);
-  }
+  #p0 { bottom: 110px; left: 50%; transform: translate(-50%, 0); }
+  #p3 { right: -10px; top: 50%; transform: translate(0, -50%); }
+  #p2 { top: 10px; left: 50%; transform: translate(-50%, 0); }
+  #p1 { left: -10px; top: 50%; transform: translate(0, -50%); }
 
-  #hand1 {
-    left: 0;
-    top: 50%;
-    transform: translate(0, -50%);
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  #hand3 {
-    right: 0;
-    top: 50%;
-    transform: translate(0, -50%);
-    flex-direction: column;
-    align-items: flex-end;
-  }
-  #hand2 {
-    top: 60px;
-    left: 50%;
-    transform: translateX(-50%);
-  }
+  #hand1 { left: 0; top: 50%; transform: translate(0, -50%); flex-direction: column; align-items: flex-start; }
+  #hand3 { right: 0; top: 50%; transform: translate(0, -50%); flex-direction: column; align-items: flex-end; }
+  #hand2 { top: 60px; left: 50%; transform: translateX(-50%); }
 
-  #hand1 .carta, #hand3 .carta {
-    margin-top: -49px;
-  }
-  #hand1 .carta:first-child, #hand3 .carta:first-child {
-    margin-top: 0;
-  }
-  #hand2 .carta {
-    margin-left: -30px;
-  }
-  #hand2 .carta:first-child {
-    margin-left: 0;
-  }
+  #hand1 .carta, #hand3 .carta { margin-top: -49px; }
+  #hand1 .carta:first-child, #hand3 .carta:first-child { margin-top: 0; }
+  #hand2 .carta { margin-left: -30px; }
+  #hand2 .carta:first-child { margin-left: 0; }
 
   #placar {
     top: var(--safe-top);
     right: var(--safe-right);
     font-size: 13px;
   }
-  .placar-time {
-    width: 110px;
-    padding-top: 14px;
-  }
+  .placar-time { width: 110px; padding-top: 14px; }
   .placar-time-pontos { font-size: 24px; }
 
   .game-button {
@@ -672,11 +617,11 @@ body {
   }
   .game-button-truco {
     left: 10px;
-    bottom: calc(80px + var(--safe-bottom));
+    bottom: calc(90px + var(--safe-bottom));
   }
   .game-button-correr {
     right: 10px;
-    bottom: calc(80px + var(--safe-bottom));
+    bottom: calc(90px + var(--safe-bottom));
   }
 
   #infoLive {
@@ -699,9 +644,7 @@ body {
     width: 36px;
     min-height: 100px;
   }
-  .bolinha-rodada {
-    width: 14px; height: 14px;
-  }
+  .bolinha-rodada { width: 14px; height: 14px; }
 
   #toast {
     font-size: 14px;
@@ -719,21 +662,6 @@ body {
 
 /* Aviso de orientação em paisagem (mobile) */
 @media (max-width: 1024px) and (orientation: landscape) {
-  .avisoOrientacao {
-    display: flex !important;
-  }
-  #gameWrapper > *:not(.avisoOrientacao) {
-    display: none !important;
-  }
-}
-
-    #game {
-        position: fixed;
-        top: 50%; left: 50%;
-        width: var(--table-size);
-        height: var(--table-size);
-        transform: translate(-50%, -50%);
-        pointer-events: none;
-        z-index: 1900;
-        transition: transform 0.5s ease;  /* nova linha */
+  .avisoOrientacao { display: flex !important; }
+  #gameWrapper > *:not(.avisoOrientacao) { display: none !important; }
 }
