@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Truco Mania</title>
-  <link rel="stylesheet" href="style.css?v=4" />
+  <link rel="stylesheet" href="style.css?v=5" />
   <link rel="icon" href="/img/carta-copag-vermelha.png" />
 </head>
 <body>
@@ -31,58 +31,64 @@
       <div class="avisoOrientacao"><div>🔄 Gire o dispositivo para jogar</div></div>
       <div class="mesa"></div>
 
+      <!-- Elementos da mesa (dentro do #game, centralizados na mesa circular) -->
       <div id="game">
         <div id="mesaCartas"></div>
-
-        <div class="player" id="p0">
-          <div class="avatar avatar-voce"></div>
-          <span class="name">Você</span>
-        </div>
-        <div class="player" id="p1">
-          <div class="avatar avatar-bot1"></div>
-          <span class="name"></span>
-        </div>
-        <div class="player" id="p2">
-          <div class="avatar avatar-parceiro"></div>
-          <span class="name"></span>
-        </div>
-        <div class="player" id="p3">
-          <div class="avatar avatar-bot2"></div>
-          <span class="name"></span>
-        </div>
-
         <div class="botHand" id="hand1"></div>
         <div class="botHand" id="hand2"></div>
         <div class="botHand" id="hand3"></div>
-
-        <div id="mao"></div>
         <div id="vira" class="carta oculto"></div>
+      </div>
 
-        <div id="infoLive">
-          <div id="infoRodada">Rodada 1 de 3</div>
-          <div id="trucoStatus">Truco: Nenhum</div>
+      <!-- JOGADORES (fora do #game, position: fixed no viewport) -->
+      <div class="player" id="p0">
+        <div class="avatar avatar-voce"></div>
+        <span class="name">Você</span>
+      </div>
+      <div class="player" id="p1">
+        <div class="avatar avatar-bot1"></div>
+        <span class="name"></span>
+      </div>
+      <div class="player" id="p2">
+        <div class="avatar avatar-parceiro"></div>
+        <span class="name"></span>
+      </div>
+      <div class="player" id="p3">
+        <div class="avatar avatar-bot2"></div>
+        <span class="name"></span>
+      </div>
+
+      <!-- Mão do jogador (fora do #game, colada na borda inferior da tela) -->
+      <div id="mao"></div>
+
+      <!-- Informações ao vivo (fora do #game, fixo no viewport) -->
+      <div id="infoLive">
+        <div id="infoRodada">Rodada 1 de 3</div>
+        <div id="trucoStatus">Truco: Nenhum</div>
+      </div>
+
+      <!-- Painel de histórico (fora do #game) -->
+      <div id="painelHistorico">
+        <div id="historicoRodadas">
+          <div class="bolinha-rodada bolinha-branca"></div>
+          <div class="bolinha-rodada bolinha-branca"></div>
+          <div class="bolinha-rodada bolinha-branca"></div>
         </div>
+      </div>
 
-        <div id="painelHistorico">
-          <div id="historicoRodadas">
-            <div class="bolinha-rodada bolinha-branca"></div>
-            <div class="bolinha-rodada bolinha-branca"></div>
-            <div class="bolinha-rodada bolinha-branca"></div>
-          </div>
-        </div>
+      <!-- Cronômetro e contagem (fora do #game) -->
+      <div id="cronometro" class="cronometro oculto"><span id="cronometroNum"></span></div>
+      <div id="contagemRegressiva" class="contagem-regressiva oculto"><span id="contagemNumero">10</span></div>
+      <div id="toast"></div>
 
-        <div id="cronometro" class="cronometro oculto"><span id="cronometroNum"></span></div>
-        <div id="contagemRegressiva" class="contagem-regressiva oculto"><span id="contagemNumero">10</span></div>
-        <div id="toast"></div>
-
-        <div class="telaFinal" id="telaFinal">
-          <div class="tela-final-card">
-            <div id="textoFinal"></div>
-            <div id="resumoFinal"></div>
-            <div class="tela-final-acoes">
-              <button id="btnVoltarLobby">Voltar ao Lobby</button>
-              <button id="btnBuscarNova">Nova Partida</button>
-            </div>
+      <!-- Tela final (fora do #game) -->
+      <div class="telaFinal" id="telaFinal">
+        <div class="tela-final-card">
+          <div id="textoFinal"></div>
+          <div id="resumoFinal"></div>
+          <div class="tela-final-acoes">
+            <button id="btnVoltarLobby">Voltar ao Lobby</button>
+            <button id="btnBuscarNova">Nova Partida</button>
           </div>
         </div>
       </div>

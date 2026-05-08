@@ -130,15 +130,16 @@ body {
   filter: brightness(0.98);
 }
 
-/* ===== ELEMENTOS DENTRO DO #GAME ===== */
+/* ===== JOGADORES (FIXOS no viewport, NÃO relativos à mesa) ===== */
 .player {
-  position: absolute;
+  position: fixed;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
   font-size: 12px;
   --avatar-size: 80px;
+  z-index: 2000;
 }
 .avatar {
   width: var(--avatar-size);
@@ -158,12 +159,29 @@ body {
   background-repeat: no-repeat;
 }
 
-/* Posições fixas dos 4 jogadores — fora da mesa circular, perto das cartas */
-#p0 { bottom: -30px; left: 50%; transform: translate(-50%, 0); }
-#p1 { left: -80px; top: 50%; transform: translate(0, -50%); }
-#p2 { top: -80px; left: 50%; transform: translate(-50%, 0); }
-#p3 { right: -80px; top: 50%; transform: translate(0, -50%); }
+/* Posições fixas dos 4 jogadores (viewport) */
+#p0 {
+  left: 50%;
+  bottom: 120px;
+  transform: translateX(-50%);
+}
+#p1 {
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+#p2 {
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+#p3 {
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+}
 
+/* ===== MÃOS DOS BOTS (dentro do #game, relativos à mesa) ===== */
 .botHand { position: absolute; display: flex; gap: 0; }
 #hand1 { left: 0; top: 50%; transform: translate(0, -50%); flex-direction: column; }
 #hand2 { top: 90px; left: 50%; transform: translateX(-50%); }
@@ -236,16 +254,17 @@ body {
 .c2 { top: calc(50% - 80px); left: 50%; transform: translate(-50%, -50%); }
 .c3 { top: 50%; left: calc(50% + 110px); transform: translate(-50%, -50%); }
 
-/* Mão do jogador (sempre na base da tela, fora do #game) */
+/* Mão do jogador (FIXA na base da tela, INDEPENDENTE da mesa) */
 #mao {
   position: fixed;
-  bottom: 20px;
   left: 50%;
+  bottom: 0;
   transform: translateX(-50%);
   display: flex;
   justify-content: center;
   gap: 0;
-  z-index: 2100;
+  z-index: 9999;
+  padding-bottom: max(8px, var(--safe-bottom));
 }
 #mao .playerCard {
   margin-left: -18px;
@@ -328,7 +347,7 @@ body {
 #painelHistorico {
   position: fixed;
   left: calc(var(--safe-left) + 8px);
-  bottom: 20px;
+  bottom: 80px;
   width: 44px;
   min-height: 132px;
   display: flex;
@@ -453,7 +472,6 @@ body {
 .naipe-vermelho { color: #c1121f; }
 .naipe-preto { color: #111; }
 
-/* ===== INDICADOR DE VEZ (triângulo brilhante) ===== */
 /* ===== INDICADOR DE VEZ (seta amarela menor) ===== */
 #turnIndicator {
   position: fixed;
@@ -503,15 +521,16 @@ body {
   #infoRodada { font-size: 14px; }
   #trucoStatus { font-size: 11px; }
   .cronometro { font-size: 36px; padding: 12px 20px; }
-  #painelHistorico { bottom: 15px; width: 36px; min-height: 100px; }
+  #painelHistorico { bottom: 60px; width: 36px; min-height: 100px; }
   .bolinha-rodada { width: 14px; height: 14px; }
   .contagem-regressiva { width: 150px; height: 150px; }
   .contagem-regressiva span { font-size: 60px; }
-  /* Ajuste avatares mobile */
-  #p0 { bottom: -20px; }
-  #p1 { left: -60px; }
-  #p2 { top: -60px; }
-  #p3 { right: -60px; }
+  /* Ajuste avatares mobile — viewport fixed */
+  #p0 { bottom: 80px; }
+  #p1 { left: 10px; }
+  #p2 { top: 10px; }
+  #p3 { right: 10px; }
+  .player { --avatar-size: 60px; }
 }
 
 @media (max-width: 1024px) and (orientation: landscape) {
