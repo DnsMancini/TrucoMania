@@ -507,6 +507,7 @@ body {
   .bolinha-rodada { width: 14px; height: 14px; }
   .contagem-regressiva { width: 150px; height: 150px; }
   .contagem-regressiva span { font-size: 60px; }
+  #mao { bottom: var(--safe-bottom); }
   /* Ajuste avatares mobile */
   #p0 { bottom: -20px; }
   #p1 { left: -60px; }
