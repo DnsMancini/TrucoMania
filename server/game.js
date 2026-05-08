@@ -152,20 +152,9 @@ class Game4P {
 
     if (this.scores[winningTeam] >= 12) {
       this.setWins[winningTeam]++;
-      this.emit('setWin', { winnerTeam, setWins: this.setWins }, 'all');
-      if (this.setWins[winningTeam] >= 2) {
-        this.emit('matchOver', { winnerTeam, setWins: this.setWins }, 'all');
-        if (this.onMatchOver) this.onMatchOver(winningTeam);
-        return;
-      }
-      this.scores = [0, 0];
-      this.dealerIndex = (this.dealerIndex + 1) % 4;
-      if (this.onBeforeNewHand) this.onBeforeNewHand();
-      const checkBot = this.checkBotTurn;
-      setTimeout(() => {
-        this.startNewHand();
-        if (checkBot) checkBot();
-      }, 3000);
+      this.emit('setWin', { winnerTeam: winningTeam, setWins: this.setWins }, 'all');
+      this.emit('matchOver', { winnerTeam: winningTeam, setWins: this.setWins }, 'all');
+      if (this.onMatchOver) this.onMatchOver(winningTeam);
       return;
     }
 
@@ -187,20 +176,9 @@ class Game4P {
 
     if (this.scores[winningTeam] >= 12) {
       this.setWins[winningTeam]++;
-      this.emit('setWin', { winnerTeam, setWins: this.setWins }, 'all');
-      if (this.setWins[winningTeam] >= 2) {
-        this.emit('matchOver', { winnerTeam, setWins: this.setWins }, 'all');
-        if (this.onMatchOver) this.onMatchOver(winningTeam);
-        return true;
-      }
-      this.scores = [0, 0];
-      this.dealerIndex = (this.dealerIndex + 1) % 4;
-      if (this.onBeforeNewHand) this.onBeforeNewHand();
-      const checkBot = this.checkBotTurn;
-      setTimeout(() => {
-        this.startNewHand();
-        if (checkBot) checkBot();
-      }, 3000);
+      this.emit('setWin', { winnerTeam: winningTeam, setWins: this.setWins }, 'all');
+      this.emit('matchOver', { winnerTeam: winningTeam, setWins: this.setWins }, 'all');
+      if (this.onMatchOver) this.onMatchOver(winningTeam);
       return true;
     }
 
@@ -249,19 +227,8 @@ class Game4P {
       if (this.scores[challengerTeam] >= 12) {
         this.setWins[challengerTeam]++;
         this.emit('setWin', { winnerTeam: challengerTeam, setWins: this.setWins }, 'all');
-        if (this.setWins[challengerTeam] >= 2) {
-          this.emit('matchOver', { winnerTeam: challengerTeam, setWins: this.setWins }, 'all');
-          if (this.onMatchOver) this.onMatchOver(challengerTeam);
-          return false;
-        }
-        this.scores = [0, 0];
-        this.dealerIndex = (this.dealerIndex + 1) % 4;
-        if (this.onBeforeNewHand) this.onBeforeNewHand();
-        const checkBot = this.checkBotTurn;
-        setTimeout(() => {
-          this.startNewHand();
-          if (checkBot) checkBot();
-        }, 3000);
+        this.emit('matchOver', { winnerTeam: challengerTeam, setWins: this.setWins }, 'all');
+        if (this.onMatchOver) this.onMatchOver(challengerTeam);
         return true;
       }
       this.dealerIndex = (this.dealerIndex + 1) % 4;

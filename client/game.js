@@ -106,7 +106,7 @@ function posicionarSeta(currentPlayer) {
 
   turnIndicator.style.left = indicatorX + 'px';
   turnIndicator.style.top = indicatorY + 'px';
-  turnIndicator.style.transform = `translate(-50%, 0) rotate(${rotation}deg)`;
+  turnIndicator.style.transform = `translate(-50%, -50%) rotate(${rotation}deg)`;
   turnIndicator.classList.add('visible');
 }
 
@@ -369,7 +369,9 @@ socket.on('betCalled', ({ level, responderTeam }) => {
     btnCorrer.classList.add('oculto');
   }
 
-  audioTruco.play().catch(e => {});
+  const audioByLevel = { truco: audioTruco, retruco: audioSeis, valenove: audioNove, valedoze: audioDoze };
+  const selectedAudio = audioByLevel[level] || audioTruco;
+  selectedAudio.play().catch(() => {});
 });
 
 socket.on('turnToRespond', () => {
@@ -400,7 +402,8 @@ function atualizarBotaoTruco() {
 
   if (isRespondingToBet) {
     btnTruco.classList.remove('oculto');
-    btnTruco.textContent = currentBetLevel === 'valedoze' ? 'ACEITAR' : 'ACEITAR / AUMENTAR';
+    const raiseLabel = currentBetLevel === 'truco' ? 'AUMENTAR PARA 6' : currentBetLevel === 'retruco' ? 'AUMENTAR PARA 9' : currentBetLevel === 'valenove' ? 'AUMENTAR PARA 12' : '';
+    btnTruco.textContent = currentBetLevel === 'valedoze' ? 'ACEITAR' : `ACEITAR / ${raiseLabel}`;
     return;
   }
 
