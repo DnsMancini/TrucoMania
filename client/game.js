@@ -69,7 +69,7 @@ turnIndicator.id = 'turnIndicator';
 document.body.appendChild(turnIndicator);
 
 function posicionarSeta(currentPlayer) {
-  if (!gameActive || currentPlayer === undefined || currentPlayer === null) {
+  if (!gameActive || currentPlayer === undefined || currentPlayer === null || myPlayerIndex === null) {
     turnIndicator.classList.remove('visible');
     return;
   }
@@ -77,36 +77,26 @@ function posicionarSeta(currentPlayer) {
   // Mapear índice original do jogador para posição visual (após rotação)
   const rotated = rotateArrayForPlayer([0, 1, 2, 3], myPlayerIndex);
   const visualPos = rotated.indexOf(currentPlayer);
-  const rootStyle = getComputedStyle(document.documentElement);
-  const tableSizeRaw = rootStyle.getPropertyValue('--table-size').trim();
-  const tableSize = Number.parseFloat(tableSizeRaw);
-  const sizePx = Number.isFinite(tableSize) ? (window.innerWidth * tableSize) / 100 : Math.min(window.innerWidth, window.innerHeight) * 0.74;
-
-  const centerX = window.innerWidth / 2;
-  const centerY = window.innerHeight / 2;
-  const halfTable = sizePx / 2;
-
-  let indicatorX = centerX;
-  let indicatorY = centerY;
-  let rotation = 0;
-
-  if (visualPos === 0) {
-    indicatorY = centerY + halfTable;
-    rotation = 0;
-  } else if (visualPos === 1) {
-    indicatorX = centerX - halfTable;
-    rotation = 90;
-  } else if (visualPos === 2) {
-    indicatorY = centerY - halfTable;
-    rotation = 180;
-  } else if (visualPos === 3) {
-    indicatorX = centerX + halfTable;
-    rotation = -90;
+  if (visualPos < 0) {
+    turnIndicator.classList.remove('visible');
+    return;
   }
+
+  const slotId = SLOT_ORDER[visualPos];
+  const slot = document.getElementById(slotId);
+  if (!slot) {
+    turnIndicator.classList.remove('visible');
+    return;
+  }
+
+  const rect = slot.getBoundingClientRect();
+  const indicatorX = rect.left + rect.width / 2;
+  const indicatorY = rect.top + rect.height / 2;
+  const rotations = [0, 90, 180, -90];
 
   turnIndicator.style.left = indicatorX + 'px';
   turnIndicator.style.top = indicatorY + 'px';
-  turnIndicator.style.transform = `translate(-50%, -50%) rotate(${rotation}deg)`;
+  turnIndicator.style.transform = `translate(-50%, -50%) rotate(${rotations[visualPos]}deg)`;
   turnIndicator.classList.add('visible');
 }
 
