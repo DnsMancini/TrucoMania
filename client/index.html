@@ -10,26 +10,87 @@
 <body>
   <div id="app">
     <!-- LOBBY -->
-    <div id="lobby" class="lobby">
-      <div class="lobby-card">
-        <div class="lobby-header">
-          <p class="lobby-kicker">Lobby oficial</p>
-          <h1 class="lobby-title"><span class="lobby-title-icon">🃏</span> Truco Mania</h1>
-          <p class="lobby-subtitle">Monte sua mesa e entre em partidas com clima de cassino competitivo.</p>
-        </div>
-        <div class="lobby-menu">
-          <input type="text" id="nameInput" class="lobby-input" placeholder="Seu nome" maxlength="15" />
-          <button id="createBtn" class="lobby-button lobby-button-primary">Criar Sala</button>
-          <div class="lobby-join-area">
-            <input type="text" id="roomInput" class="lobby-input" placeholder="Código da sala" maxlength="6" />
-            <button id="joinBtn" class="lobby-button lobby-button-primary">Entrar</button>
+        <div id="lobby" class="lobby">
+      <div class="lobby-shell">
+        <header class="topbar-premium">
+          <div class="player-chip">
+            <div class="player-avatar">TM</div>
+            <div>
+              <p class="chip-kicker">Competidor</p>
+              <strong id="playerDisplayName">Truqueiro</strong>
+            </div>
           </div>
-        </div>
-        <div class="rooms-headline">Mesas ao vivo</div>
-        <div id="roomsList" class="rooms-list"></div>
-        <div id="lobbyStatus" class="lobby-status"></div>
+          <div class="currency-strip">
+            <div class="currency-pill"><span>🪙</span> 250.850</div>
+            <div class="currency-pill"><span>💎</span> 2.560</div>
+          </div>
+          <div class="topbar-actions">
+            <button class="icon-btn">🔔</button>
+            <button class="icon-btn">☰</button>
+          </div>
+        </header>
+
+        <main class="lobby-grid">
+          <section class="main-hub">
+            <article class="tournament-hero">
+              <div>
+                <p class="lobby-kicker">Torneio relâmpago</p>
+                <h1 class="lobby-title">Hub Competitivo <span class="lobby-title-icon">🃏</span></h1>
+                <p class="lobby-subtitle">Monte sua mesa e entre em partidas com clima de cassino competitivo.</p>
+              </div>
+              <button class="lobby-button hero-cta">Ver detalhes</button>
+            </article>
+
+            <section class="entry-panel">
+              <div class="lobby-menu">
+                <input type="text" id="nameInput" class="lobby-input" placeholder="Seu nome" maxlength="15" />
+                <button id="createBtn" class="lobby-button lobby-button-primary">Criar Sala</button>
+                <div class="lobby-join-area">
+                  <input type="text" id="roomInput" class="lobby-input" placeholder="Código da sala" maxlength="6" />
+                  <button id="joinBtn" class="lobby-button lobby-button-primary">Entrar</button>
+                </div>
+              </div>
+            </section>
+
+            <div class="rooms-headline-row">
+              <div class="rooms-headline">Mesas ao vivo</div>
+              <button class="lobby-button ghost">Atualizar</button>
+            </div>
+            <div id="roomsList" class="rooms-list"></div>
+            <div id="lobbyStatus" class="lobby-status"></div>
+          </section>
+
+          <aside class="social-sidebar">
+            <section class="social-card">
+              <h3>Amigos online</h3>
+              <ul>
+                <li><span class="dot on"></span>Mancini <small>Em partida</small></li>
+                <li><span class="dot idle"></span>João Truqueiro <small>No lobby</small></li>
+                <li><span class="dot off"></span>Negão <small>Offline</small></li>
+              </ul>
+              <button class="lobby-button lobby-button-primary">Convidar amigos</button>
+            </section>
+            <section class="social-card">
+              <h3>Global</h3>
+              <div class="chat-preview">
+                <p>Paulo: Trucooo! 🔥</p>
+                <p>Lucas: Que mão foi essa?</p>
+                <p class="system">Sistema: Bem-vindo ao Truco!</p>
+              </div>
+            </section>
+          </aside>
+        </main>
+
+        <nav class="bottom-nav">
+          <button>Loja</button>
+          <button>Perfil</button>
+          <button class="active">Jogar</button>
+          <button>Ranking</button>
+          <button>Mais</button>
+        </nav>
       </div>
     </div>
+
 
     <!-- JOGO -->
     <div id="gameWrapper" class="game-hidden">
