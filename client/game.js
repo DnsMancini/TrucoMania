@@ -177,7 +177,14 @@ socket.on('roomsUpdate', (rooms) => {
   rooms.forEach(room => {
     const div = document.createElement('div');
     div.className = 'room-item';
-    div.innerHTML = `<span>Sala ${room.code} · ${room.players}/4 jogadores</span><button class="join-room-btn">Entrar</button>`;
+    div.innerHTML = `
+      <div class="room-item-main">
+        <div class="room-tier">Mesa competitiva</div>
+        <strong class="room-code">Sala ${room.code}</strong>
+        <div class="room-meta">${room.players}/4 jogadores <span class="room-live-dot"></span> Ao vivo</div>
+      </div>
+      <button class="join-room-btn">Entrar</button>
+    `;
     div.querySelector('.join-room-btn').addEventListener('click', () => joinRoomFromList(room.code));
     roomsListEl.appendChild(div);
   });
