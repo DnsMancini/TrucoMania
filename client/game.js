@@ -5,8 +5,6 @@ const lobbyDiv = document.getElementById('lobby');
 const gameWrapper = document.getElementById('gameWrapper');
 const nameInput = document.getElementById('nameInput');
 const createBtn = document.getElementById('createBtn');
-const roomInput = document.getElementById('roomInput');
-const joinBtn = document.getElementById('joinBtn');
 const roomsListEl = document.getElementById('roomsList');
 const contagemEl = document.getElementById('contagemRegressiva');
 const contagemNumero = document.getElementById('contagemNumero');
@@ -129,16 +127,6 @@ createBtn.onclick = () => {
   });
 };
 
-joinBtn.onclick = () => {
-  const name = nameInput.value.trim() || 'Jogador';
-  const code = roomInput.value.trim().toUpperCase();
-  if (!code) return;
-  socket.emit('joinRoom', { roomCode: code, playerName: name }, (res) => {
-    if (res.error) return alert(res.error);
-    currentGameCode = res.roomCode;
-    enterWaitingRoom(res);
-  });
-};
 
 function joinRoomFromList(code) {
   const name = nameInput.value.trim() || 'Jogador';

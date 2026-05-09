@@ -414,9 +414,9 @@ body {
   position: relative;
   isolation: isolate;
   background:
-    radial-gradient(130% 90% at 50% -20%, rgba(255, 194, 77, 0.24), rgba(0,0,0,0) 60%),
-    radial-gradient(80% 50% at 15% 30%, rgba(30, 140, 85, 0.25), rgba(0,0,0,0) 70%),
-    linear-gradient(180deg, #090a0d 0%, #09070a 45%, #050507 100%);
+    radial-gradient(140% 100% at 50% -22%, rgba(255, 194, 77, 0.2), rgba(0,0,0,0) 58%),
+    radial-gradient(90% 56% at 16% 28%, rgba(48, 152, 107, 0.2), rgba(0,0,0,0) 70%),
+    linear-gradient(180deg, #090a0d 0%, #09070a 44%, #050507 100%);
   perspective: 1000px;
 }
 .lobby::before,
@@ -454,7 +454,30 @@ body {
     radial-gradient(90% 62% at 50% 112%, rgba(0,0,0,.72), transparent 60%),
     radial-gradient(100% 72% at 50% -12%, transparent 60%, rgba(0,0,0,.42) 100%);
 }
-.lobby-shell { max-width: 1300px; margin: 0 auto; display: grid; gap: 12px; }
+
+.lobby-shell {
+  max-width: 1300px;
+  margin: 0 auto;
+  display: grid;
+  gap: 12px;
+  position: relative;
+  isolation: isolate;
+}
+.lobby-shell::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background:
+    radial-gradient(52% 42% at 50% 38%, rgba(244, 205, 126, 0.09), transparent 72%),
+    radial-gradient(45% 40% at 24% 68%, rgba(115, 222, 162, 0.08), transparent 76%),
+    linear-gradient(118deg, rgba(255, 208, 126, 0.04), rgba(89, 164, 130, 0.03), rgba(13, 16, 22, 0.18));
+  mix-blend-mode: screen;
+  filter: blur(18px) saturate(108%);
+  animation: cinematicDrift 18s ease-in-out infinite alternate;
+}
+
 .topbar-premium, .social-card, .entry-panel, .rooms-list, .tournament-hero {
   border: 1px solid rgba(255, 197, 76, 0.32);
   box-shadow: 0 20px 40px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.08), inset 0 -30px 45px rgba(0,0,0,.26);
@@ -464,6 +487,14 @@ body {
   overflow: hidden;
   backdrop-filter: blur(8px) saturate(116%);
 }
+.topbar-premium,
+.social-card,
+.entry-panel,
+.rooms-list,
+.tournament-hero {
+  filter: drop-shadow(0 0 16px rgba(248, 203, 118, 0.08));
+}
+
 .topbar-premium::before, .social-card::before, .entry-panel::before, .rooms-list::before, .tournament-hero::before {
   content:"";
   position:absolute;
@@ -531,7 +562,7 @@ body {
 .rooms-list { padding:12px; display:flex; flex-direction:column; gap:10px; max-height:42vh; overflow:auto; }
 .room-item { display:flex; align-items:center; justify-content:space-between; gap:12px; border-radius:14px; border:1px solid rgba(255,198,77,.35); padding:12px; background:linear-gradient(120deg, rgba(67,39,7,.68), rgba(18,17,21,.93)); box-shadow: inset 0 0 0 1px rgba(255,220,134,.08), 0 8px 22px rgba(0,0,0,.45), inset 0 -16px 24px rgba(0,0,0,.24); transform: translateZ(0); transition: transform .24s ease, box-shadow .24s ease, border-color .24s ease; position: relative; overflow: hidden; }
 .room-item::before { content:""; position:absolute; top:0; left:-70%; width:60%; height:100%; background: linear-gradient(110deg, transparent, rgba(255,221,153,.2), transparent); animation: roomSweep 7s ease-in-out infinite; pointer-events:none; }
-.room-item:hover { transform: translateY(-4px) scale(1.01); border-color: rgba(255,218,128,.68); box-shadow: inset 0 0 0 1px rgba(255,226,164,.18), 0 16px 34px rgba(0,0,0,.55), 0 0 26px rgba(227,176,63,.22); }
+.room-item:hover { transform: translateY(-4px) scale(1.01); border-color: rgba(255,218,128,.68); box-shadow: inset 0 0 0 1px rgba(255,226,164,.16), 0 16px 34px rgba(0,0,0,.55), 0 0 18px rgba(227,176,63,.16); }
 .room-item-main { display:grid; gap:2px; }
 .room-tier { font-size:11px; text-transform: uppercase; color: #ffdb92; letter-spacing: 1px; opacity: .9; }
 .room-code { font-size: 20px; color: #ffd06d; text-shadow: 0 0 16px rgba(255,198,87,.24); }
@@ -580,8 +611,14 @@ body {
   50% { box-shadow: 0 28px 44px rgba(0,0,0,.58), 0 0 34px rgba(250,197,95,.24), inset 0 -36px 40px rgba(0,0,0,.18); }
 }
 
+@keyframes cinematicDrift {
+  0% { transform: translate3d(0, 0, 0) scale(1); opacity: .82; }
+  50% { transform: translate3d(0, -5px, 0) scale(1.01); opacity: .96; }
+  100% { transform: translate3d(0, -10px, 0) scale(1.015); opacity: .86; }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .lobby::before, .lobby::after, .tournament-hero, .bottom-nav .active { animation: none !important; }
+  .lobby::before, .lobby::after, .lobby-shell::after, .tournament-hero, .bottom-nav .active { animation: none !important; }
   .lobby-button, .room-item, .room-item button, .bottom-nav button, .icon-btn { transition: none !important; }
 }
 
