@@ -12,7 +12,11 @@
     <!-- LOBBY -->
     <div id="lobby" class="lobby">
       <div class="lobby-card">
-        <h1 class="lobby-title">🃏 Truco Mania</h1>
+        <div class="lobby-header">
+          <p class="lobby-kicker">Lobby oficial</p>
+          <h1 class="lobby-title"><span class="lobby-title-icon">🃏</span> Truco Mania</h1>
+          <p class="lobby-subtitle">Monte sua mesa e entre em partidas com clima de cassino competitivo.</p>
+        </div>
         <div class="lobby-menu">
           <input type="text" id="nameInput" class="lobby-input" placeholder="Seu nome" maxlength="15" />
           <button id="createBtn" class="lobby-button lobby-button-primary">Criar Sala</button>
@@ -21,6 +25,7 @@
             <button id="joinBtn" class="lobby-button lobby-button-primary">Entrar</button>
           </div>
         </div>
+        <div class="rooms-headline">Mesas ao vivo</div>
         <div id="roomsList" class="rooms-list"></div>
         <div id="lobbyStatus" class="lobby-status"></div>
       </div>

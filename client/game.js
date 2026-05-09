@@ -171,13 +171,13 @@ socket.on('roomsUpdate', (rooms) => {
   if (!roomsListEl) return;
   roomsListEl.innerHTML = '';
   if (rooms.length === 0) {
-    roomsListEl.innerHTML = '<div style="color:#aaa; text-align:center;">Nenhuma sala disponível</div>';
+    roomsListEl.innerHTML = '<div class="lobby-empty">Nenhuma sala disponível no momento</div>'; 
     return;
   }
   rooms.forEach(room => {
     const div = document.createElement('div');
     div.className = 'room-item';
-    div.innerHTML = `<span>Sala ${room.code} (${room.players}/4 jogadores)</span><button class="join-room-btn">Entrar</button>`;
+    div.innerHTML = `<span>Sala ${room.code} · ${room.players}/4 jogadores</span><button class="join-room-btn">Entrar</button>`;
     div.querySelector('.join-room-btn').addEventListener('click', () => joinRoomFromList(room.code));
     roomsListEl.appendChild(div);
   });
