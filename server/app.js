@@ -6,44 +6,15 @@ const { handleSocket } = require('./socketHandler');
 const adminRoutes = require('./adminRoutes');
 require('dotenv').config();
 
-const fs = require('fs');
-
-function loadLocalEnvFile() {
-  const envPath = path.join(__dirname, '..', '.env');
-  if (!fs.existsSync(envPath)) return;
-
-  const lines = fs.readFileSync(envPath, 'utf8').split(/\r?\n/);
-  for (const rawLine of lines) {
-    const line = rawLine.trim();
-    if (!line || line.startsWith('#')) continue;
-
-    const separatorIndex = line.indexOf('=');
-    if (separatorIndex <= 0) continue;
-
-    const key = line.slice(0, separatorIndex).trim();
-    let value = line.slice(separatorIndex + 1).trim();
-
-    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-      value = value.slice(1, -1);
-    }
-
-    if (process.env[key] === undefined) {
-      process.env[key] = value;
-    }
-  }
-}
-
-loadLocalEnvFile();
-
 const app = express();
 app.use(express.json());
 const server = http.createServer(app);
 
-// CORS para Socket.IO
-const CLIENT_URL = process.env.CLIENT_URL || '*';
+// CORS para Socket.IO - usar URL específica em produção
+const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:3000';
 const io = new Server(server, {
   cors: {
-    origin: CLIENT_URL,
+    origin: CLIENT_URL === '*' ? true : CLIENT_URL,
     methods: ['GET', 'POST']
   }
 });

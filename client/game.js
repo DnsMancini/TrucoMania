@@ -76,17 +76,6 @@ document.addEventListener('user-authenticated', (e) => {
   }
 });
 
-// Botão de logout
-document.addEventListener('DOMContentLoaded', () => {
-  const btnLogout = document.getElementById('btnLogout');
-  if (btnLogout) {
-    btnLogout.addEventListener('click', () => {
-      if (typeof window.logout === 'function') {
-        window.logout();
-      }
-    });
-  }
-});
 let isRespondingToBet = false;
 let currentBetLevel = null;
 
@@ -534,7 +523,11 @@ function autoPlayRandomCard() {
 }
 
 function mostrarMensagem(texto) {
-  audioTruco.play().catch(e => {});
+  if (texto && toastEl) {
+    toastEl.textContent = texto;
+    toastEl.style.display = 'block';
+    setTimeout(() => { toastEl.style.display = 'none'; }, 3000);
+  }
 }
 
 function suitSymbol(suit) {

@@ -20,6 +20,7 @@ console.log('[FIREBASE] Verificando configuração...');
 
 let auth;
 let db;
+let storage;
 
 try {
   firebase.initializeApp(firebaseConfig);
@@ -27,6 +28,7 @@ try {
   
   auth = firebase.auth();
   db = firebase.firestore();
+  storage = firebase.storage();
   
   console.log('[FIREBASE] Modo ONLINE ativo');
 } catch (e) {
@@ -37,3 +39,4 @@ try {
 // Atribuir às variáveis globais
 window.auth = auth;
 window.db = db;
+window.storage = storage;

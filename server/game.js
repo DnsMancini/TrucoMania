@@ -1,8 +1,13 @@
 const SUITS = ['paus', 'copas', 'espadas', 'ouros'];
 const RANKS = ['4', '5', '6', '7', 'Q', 'J', 'K', 'A', '2', '3'];
 const { cardStrength } = require('./utils');
+const { createBot: createPlayerBot } = require('./bot');
 
 const BET_VALUES = { truco: 3, retruco: 6, valenove: 9, valedoze: 12 };
+const CARDS_PER_PLAYER = 3;
+const NUM_PLAYERS = 4;
+const WIN_SCORE = 12;
+const MAO_DE_11_TRIGGER = 11;
 
 function buildDeck() {
   const deck = [];
@@ -49,17 +54,17 @@ class Game4P {
   startNewHand() {
     this.deck = buildDeck();
     shuffle(this.deck);
-    for (let i = 0; i < 4; i++) this.hands[i] = [];
-    for (let i = 0; i < 3; i++)
-      for (let p = 0; p < 4; p++)
+    for (let i = 0; i < NUM_PLAYERS; i++) this.hands[i] = [];
+    for (let i = 0; i < CARDS_PER_PLAYER; i++)
+      for (let p = 0; p < NUM_PLAYERS; p++)
         this.hands[p].push(this.deck.pop());
     this.vira = this.deck.pop();
 
-    if (this.scores[0] >= 11 && this.scores[1] >= 11) { this.handValue = 6; this.maoDe11 = true; }
-    else if (this.scores[0] >= 11 || this.scores[1] >= 11) { this.handValue = 3; this.maoDe11 = true; }
+    if (this.scores[0] >= MAO_DE_11_TRIGGER && this.scores[1] >= MAO_DE_11_TRIGGER) { this.handValue = 6; this.maoDe11 = true; }
+    else if (this.scores[0] >= MAO_DE_11_TRIGGER || this.scores[1] >= MAO_DE_11_TRIGGER) { this.handValue = 3; this.maoDe11 = true; }
     else { this.handValue = 1; this.maoDe11 = false; }
 
-    this.currentPlayer = (this.dealerIndex + 3) % 4; // anti‑horário
+    this.currentPlayer = (this.dealerIndex + 3) % NUM_PLAYERS; // anti‑horário
     this.turnStage = 'play';
     this.betState = null;
     this.roundWins = [0, 0];
@@ -68,7 +73,7 @@ class Game4P {
     this.playersInRound = 0;
     this.roundStarter = this.currentPlayer;
 
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < NUM_PLAYERS; i++) {
       if (!this.players[i].isBot) {
         this.emit('handStart', {
           player: i,
@@ -95,15 +100,15 @@ class Game4P {
 
     if (this.playersInRound === 0) this.roundStarter = playerIndex;
 
-    if (!this.roundCards[this.currentRound]) this.roundCards[this.currentRound] = new Array(4).fill(null);
+    if (!this.roundCards[this.currentRound]) this.roundCards[this.currentRound] = new Array(NUM_PLAYERS).fill(null);
     this.roundCards[this.currentRound][playerIndex] = played;
     this.playersInRound++;
 
     this.emit('cardPlayed', { player: playerIndex, card: played }, 'all');
 
-    if (this.playersInRound === 4) this.resolveRound();
+    if (this.playersInRound === NUM_PLAYERS) this.resolveRound();
     else {
-      this.currentPlayer = (playerIndex + 3) % 4;
+      this.currentPlayer = (playerIndex + 3) % NUM_PLAYERS;
       this.emit('turn', { currentPlayer: this.currentPlayer }, 'all');
     }
     return true;
@@ -112,7 +117,7 @@ class Game4P {
   resolveRound() {
     const round = this.roundCards[this.currentRound];
     let bestCard = null, bestPlayer = -1;
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < NUM_PLAYERS; i++) {
       const c = round[i];
       if (!bestCard || cardStrength(c, this.vira.rank) > cardStrength(bestCard, this.vira.rank)) {
         bestCard = c; bestPlayer = i;
@@ -133,9 +138,10 @@ class Game4P {
     }
 
     if (this.currentRound >= 2) {
+      // Última rodada - desempate baseado em quem tem mais vitórias
       if (this.roundWins[0] > this.roundWins[1]) this.endHand(0);
       else if (this.roundWins[1] > this.roundWins[0]) this.endHand(1);
-      else this.endHand(0);
+      else this.endHand(bestPlayer !== -1 ? bestPlayer % 2 : 0); // empate: ganha quem fez a última rodada
       return;
     }
 
@@ -146,25 +152,33 @@ class Game4P {
     this.emit('turn', { currentPlayer: this.currentPlayer }, 'all');
   }
 
-  endHand(winningTeam) {
-    this.scores[winningTeam] += this.handValue;
-    this.emit('handEnd', { winnerTeam: winningTeam, points: this.handValue, scores: this.scores, setWins: this.setWins }, 'all');
-
-    if (this.scores[winningTeam] >= 12) {
+  checkMatchOver(winningTeam) {
+    if (this.scores[winningTeam] >= WIN_SCORE) {
       this.setWins[winningTeam]++;
       this.emit('setWin', { winnerTeam: winningTeam, setWins: this.setWins }, 'all');
       this.emit('matchOver', { winnerTeam: winningTeam, setWins: this.setWins }, 'all');
       if (this.onMatchOver) this.onMatchOver(winningTeam);
-      return;
+      return true;
     }
+    return false;
+  }
 
-    this.dealerIndex = (this.dealerIndex + 1) % 4;
+  advanceToNextHand() {
+    this.dealerIndex = (this.dealerIndex + 1) % NUM_PLAYERS;
     if (this.onBeforeNewHand) this.onBeforeNewHand();
     const checkBot = this.checkBotTurn;
     setTimeout(() => {
       this.startNewHand();
       if (checkBot) checkBot();
     }, 1500);
+  }
+
+  endHand(winningTeam) {
+    this.scores[winningTeam] += this.handValue;
+    this.emit('handEnd', { winnerTeam: winningTeam, points: this.handValue, scores: this.scores, setWins: this.setWins }, 'all');
+
+    if (this.checkMatchOver(winningTeam)) return;
+    this.advanceToNextHand();
   }
 
   fleeHand(playerIndex) {
@@ -174,21 +188,8 @@ class Game4P {
     this.scores[winningTeam] += this.handValue;
     this.emit('handEnd', { winnerTeam: winningTeam, points: this.handValue, scores: this.scores, setWins: this.setWins }, 'all');
 
-    if (this.scores[winningTeam] >= 12) {
-      this.setWins[winningTeam]++;
-      this.emit('setWin', { winnerTeam: winningTeam, setWins: this.setWins }, 'all');
-      this.emit('matchOver', { winnerTeam: winningTeam, setWins: this.setWins }, 'all');
-      if (this.onMatchOver) this.onMatchOver(winningTeam);
-      return true;
-    }
-
-    this.dealerIndex = (this.dealerIndex + 1) % 4;
-    if (this.onBeforeNewHand) this.onBeforeNewHand();
-    const checkBot = this.checkBotTurn;
-    setTimeout(() => {
-      this.startNewHand();
-      if (checkBot) checkBot();
-    }, 1500);
+    if (this.checkMatchOver(winningTeam)) return true;
+    this.advanceToNextHand();
     return true;
   }
 
@@ -206,7 +207,7 @@ class Game4P {
     this.betState = { challenger: playerIndex, level: betType, responderTeam, responded: false };
     this.turnStage = 'respond';
     this.emit('betCalled', { challenger: playerIndex, level: betType, responderTeam }, 'all');
-    for (let i = 0; i < 4; i++)
+    for (let i = 0; i < NUM_PLAYERS; i++)
       if (i % 2 === responderTeam && !this.players[i].isBot)
         this.emit('turnToRespond', { responderTeam }, this.players[i].id);
     return true;
@@ -224,19 +225,8 @@ class Game4P {
       const challengerTeam = challenger % 2;
       this.scores[challengerTeam] += points;
       this.emit('handEnd', { winnerTeam: challengerTeam, points, scores: this.scores, setWins: this.setWins }, 'all');
-      if (this.scores[challengerTeam] >= 12) {
-        this.setWins[challengerTeam]++;
-        this.emit('setWin', { winnerTeam: challengerTeam, setWins: this.setWins }, 'all');
-        this.emit('matchOver', { winnerTeam: challengerTeam, setWins: this.setWins }, 'all');
-        if (this.onMatchOver) this.onMatchOver(challengerTeam);
-        return true;
-      }
-      this.dealerIndex = (this.dealerIndex + 1) % 4;
-      if (this.onBeforeNewHand) this.onBeforeNewHand();
-      setTimeout(() => {
-        this.startNewHand();
-        if (this.checkBotTurn) this.checkBotTurn();
-      }, 1500);
+      if (this.checkMatchOver(challengerTeam)) return true;
+      this.advanceToNextHand();
       return true;
     }
 
@@ -258,7 +248,7 @@ class Game4P {
       this.betState.responderTeam = challenger % 2;
       this.betState.challenger = playerIndex;
       this.emit('betCalled', { challenger: playerIndex, level: nextLevel, responderTeam: challenger % 2 }, 'all');
-      for (let i = 0; i < 4; i++)
+      for (let i = 0; i < NUM_PLAYERS; i++)
         if (i % 2 === challenger % 2 && !this.players[i].isBot)
           this.emit('turnToRespond', { responderTeam: challenger % 2 }, this.players[i].id);
       return true;
@@ -274,7 +264,16 @@ class Game4P {
     return 1;
   }
 
-  removePlayer(socketId) { return false; }
+  removePlayer(socketId) {
+    const idx = this.players.findIndex(p => p.id === socketId);
+    if (idx === -1) return false;
+    // Substituir jogador por bot
+    const bot = createPlayerBot(idx);
+    bot.online = true;
+    this.players[idx] = bot;
+    this.hands[idx] = [];
+    return true;
+  }
 }
 
 module.exports = { Game4P };

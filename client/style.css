@@ -947,6 +947,75 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* ===== AÇÕES DO AVATAR (escolher emoji / enviar foto) ===== */
+.profile-avatar-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+  animation: fadeIn 0.2s ease;
+}
+
+.avatar-action-btn {
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 215, 0, 0.25);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.avatar-action-btn:hover {
+  background: rgba(255, 215, 0, 0.15);
+  border-color: rgba(255, 215, 0, 0.5);
+  transform: translateY(-1px);
+}
+
+.avatar-action-remove {
+  border-color: rgba(255, 80, 80, 0.3);
+  color: #ff6b6b;
+}
+
+.avatar-action-remove:hover {
+  background: rgba(255, 80, 80, 0.15);
+  border-color: rgba(255, 80, 80, 0.6);
+}
+
+.profile-current-avatar {
+  cursor: pointer;
+  position: relative;
+}
+
+.profile-current-avatar::after {
+  content: "✏️";
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  font-size: 16px;
+  background: #1a1a2e;
+  border: 2px solid rgba(255, 215, 0, 0.3);
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.profile-current-avatar:hover::after {
+  opacity: 1;
+}
+
 @media (max-width: 1024px) and (orientation: landscape) {
   .avisoOrientacao { display: flex !important; }
   #gameWrapper > *:not(.avisoOrientacao) { display: none !important; }

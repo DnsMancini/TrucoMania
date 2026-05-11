@@ -4,6 +4,11 @@ const { createBot, shouldCallBet, respondBet, chooseCard } = require('./bot');
 const rooms = new Map();
 const MAX_ROOMS = 8;
 const OFFLINE_TIMEOUT = 90000; // 90 segundos
+const BET_FUNCTIONS = {
+  respond: 'respondBet',
+  turn: 'checkBotTurn',
+  response: 'checkBotResponse'
+};
 
 function generateRoomCode() {
   return Math.random().toString(36).substring(2, 6).toUpperCase();
@@ -112,6 +117,8 @@ function handleSocket(io) {
       const playerIndex = room.players.findIndex(p => p.id === socket.id);
       updateActivity(room, socket.id, io);
       room.game.respondBet(playerIndex, action);
+      // Após resposta humana, verificar se precisa continuar com bots
+      checkBotResponse(room, io);
       checkBotTurn(room, io);
     });
 
@@ -130,6 +137,10 @@ function handleSocket(io) {
       if (player && !player.isBot) {
         player.online = false;
         emitPlayerStatus(room, io);
+        // Limpar timer do turno se estava em andamento
+        if (room.game && room.game.currentPlayer === room.players.indexOf(player)) {
+          room.game.turnStage = 'play'; // para evitar travamento
+        }
         const timer = setTimeout(() => {
           if (room.players.includes(player)) {
             player.pendingReplace = true;
@@ -141,7 +152,6 @@ function handleSocket(io) {
   });
 }
 
-// Corrigida: agora recebe io e repassa para emitPlayerStatus
 function updateActivity(room, socketId, io) {
   const timer = room.offlineTimers.get(socketId);
   if (timer) {
@@ -191,7 +201,9 @@ function startGame(room, io) {
   );
   room.game.checkBotTurn = () => checkBotTurn(room, io);
   room.game.startGame();
-  checkBotTurn(room, io);
+  setTimeout(() => {
+    checkBotTurn(room, io);
+  }, 100);
   emitPlayerStatus(room, io);
 }
 
@@ -237,13 +249,15 @@ function checkBotTurn(room, io) {
   if (room.game.turnStage === 'play') {
     const cp = room.game.currentPlayer;
     const player = room.players[cp];
-    if (player.isBot) {
+    if (player && player.isBot) {
       setTimeout(() => {
         if (room.game && room.game.currentPlayer === cp && room.game.turnStage === 'play') {
           const hand = room.game.hands[cp];
-          const card = chooseCard(hand, room.game.vira.rank);
-          room.game.playCard(cp, card);
-          checkBotTurn(room, io);
+          if (hand && hand.length > 0) {
+            const card = chooseCard(hand, room.game.vira.rank);
+            room.game.playCard(cp, card);
+            checkBotTurn(room, io);
+          }
         }
       }, 1000 + Math.random() * 2000);
     }
@@ -251,35 +265,49 @@ function checkBotTurn(room, io) {
   if (room.game.turnStage === 'play' && !room.game.betState && !room.game.maoDe11) {
     const cp = room.game.currentPlayer;
     const player = room.players[cp];
-    if (player.isBot && hasBotPartner(room.players, cp)) {
-      const bet = shouldCallBet(room.game.hands[cp], room.game.vira.rank, room.game.handValue, room.game.maoDe11);
-      if (bet) {
-        setTimeout(() => {
-          if (room.game && room.game.currentPlayer === cp && !room.game.betState) {
-            room.game.callBet(cp, bet);
-            checkBotResponse(room, io);
-          }
-        }, 1500 + Math.random() * 1000);
+    if (player && player.isBot && hasBotPartner(room.players, cp)) {
+      const hand = room.game.hands[cp];
+      if (hand) {
+        const bet = shouldCallBet(hand, room.game.vira.rank, room.game.handValue, room.game.maoDe11);
+        if (bet) {
+          setTimeout(() => {
+            if (room.game && room.game.currentPlayer === cp && !room.game.betState) {
+              room.game.callBet(cp, bet);
+              checkBotResponse(room, io);
+            }
+          }, 1500 + Math.random() * 1000);
+        }
       }
     }
   }
 }
 
 function checkBotResponse(room, io) {
-  if (!room.game || room.game.turnStage !== 'respond') return;
+  if (!room.game || room.game.turnStage !== 'respond' || !room.game.betState) return;
   const respTeam = room.game.betState.responderTeam;
-  const teamPlayers = [respTeam, respTeam+2];
-  if (!teamPlayers.every(i => room.players[i].isBot)) return;
-  const botPlayer = teamPlayers.map(i => room.players[i]).find(p => p.isBot);
-  if (botPlayer) {
-    const playerIndex = room.players.indexOf(botPlayer);
-    const hand = room.game.hands[playerIndex];
-    const action = respondBet(hand, room.game.vira.rank, room.game.betState.level);
-    setTimeout(() => {
-      if (room.game && room.game.betState && room.game.respondBet(playerIndex, action))
-        checkBotTurn(room, io);
-    }, 2000 + Math.random() * 2000);
+  const teamPlayers = [respTeam, respTeam + 2];
+
+  // Se TODOS os jogadores do time são bots, responder automaticamente
+  if (teamPlayers.every(i => room.players[i] && room.players[i].isBot)) {
+    const botPlayer = teamPlayers
+      .map(i => ({ index: i, player: room.players[i] }))
+      .find(p => p.player && p.player.isBot);
+    if (botPlayer) {
+      const playerIndex = botPlayer.index;
+      const hand = room.game.hands[playerIndex];
+      if (hand) {
+        const action = respondBet(hand, room.game.vira.rank, room.game.betState.level);
+        setTimeout(() => {
+          if (room.game && room.game.betState) {
+            room.game.respondBet(playerIndex, action);
+            checkBotResponse(room, io);
+            checkBotTurn(room, io);
+          }
+        }, 2000 + Math.random() * 2000);
+      }
+    }
   }
+  // Se tem humano, o evento turnToRespond já foi emitido - aguardar resposta do socket
 }
 
 function hasBotPartner(players, playerIndex) {
@@ -288,8 +316,8 @@ function hasBotPartner(players, playerIndex) {
 }
 
 function findRoomBySocket(socketId) {
-  for (const [code, room] of rooms)
-    if (room.players.some(p => p.id === socketId)) return { code, ...room };
+  for (const [, room] of rooms)
+    if (room.players.some(p => p.id === socketId)) return room;
   return null;
 }
 
