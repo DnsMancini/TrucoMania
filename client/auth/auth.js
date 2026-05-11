@@ -1,5 +1,5 @@
 // =============================================
-// TRUCOMANIA AUTH - FUNCIONA ONLINE E OFFLINE
+// TRUCOMANIA AUTH - Fluxo de Autenticação Robusto
 // =============================================
 
 // Helper de log
@@ -27,6 +27,7 @@ let hazeEffect = null;
 let currentUserData = null;
 let isSubmitting = false;
 let authFlowStarted = false;
+let authCheckResolved = false; // controla se já resolvemos o status do auth
 
 // Elementos DOM
 const splashScreen = document.getElementById('splashScreen');
@@ -59,11 +60,11 @@ function initVisualEffects() {
   try {
     const canvas = document.getElementById('particlesCanvas');
     const hazeCanvas = document.getElementById('hazeCanvas');
-    if (canvas) {
+    if (canvas && typeof ParticleSystem === 'function') {
       particlesSystem = new ParticleSystem(canvas);
       particlesSystem.start();
     }
-    if (hazeCanvas) {
+    if (hazeCanvas && typeof HazeEffect === 'function') {
       hazeEffect = new HazeEffect(hazeCanvas);
       hazeEffect.start();
     }
@@ -72,41 +73,99 @@ function initVisualEffects() {
   }
 }
 
+// Função segura para mostrar a tela de login (fallback)
+function forceShowLoginScreen() {
+  try {
+    if (splashScreen) splashScreen.style.display = 'none';
+    if (authOverlay) {
+      authOverlay.style.display = 'flex';
+    }
+    showScreen(AUTH_STATE.LOGIN);
+  } catch (e) {
+    AuthLog.error('Erro ao forçar login screen:', e.message);
+    // Último recurso: recarregar a página
+    location.reload();
+  }
+}
+
+// Timeout de segurança - se o Firebase demorar mais que 8s, força tela de login
+let initTimeoutId = null;
+
 async function initAuthFlow() {
   if (authFlowStarted) return;
   authFlowStarted = true;
+  authCheckResolved = false;
 
   AuthLog.info('Iniciando fluxo de autenticação');
 
+  // Timeout de segurança: se não resolver em 8 segundos, força tela de login
+  initTimeoutId = setTimeout(() => {
+    AuthLog.warn('Timeout de inicialização - forçando tela de login');
+    if (!authCheckResolved) {
+      authCheckResolved = true;
+      forceShowLoginScreen();
+    }
+  }, 8000);
+
   try {
+    // Mostrar splash primeiro
+    if (splashScreen) splashScreen.style.display = 'flex';
     showScreen(AUTH_STATE.SPLASH);
+
+    // Tentar iniciar efeitos visuais (não crítico)
     initVisualEffects();
 
+    // Animar barra de loading do splash
     const loadingBar = document.getElementById('splashLoadingBar');
-    if (loadingBar) {
-      await AuthTransitions.animateLoading(loadingBar, 2000);
+    if (loadingBar && typeof AuthTransitions !== 'undefined') {
+      AuthTransitions.animateLoading(loadingBar, 2000).catch(() => {});
+    } else {
+      // Se não tem a transição, esperar um tempo mínimo
+      await new Promise(r => setTimeout(r, 1500));
+    }
+
+    // Verificar se Firebase está disponível
+    if (typeof firebase === 'undefined' || typeof auth === 'undefined') {
+      AuthLog.warn('Firebase não carregou, pulando verificação de sessão');
+      forceShowLoginScreen();
+      return;
     }
 
     // Verificar sessão existente
     const user = auth.currentUser;
+    authCheckResolved = true;
+    if (initTimeoutId) clearTimeout(initTimeoutId);
+    
     if (user) {
       AuthLog.info('Sessão existente encontrada:', user.email);
-      await loadUserProfile(user);
-      enterLobby();
+      try {
+        await loadUserProfile(user);
+        enterLobby();
+      } catch (profileErr) {
+        AuthLog.error('Erro ao carregar perfil:', profileErr.message);
+        forceShowLoginScreen();
+      }
     } else {
-      if (authTransitions && splashScreen && authOverlay) {
-        authTransitions.splashToAuth(splashScreen, authOverlay);
-      } else {
-        splashScreen.style.display = 'none';
-        authOverlay.style.display = 'flex';
+      // Transição splash → auth
+      try {
+        if (typeof authTransitions !== 'undefined' && splashScreen && authOverlay) {
+          await authTransitions.splashToAuth(splashScreen, authOverlay);
+        } else {
+          if (splashScreen) splashScreen.style.display = 'none';
+          if (authOverlay) authOverlay.style.display = 'flex';
+        }
+      } catch (transErr) {
+        AuthLog.warn('Erro na transição splash:', transErr.message);
+        if (splashScreen) splashScreen.style.display = 'none';
+        if (authOverlay) authOverlay.style.display = 'flex';
       }
       setTimeout(() => showScreen(AUTH_STATE.LOGIN), 500);
     }
   } catch (err) {
-    AuthLog.error('ERRO no initAuthFlow:', err.message, err.stack);
-    splashScreen.style.display = 'none';
-    authOverlay.style.display = 'flex';
-    showScreen(AUTH_STATE.LOGIN);
+    AuthLog.error('ERRO no initAuthFlow:', err.message);
+    authCheckResolved = true;
+    if (initTimeoutId) clearTimeout(initTimeoutId);
+    forceShowLoginScreen();
   }
 }
 
@@ -155,7 +214,7 @@ async function loadUserProfile(user) {
       AuthLog.info('Perfil encontrado:', currentUserData.nickname);
     } else {
       // Criar perfil
-      AuthLog.info('Criando novo perfil no Firestore/Offline');
+      AuthLog.info('Criando novo perfil no Firestore');
       const emailNome = user.email ? user.email.split('@')[0] : 'Jogador';
       currentUserData = {
         uid: user.uid,
@@ -174,7 +233,7 @@ async function loadUserProfile(user) {
     }
     return currentUserData;
   } catch (error) {
-    AuthLog.error('Falha ao acessar Firestore/Offline:', error.message);
+    AuthLog.error('Falha ao acessar Firestore:', error.message);
     // Fallback
     currentUserData = {
       uid: user.uid,
@@ -196,7 +255,6 @@ async function saveProfileNickname(uid, nickname) {
   try {
     await db.collection('players').doc(uid).update({ nickname, avatar: nickname.charAt(0).toUpperCase() });
   } catch (e) {
-    // Se falhar update, tenta set
     try {
       await db.collection('players').doc(uid).set({
         uid,
@@ -219,7 +277,14 @@ function enterLobby() {
   AuthLog.info('ENTRANDO NO LOBBY:', currentUserData?.nickname || 'desconhecido');
 
   try {
-    authTransitions.authToLobby(authOverlay, document.getElementById('lobby'));
+    if (typeof authTransitions !== 'undefined') {
+      authTransitions.authToLobby(authOverlay, document.getElementById('lobby'));
+    } else {
+      // Fallback sem transição
+      if (authOverlay) authOverlay.style.display = 'none';
+      const lobby = document.getElementById('lobby');
+      if (lobby) lobby.style.display = 'block';
+    }
 
     // Atualizar toda a UI do lobby com dados do perfil
     if (typeof window.updateLobbyUI === 'function') {
@@ -252,7 +317,7 @@ function enterLobby() {
     AuthLog.error('Erro na transição:', err.message);
     const lobby = document.getElementById('lobby');
     if (lobby) {
-      authOverlay.style.display = 'none';
+      if (authOverlay) authOverlay.style.display = 'none';
       lobby.style.display = 'block';
     }
   }
@@ -330,13 +395,17 @@ document.addEventListener('DOMContentLoaded', () => {
   // Navegação
   if (btnGoRegister) {
     btnGoRegister.addEventListener('click', async () => {
-      await authTransitions.switchScreen(loginScreen, registerScreen);
+      if (typeof authTransitions !== 'undefined') {
+        await authTransitions.switchScreen(loginScreen, registerScreen);
+      }
       showScreen(AUTH_STATE.REGISTER);
     });
   }
   if (btnGoForgot) {
     btnGoForgot.addEventListener('click', async () => {
-      await authTransitions.switchScreen(loginScreen, forgotScreen);
+      if (typeof authTransitions !== 'undefined') {
+        await authTransitions.switchScreen(loginScreen, forgotScreen);
+      }
       showScreen(AUTH_STATE.FORGOT);
     });
   }
@@ -418,7 +487,7 @@ document.addEventListener('DOMContentLoaded', () => {
           uid: result.user.uid,
           email: email,
           nickname: nickname,
-        coins: 0, gems: 0,
+          coins: 0, gems: 0,
           rank: 'Iniciante',
           avatar: nickname.charAt(0).toUpperCase(),
           wins: 0, losses: 0,
@@ -462,13 +531,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (btnGoToLoginFromRegister) {
     btnGoToLoginFromRegister.addEventListener('click', async () => {
-      await authTransitions.switchScreen(registerScreen, loginScreen);
+      if (typeof authTransitions !== 'undefined') {
+        await authTransitions.switchScreen(registerScreen, loginScreen);
+      }
       showScreen(AUTH_STATE.LOGIN);
     });
   }
   if (btnCloseRegister) {
     btnCloseRegister.addEventListener('click', async () => {
-      await authTransitions.switchScreen(registerScreen, loginScreen);
+      if (typeof authTransitions !== 'undefined') {
+        await authTransitions.switchScreen(registerScreen, loginScreen);
+      }
       showScreen(AUTH_STATE.LOGIN);
     });
   }
@@ -521,7 +594,9 @@ document.addEventListener('DOMContentLoaded', () => {
     btnBackToLoginFromSuccess.addEventListener('click', async () => {
       forgotForm.style.display = 'block';
       if (forgotSuccess) forgotSuccess.style.display = 'none';
-      await authTransitions.switchScreen(forgotScreen, loginScreen);
+      if (typeof authTransitions !== 'undefined') {
+        await authTransitions.switchScreen(forgotScreen, loginScreen);
+      }
       showScreen(AUTH_STATE.LOGIN);
     });
   }
@@ -529,7 +604,9 @@ document.addEventListener('DOMContentLoaded', () => {
     btnBackToLoginFromForgot.addEventListener('click', async () => {
       forgotForm.style.display = 'block';
       if (forgotSuccess) forgotSuccess.style.display = 'none';
-      await authTransitions.switchScreen(forgotScreen, loginScreen);
+      if (typeof authTransitions !== 'undefined') {
+        await authTransitions.switchScreen(forgotScreen, loginScreen);
+      }
       showScreen(AUTH_STATE.LOGIN);
     });
   }
@@ -550,17 +627,23 @@ document.addEventListener('DOMContentLoaded', () => {
 // =============================================
 // LISTENER DE AUTENTICAÇÃO
 // =============================================
+// Só processa se initAuthFlow já foi chamado e resolvido
 auth.onAuthStateChanged(async (user) => {
   if (user) {
-    if (currentState === AUTH_STATE.SPLASH || currentState === AUTH_STATE.CHECKING) {
-      AuthLog.info('[onAuthStateChanged] Usuário detectado, carregando perfil');
-      try { await loadUserProfile(user); } catch (err) {
+    // Se o fluxo de inicialização já foi concluído e estamos na tela de login
+    // significa que o usuário acabou de fazer login pelo auth state
+    if (currentState === AUTH_STATE.LOGIN || currentState === AUTH_STATE.REGISTER) {
+      AuthLog.info('[onAuthStateChanged] Usuário detectado na tela de auth');
+      try {
+        await loadUserProfile(user);
+        setTimeout(() => {
+          if (currentState !== AUTH_STATE.AUTHENTICATED) enterLobby();
+        }, 300);
+      } catch (err) {
         AuthLog.error('[onAuthStateChanged] Erro:', err);
       }
-      setTimeout(() => {
-        if (currentState !== AUTH_STATE.AUTHENTICATED) enterLobby();
-      }, 1500);
     }
+    // Se ainda está no splash/checking, o initAuthFlow vai lidar
   }
 });
 
@@ -584,7 +667,9 @@ async function logout() {
       if (authOverlay) authOverlay.style.display = 'flex';
       showScreen(AUTH_STATE.LOGIN);
     }, 300);
-    UIEffects.showToast('Desconectado', 'success');
+    if (typeof UIEffects !== 'undefined') {
+      UIEffects.showToast('Desconectado', 'success');
+    }
   } catch (err) {
     location.reload();
   }
@@ -592,14 +677,15 @@ async function logout() {
 
 window.logout = logout;
 window.getCurrentUser = () => currentUserData;
-window.currentUserData = currentUserData;
-window.isAuthenticated = () => !!auth.currentUser;
+window.isAuthenticated = () => !!(auth && auth.currentUser);
 window.AuthLog = AuthLog;
 
 // =============================================
 // INICIALIZAÇÃO
 // =============================================
 document.addEventListener('DOMContentLoaded', () => {
-  AuthLog.info('DOM pronto. Modo: Firebase ONLINE');
-  setTimeout(initAuthFlow, 300);
+  AuthLog.info('DOM pronto. Iniciando fluxo...');
+  // Iniciar imediatamente, sem setTimeout
+  // O timeout de segurança de 8s garante que a tela de login apareça
+  initAuthFlow();
 });
