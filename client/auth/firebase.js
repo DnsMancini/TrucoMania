@@ -1,5 +1,8 @@
-// Configuração do Firebase - TrucoMania
-// ATENÇÃO: Substitua pelos seus dados do Firebase Console
+// =============================================
+// TRUCOMANIA FIREBASE - CONFIGURAÇÃO SEGURA
+// =============================================
+
+// ATENÇÃO: Configure com suas credenciais REAIS do Firebase Console
 const firebaseConfig = {
   apiKey: "AIzaSyDEFAULT_KEY",
   authDomain: "trucomania-default.firebaseapp.com",
@@ -9,23 +12,21 @@ const firebaseConfig = {
   appId: "1:000000000000:web:0000000000000000000000"
 };
 
+console.log('[FIREBASE] Inicializando com projectId:', firebaseConfig.projectId);
+
 // Inicializar Firebase
-firebase.initializeApp(firebaseConfig);
+try {
+  firebase.initializeApp(firebaseConfig);
+  console.log('[FIREBASE] App inicializado com sucesso');
+} catch (e) {
+  console.error('[FIREBASE] ERRO CRÍTICO ao inicializar Firebase:', e);
+  console.error('[FIREBASE] Stack:', e.stack);
+}
+
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-// Configurar persistência
-auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+console.log('[FIREBASE] Auth e Firestore instanciados');
 
-// Firestore settings
-db.settings({
-  cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED
-});
-db.enablePersistence()
-  .catch((err) => {
-    if (err.code === 'failed-precondition') {
-      console.warn('Firestore persistência offline falhou (múltiplas abas)');
-    } else if (err.code === 'unimplemented') {
-      console.warn('Firestore persistência offline não suportada');
-    }
-  });
+// Não configurar persistência global aqui - será feito sob demanda no login
+// Não habilitar Firestore offline aqui - será feito sob demanda

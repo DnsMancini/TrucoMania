@@ -33,8 +33,6 @@
       <div id="loginScreen" class="auth-screen">
         <div class="auth-container">
           <div class="auth-panel">
-            <button type="button" class="auth-link" style="position:absolute;top:16px;right:16px;font-size:20px;padding:4px 8px;color:rgba(255,255,255,0.2);cursor:pointer;background:none;border:none;font-family:inherit;z-index:5" id="btnCloseLogin">✕</button>
-
             <div class="auth-header animate-child">
               <span class="auth-header-icon">🃏</span>
               <h2 class="auth-title">Entrar</h2>
@@ -46,7 +44,7 @@
                 <label class="auth-field-label" for="loginEmail">Email</label>
                 <div class="input-wrapper">
                   <div class="input-glow"></div>
-                  <input type="email" id="loginEmail" class="auth-input" placeholder="seu@email.com" required data-validate autocomplete="email" />
+                  <input type="email" id="loginEmail" class="auth-input" placeholder="seu@email.com" required autocomplete="email" />
                 </div>
               </div>
 
@@ -54,7 +52,7 @@
                 <label class="auth-field-label" for="loginPassword">Senha</label>
                 <div class="input-wrapper">
                   <div class="input-glow"></div>
-                  <input type="password" id="loginPassword" class="auth-input" placeholder="Sua senha" required minlength="6" data-validate autocomplete="current-password" />
+                  <input type="password" id="loginPassword" class="auth-input" placeholder="Sua senha" required minlength="6" autocomplete="current-password" />
                 </div>
               </div>
 
@@ -72,11 +70,6 @@
               <span class="auth-divider-text">ou</span>
               <span class="auth-divider-line"></span>
             </div>
-
-            <button id="btnGoogleLogin" class="auth-btn auth-btn-google animate-child">
-              <span class="google-icon">G</span>
-              Entrar com Google
-            </button>
 
             <div class="auth-links animate-child">
               <button type="button" class="auth-link" id="btnGoToRegister">Criar conta</button>
