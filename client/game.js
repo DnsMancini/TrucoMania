@@ -58,6 +58,35 @@ let turnTimerInterval = null;
 let timeLeft = 25;
 let currentGameCode = null;
 let currentHandValue = 1; // valor da mão atual
+let myNickname = '';
+
+// Sistema de autenticação - usar nickname do auth
+document.addEventListener('user-authenticated', (e) => {
+  if (e.detail && e.detail.nickname) {
+    myNickname = e.detail.nickname;
+    // Preencher input do nome se vazio
+    if (nameInput && !nameInput.value) {
+      nameInput.value = myNickname;
+    }
+    // Atualizar avatar/display se necessário
+    const p0avatar = document.querySelector('#p0 .avatar');
+    if (p0avatar) {
+      p0avatar.textContent = e.detail.avatar || myNickname.charAt(0).toUpperCase();
+    }
+  }
+});
+
+// Botão de logout
+document.addEventListener('DOMContentLoaded', () => {
+  const btnLogout = document.getElementById('btnLogout');
+  if (btnLogout) {
+    btnLogout.addEventListener('click', () => {
+      if (typeof window.logout === 'function') {
+        window.logout();
+      }
+    });
+  }
+});
 let isRespondingToBet = false;
 let currentBetLevel = null;
 
@@ -475,10 +504,38 @@ function renderizarMao(hand) {
   });
 }
 
-function startTurnTimer() { /* ... igual ... */ }
-function clearTurnTimer() { /* ... igual ... */ }
-function autoPlayRandomCard() { /* ... igual ... */ }
-function mostrarMensagem(texto) { /* ... igual ... */ }
+function startTurnTimer() {
+  if (turnTimerInterval) clearInterval(turnTimerInterval);
+  timeLeft = 25;
+  cronometroEl.classList.remove('oculto');
+  cronometroNum.textContent = timeLeft;
+  turnTimerInterval = setInterval(() => {
+    timeLeft--;
+    cronometroNum.textContent = timeLeft;
+    if (timeLeft <= 0) {
+      clearTurnTimer();
+      autoPlayRandomCard();
+    }
+  }, 1000);
+}
+
+function clearTurnTimer() {
+  if (turnTimerInterval) {
+    clearInterval(turnTimerInterval);
+    turnTimerInterval = null;
+  }
+  cronometroEl.classList.add('oculto');
+}
+
+function autoPlayRandomCard() {
+  if (!gameActive || !isMyTurn || playerHand.length === 0) return;
+  const idx = Math.floor(Math.random() * playerHand.length);
+  socket.emit('playCard', playerHand[idx]);
+}
+
+function mostrarMensagem(texto) {
+  audioTruco.play().catch(e => {});
+}
 
 function suitSymbol(suit) {
   const map = { paus: '♣', copas: '♥', espadas: '♠', ouros: '♦' };

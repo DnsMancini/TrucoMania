@@ -5,12 +5,191 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Truco Mania</title>
   <link rel="stylesheet" href="style.css?v=5" />
+  <link rel="stylesheet" href="auth/auth.css?v=1" />
   <link rel="icon" href="/img/carta-copag-vermelha.png" />
 </head>
 <body>
   <div id="app">
-    <!-- LOBBY -->
-        <div id="lobby" class="lobby">
+    <!-- SPLASH SCREEN (overlay inicial) -->
+    <div id="splashScreen" class="splash-screen">
+      <div class="splash-bg-glow"></div>
+      <div class="splash-logo">
+        <span class="splash-logo-icon">🃏</span>
+        <h1 class="splash-title">TRUCO<br/>MANIA</h1>
+        <p class="splash-subtitle">O Jogo do Truco</p>
+      </div>
+      <div id="splashLoadingBar" class="splash-loading-bar">
+        <div class="splash-loading-progress"></div>
+      </div>
+      <span class="splash-version">v1.0.0</span>
+    </div>
+
+    <!-- AUTH OVERLAY (login/register/forgot) -->
+    <div id="authOverlay" class="auth-overlay" style="display:none">
+      <canvas id="particlesCanvas" class="auth-canvas-bg"></canvas>
+      <canvas id="hazeCanvas" class="auth-haze-canvas"></canvas>
+
+      <!-- LOGIN SCREEN -->
+      <div id="loginScreen" class="auth-screen">
+        <div class="auth-container">
+          <div class="auth-panel">
+            <button type="button" class="auth-link" style="position:absolute;top:16px;right:16px;font-size:20px;padding:4px 8px;color:rgba(255,255,255,0.2);cursor:pointer;background:none;border:none;font-family:inherit;z-index:5" id="btnCloseLogin">✕</button>
+
+            <div class="auth-header animate-child">
+              <span class="auth-header-icon">🃏</span>
+              <h2 class="auth-title">Entrar</h2>
+              <p class="auth-subtitle">Bem-vindo de volta ao TrucoMania</p>
+            </div>
+
+            <form id="loginForm" autocomplete="on">
+              <div class="auth-field animate-child">
+                <label class="auth-field-label" for="loginEmail">Email</label>
+                <div class="input-wrapper">
+                  <div class="input-glow"></div>
+                  <input type="email" id="loginEmail" class="auth-input" placeholder="seu@email.com" required data-validate autocomplete="email" />
+                </div>
+              </div>
+
+              <div class="auth-field animate-child">
+                <label class="auth-field-label" for="loginPassword">Senha</label>
+                <div class="input-wrapper">
+                  <div class="input-glow"></div>
+                  <input type="password" id="loginPassword" class="auth-input" placeholder="Sua senha" required minlength="6" data-validate autocomplete="current-password" />
+                </div>
+              </div>
+
+              <label class="auth-checkbox animate-child">
+                <input type="checkbox" id="rememberMe" checked />
+                <span class="auth-checkbox-check">✓</span>
+                <span class="auth-checkbox-label">Lembrar login</span>
+              </label>
+
+              <button type="submit" id="btnLogin" class="auth-btn animate-child">Entrar</button>
+            </form>
+
+            <div class="auth-divider animate-child">
+              <span class="auth-divider-line"></span>
+              <span class="auth-divider-text">ou</span>
+              <span class="auth-divider-line"></span>
+            </div>
+
+            <button id="btnGoogleLogin" class="auth-btn auth-btn-google animate-child">
+              <span class="google-icon">G</span>
+              Entrar com Google
+            </button>
+
+            <div class="auth-links animate-child">
+              <button type="button" class="auth-link" id="btnGoToRegister">Criar conta</button>
+              <span class="auth-link-separator">·</span>
+              <button type="button" class="auth-link" id="btnGoToForgot">Esqueci minha senha</button>
+            </div>
+
+            <button type="button" class="auth-guest-btn animate-child" id="btnGuestLogin">Continuar como visitante</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- REGISTER SCREEN -->
+      <div id="registerScreen" class="auth-screen" style="display:none">
+        <div class="auth-container">
+          <div class="auth-panel">
+            <button type="button" style="position:absolute;top:16px;right:16px;font-size:20px;padding:4px 8px;color:rgba(255,255,255,0.2);cursor:pointer;background:none;border:none;font-family:inherit;z-index:5" id="btnCloseRegister">✕</button>
+
+            <div class="auth-header animate-child">
+              <span class="auth-header-icon">🃏</span>
+              <h2 class="auth-title">Criar Conta</h2>
+              <p class="auth-subtitle">Junte-se ao TrucoMania</p>
+            </div>
+
+            <form id="registerForm" autocomplete="off">
+              <div class="auth-field animate-child">
+                <label class="auth-field-label" for="regEmail">Email</label>
+                <div class="input-wrapper">
+                  <div class="input-glow"></div>
+                  <input type="email" id="regEmail" class="auth-input" placeholder="seu@email.com" required data-validate autocomplete="email" />
+                </div>
+              </div>
+
+              <div class="auth-field animate-child">
+                <label class="auth-field-label" for="regNickname">Nickname</label>
+                <div class="input-wrapper">
+                  <div class="input-glow"></div>
+                  <input type="text" id="regNickname" class="auth-input" placeholder="Seu nickname" required minlength="3" maxlength="15" pattern="[A-Za-zÀ-ÿ0-9_ ]+" data-validate autocomplete="nickname" />
+                </div>
+                <span style="display:block;margin-top:4px;font-size:11px;color:var(--auth-text-muted)" id="nicknameFeedback"></span>
+              </div>
+
+              <div class="auth-field animate-child">
+                <label class="auth-field-label" for="regPassword">Senha</label>
+                <div class="input-wrapper">
+                  <div class="input-glow"></div>
+                  <input type="password" id="regPassword" class="auth-input" placeholder="Crie uma senha" required minlength="6" data-validate autocomplete="new-password" />
+                </div>
+                <div class="password-strength-meter">
+                  <div class="strength-bar"></div>
+                </div>
+                <span class="strength-label"></span>
+              </div>
+
+              <div class="auth-field animate-child">
+                <label class="auth-field-label" for="regConfirm">Confirmar Senha</label>
+                <div class="input-wrapper">
+                  <div class="input-glow"></div>
+                  <input type="password" id="regConfirm" class="auth-input" placeholder="Repita a senha" required minlength="6" data-validate autocomplete="new-password" />
+                </div>
+              </div>
+
+              <button type="submit" id="btnRegister" class="auth-btn animate-child">Criar Conta</button>
+            </form>
+
+            <div class="auth-links animate-child">
+              <span style="color:var(--auth-text-muted);font-size:13px">Já tem conta?</span>
+              <button type="button" class="auth-link" id="btnGoToLoginFromRegister">Fazer login</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FORGOT SCREEN -->
+      <div id="forgotScreen" class="auth-screen" style="display:none">
+        <div class="auth-container">
+          <div class="auth-panel">
+            <button type="button" style="position:absolute;top:16px;right:16px;font-size:20px;padding:4px 8px;color:rgba(255,255,255,0.2);cursor:pointer;background:none;border:none;font-family:inherit;z-index:5" id="btnCloseForgot">✕</button>
+
+            <div class="auth-header animate-child">
+              <span class="auth-header-icon">🔑</span>
+              <h2 class="auth-title">Recuperar Senha</h2>
+              <p class="auth-subtitle">Enviaremos um link para seu email</p>
+            </div>
+
+            <form id="forgotForm" autocomplete="on">
+              <div class="auth-field animate-child">
+                <label class="auth-field-label" for="forgotEmail">Email</label>
+                <div class="input-wrapper">
+                  <div class="input-glow"></div>
+                  <input type="email" id="forgotEmail" class="auth-input" placeholder="seu@email.com" required data-validate autocomplete="email" />
+                </div>
+              </div>
+              <button type="submit" id="btnForgot" class="auth-btn animate-child">Enviar Link</button>
+            </form>
+
+            <div id="forgotSuccess" class="auth-success-state animate-child" style="display:none">
+              <span class="auth-success-icon">✉️</span>
+              <h3 class="auth-success-title">Email Enviado!</h3>
+              <p class="auth-success-text">Verifique sua caixa de entrada e siga as instruções para redefinir sua senha.</p>
+              <button type="button" id="btnBackToLoginFromSuccess" class="auth-btn" style="margin-top:8px">Voltar ao Login</button>
+            </div>
+
+            <div class="auth-links animate-child">
+              <button type="button" class="auth-link" id="btnBackToLoginFromForgot">Voltar ao login</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LOBBY (inicia oculto, aparece após autenticação) -->
+    <div id="lobby" class="lobby" style="display:none">
       <div class="lobby-shell">
         <header class="topbar-premium">
           <div class="player-chip">
@@ -26,7 +205,7 @@
           </div>
           <div class="topbar-actions">
             <button class="icon-btn">🔔</button>
-            <button class="icon-btn">☰</button>
+            <button class="icon-btn" id="btnLogout" title="Sair">🚪</button>
           </div>
         </header>
 
@@ -87,13 +266,11 @@
       </div>
     </div>
 
-
     <!-- JOGO -->
     <div id="gameWrapper" class="game-hidden">
       <div class="avisoOrientacao"><div>🔄 Gire o dispositivo para jogar</div></div>
       <div class="mesa"></div>
 
-      <!-- Elementos da mesa (dentro do #game, centralizados na mesa circular) -->
       <div id="game">
         <div id="mesaCartas"></div>
         <div class="botHand" id="hand1"></div>
@@ -102,7 +279,6 @@
         <div id="vira" class="carta oculto"></div>
       </div>
 
-      <!-- JOGADORES (fora do #game, position: fixed no viewport) -->
       <div class="player" id="p0">
         <div class="avatar"></div>
         <span class="name">Você</span>
@@ -120,16 +296,11 @@
         <span class="name"></span>
       </div>
 
-      <!-- Mão do jogador (fora do #game, colada na borda inferior da tela) -->
       <div id="mao"></div>
-
-      <!-- Informações ao vivo (fora do #game, fixo no viewport) -->
       <div id="infoLive">
         <div id="infoRodada">Rodada 1 de 3</div>
         <div id="trucoStatus">Truco: Nenhum</div>
       </div>
-
-      <!-- Painel de histórico (fora do #game) -->
       <div id="painelHistorico">
         <div id="historicoRodadas">
           <div class="bolinha-rodada bolinha-branca"></div>
@@ -137,13 +308,10 @@
           <div class="bolinha-rodada bolinha-branca"></div>
         </div>
       </div>
-
-      <!-- Cronômetro e contagem (fora do #game) -->
       <div id="cronometro" class="cronometro oculto"><span id="cronometroNum"></span></div>
       <div id="contagemRegressiva" class="contagem-regressiva oculto"><span id="contagemNumero">10</span></div>
       <div id="toast"></div>
 
-      <!-- Tela final (fora do #game) -->
       <div class="telaFinal" id="telaFinal">
         <div class="tela-final-card">
           <div id="textoFinal"></div>
@@ -155,7 +323,6 @@
         </div>
       </div>
 
-      <!-- Botões fora do #game (não rotacionam) -->
       <button id="btnTruco" class="game-button game-button-truco">TRUCO</button>
       <button id="btnCorrer" class="game-button game-button-correr oculto">CORRER</button>
 
@@ -183,6 +350,19 @@
   <audio id="audioSeis" src="/audio/Seis.mp3"></audio>
   <audio id="audioDoze" src="/audio/Doze.mp3"></audio>
 
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+  <!-- Auth System -->
+  <script src="auth/firebase.js"></script>
+  <script src="auth/particles.js"></script>
+  <script src="auth/transitions.js"></script>
+  <script src="auth/ui-effects.js"></script>
+  <script src="auth/auth.js"></script>
+
+  <!-- Game -->
   <script src="/socket.io/socket.io.js"></script>
   <script src="game.js"></script>
 </body>
