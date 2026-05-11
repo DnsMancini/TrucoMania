@@ -339,14 +339,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Navegação
   if (btnGoRegister) {
-    btnGoRegister.addEventListener('click', () => {
-      authTransitions.switchScreen(loginScreen, registerScreen);
+    btnGoRegister.addEventListener('click', async () => {
+      await authTransitions.switchScreen(loginScreen, registerScreen);
       showScreen(AUTH_STATE.REGISTER);
     });
   }
   if (btnGoForgot) {
-    btnGoForgot.addEventListener('click', () => {
-      authTransitions.switchScreen(loginScreen, forgotScreen);
+    btnGoForgot.addEventListener('click', async () => {
+      await authTransitions.switchScreen(loginScreen, forgotScreen);
       showScreen(AUTH_STATE.FORGOT);
     });
   }
@@ -479,14 +479,14 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   if (btnGoToLoginFromRegister) {
-    btnGoToLoginFromRegister.addEventListener('click', () => {
-      authTransitions.switchScreen(registerScreen, loginScreen);
+    btnGoToLoginFromRegister.addEventListener('click', async () => {
+      await authTransitions.switchScreen(registerScreen, loginScreen);
       showScreen(AUTH_STATE.LOGIN);
     });
   }
   if (btnCloseRegister) {
-    btnCloseRegister.addEventListener('click', () => {
-      authTransitions.switchScreen(registerScreen, loginScreen);
+    btnCloseRegister.addEventListener('click', async () => {
+      await authTransitions.switchScreen(registerScreen, loginScreen);
       showScreen(AUTH_STATE.LOGIN);
     });
   }
@@ -536,18 +536,18 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   if (btnBackToLoginFromSuccess) {
-    btnBackToLoginFromSuccess.addEventListener('click', () => {
+    btnBackToLoginFromSuccess.addEventListener('click', async () => {
       forgotForm.style.display = 'block';
       if (forgotSuccess) forgotSuccess.style.display = 'none';
-      authTransitions.switchScreen(forgotScreen, loginScreen);
+      await authTransitions.switchScreen(forgotScreen, loginScreen);
       showScreen(AUTH_STATE.LOGIN);
     });
   }
   if (btnBackToLoginFromForgot) {
-    btnBackToLoginFromForgot.addEventListener('click', () => {
+    btnBackToLoginFromForgot.addEventListener('click', async () => {
       forgotForm.style.display = 'block';
       if (forgotSuccess) forgotSuccess.style.display = 'none';
-      authTransitions.switchScreen(forgotScreen, loginScreen);
+      await authTransitions.switchScreen(forgotScreen, loginScreen);
       showScreen(AUTH_STATE.LOGIN);
     });
   }

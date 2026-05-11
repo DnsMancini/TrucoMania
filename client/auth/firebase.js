@@ -22,7 +22,19 @@ function sanitizeFirebaseConfig(config) {
   );
 }
 
-const firebaseConfig = sanitizeFirebaseConfig({ ...defaultFirebaseConfig, ...runtimeFirebaseConfig });
+// Mescla configs: runtime só sobrescreve se tiver valor preenchido
+function mergeConfigs(defaults, runtime) {
+  const merged = { ...defaults };
+  for (const [key, value] of Object.entries(runtime)) {
+    const trimmed = typeof value === 'string' ? value.trim() : value;
+    if (trimmed) {
+      merged[key] = trimmed;
+    }
+  }
+  return merged;
+}
+
+const firebaseConfig = sanitizeFirebaseConfig(mergeConfigs(defaultFirebaseConfig, runtimeFirebaseConfig));
 
 function hasPlaceholderConfig(config) {
   return !config.apiKey || config.apiKey.includes('DEFAULT_KEY') || !config.projectId || !config.authDomain;

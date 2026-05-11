@@ -6,7 +6,7 @@ class AuthTransitions {
   }
 
   // Transição principal entre telas
-  async switchScreen(fromElement, toElement, direction = 'forward') {
+  async switchScreen(fromElement, toElement, direction = 'forward', onShow = null) {
     if (this.transitioning) return;
     this.transitioning = true;
 
@@ -17,6 +17,7 @@ class AuthTransitions {
       await this.animateIn(toElement);
       this.currentScreen = toElement;
       this.transitioning = false;
+      if (onShow) onShow();
       return;
     }
 
@@ -32,6 +33,7 @@ class AuthTransitions {
     await this.animateIn(toElement);
     this.currentScreen = toElement;
     this.transitioning = false;
+    if (onShow) onShow();
   }
 
   // Animação de entrada cinematográfica
