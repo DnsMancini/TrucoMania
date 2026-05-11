@@ -12,7 +12,14 @@ const defaultFirebaseConfig = {
 };
 
 const runtimeFirebaseConfig = window.__TRUCOMANIA_CONFIG__?.firebaseConfig || {};
-const firebaseConfig = { ...defaultFirebaseConfig, ...runtimeFirebaseConfig };
+
+function sanitizeFirebaseConfig(config) {
+  return Object.fromEntries(
+    Object.entries(config).map(([key, value]) => [key, typeof value === 'string' ? value.trim() : value])
+  );
+}
+
+const firebaseConfig = sanitizeFirebaseConfig({ ...defaultFirebaseConfig, ...runtimeFirebaseConfig });
 
 function hasPlaceholderConfig(config) {
   return !config.apiKey || config.apiKey.includes('DEFAULT_KEY') || !config.projectId;
