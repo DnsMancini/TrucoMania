@@ -2,17 +2,28 @@
 // TRUCOMANIA FIREBASE - CONFIGURAÇÃO SEGURA
 // =============================================
 
-// ATENÇÃO: Configure com suas credenciais REAIS do Firebase Console
-const firebaseConfig = {
-  apiKey: "AIzaSyDEFAULT_KEY",
-  authDomain: "trucomania-default.firebaseapp.com",
-  projectId: "trucomania-default",
-  storageBucket: "trucomania-default.appspot.com",
-  messagingSenderId: "000000000000",
-  appId: "1:000000000000:web:0000000000000000000000"
+const defaultFirebaseConfig = {
+  apiKey: "",
+  authDomain: "",
+  projectId: "",
+  storageBucket: "",
+  messagingSenderId: "",
+  appId: ""
 };
 
-console.log('[FIREBASE] Inicializando com projectId:', firebaseConfig.projectId);
+const runtimeFirebaseConfig = window.__TRUCOMANIA_CONFIG__?.firebaseConfig || {};
+const firebaseConfig = { ...defaultFirebaseConfig, ...runtimeFirebaseConfig };
+
+function hasPlaceholderConfig(config) {
+  return !config.apiKey || config.apiKey.includes('DEFAULT_KEY') || !config.projectId;
+}
+
+console.log('[FIREBASE] Inicializando com projectId:', firebaseConfig.projectId || '(não definido)');
+
+if (hasPlaceholderConfig(firebaseConfig)) {
+  console.error('[FIREBASE] Configuração ausente. Defina as variáveis FIREBASE_* no servidor.');
+  throw new Error('Firebase não configurado no servidor. Defina FIREBASE_API_KEY, FIREBASE_PROJECT_ID e demais variáveis.');
+}
 
 // Inicializar Firebase
 try {
