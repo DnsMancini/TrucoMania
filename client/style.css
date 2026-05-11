@@ -511,11 +511,11 @@ body {
     min-width: 120px; height: 44px; font-size: 13px;
   }
   .game-button-truco {
-    left: calc(50% - var(--table-size) / 2);
+    left: 5px;
     bottom: calc(90px + var(--safe-bottom));
   }
   .game-button-correr {
-    right: calc(50% - var(--table-size) / 2);
+    right: 5px;
     bottom: calc(90px + var(--safe-bottom));
   }
   #infoLive { display: none; }
@@ -527,7 +527,7 @@ body {
   .contagem-regressiva { width: 150px; height: 150px; }
   .contagem-regressiva span { font-size: 60px; }
   /* Ajuste avatares mobile — viewport fixed */
-  #p0 { bottom: 80px; }
+  #p0 { bottom: calc(88px + 16px); }
   #p1 { left: 10px; }
   #p2 { top: 10px; }
   #p3 { right: 10px; }
