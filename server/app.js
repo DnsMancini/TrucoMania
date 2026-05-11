@@ -3,6 +3,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
 const { handleSocket } = require('./socketHandler');
+const adminRoutes = require('./adminRoutes');
 require('dotenv').config();
 
 const fs = require('fs');
@@ -35,6 +36,7 @@ function loadLocalEnvFile() {
 loadLocalEnvFile();
 
 const app = express();
+app.use(express.json());
 const server = http.createServer(app);
 
 // CORS para Socket.IO
@@ -64,6 +66,8 @@ app.get('/config.js', (_req, res) => {
   res.type('application/javascript');
   res.send(`window.__TRUCOMANIA_CONFIG__ = ${JSON.stringify({ firebaseConfig })};`);
 });
+
+app.use('/admin', adminRoutes);
 
 // Servir arquivos do front-end
 app.use(express.static(path.join(__dirname, '..', 'client')));

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TrucoMania Admin</title>
+  <link rel="stylesheet" href="admin.css" />
+</head>
+<body>
+  <main class="container">
+    <h1>Painel Administrativo</h1>
+    <div id="stats" class="stats"></div>
+    <section>
+      <h2>Jogadores</h2>
+      <input id="search" placeholder="Buscar nome/email/uid" />
+      <button id="refreshUsers">Atualizar</button>
+      <table id="usersTable"><thead><tr><th>UID</th><th>Nome</th><th>Email</th><th>Coins</th><th>Gems</th><th>Rank</th><th>Ações</th></tr></thead><tbody></tbody></table>
+    </section>
+    <section>
+      <h2>Transações recentes</h2>
+      <pre id="transactions"></pre>
+    </section>
+    <section>
+      <h2>Audit Logs</h2>
+      <pre id="auditLogs"></pre>
+    </section>
+  </main>
+
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="config.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>
