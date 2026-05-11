@@ -58,6 +58,9 @@ app.get('/config.js', (_req, res) => {
     appId: sanitize(process.env.FIREBASE_APP_ID) || ''
   };
 
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
   res.type('application/javascript');
   res.send(`window.__TRUCOMANIA_CONFIG__ = ${JSON.stringify({ firebaseConfig })};`);
 });

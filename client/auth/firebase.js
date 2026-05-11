@@ -22,7 +22,20 @@ function sanitizeFirebaseConfig(config) {
 const firebaseConfig = sanitizeFirebaseConfig({ ...defaultFirebaseConfig, ...runtimeFirebaseConfig });
 
 function hasPlaceholderConfig(config) {
-  return !config.apiKey || config.apiKey.includes('DEFAULT_KEY') || !config.projectId;
+  return !config.apiKey || config.apiKey.includes('DEFAULT_KEY') || !config.projectId || !config.authDomain;
+}
+
+function maskSensitiveConfig(config) {
+  return {
+    ...config,
+    apiKey: config.apiKey ? `${config.apiKey.slice(0, 6)}...` : '(não definido)',
+    appId: config.appId ? `${config.appId.slice(0, 10)}...` : '(não definido)'
+  };
+}
+
+function hasLikelyInvalidProjectConfig(config) {
+  if (!config.projectId || !config.authDomain) return false;
+  return !config.authDomain.includes(config.projectId);
 }
 
 function createDisabledAuth() {
@@ -61,13 +74,18 @@ function createDisabledDb() {
   };
 }
 
-console.log('[FIREBASE] Inicializando com projectId:', firebaseConfig.projectId || '(não definido)');
+console.log('[FIREBASE] Inicializando com config:', maskSensitiveConfig(firebaseConfig));
 
 let auth;
 let db;
 
 if (hasPlaceholderConfig(firebaseConfig)) {
   console.error('[FIREBASE] Configuração ausente. Defina as variáveis FIREBASE_* no servidor.');
+  window.__FIREBASE_DISABLED__ = true;
+  auth = createDisabledAuth();
+  db = createDisabledDb();
+} else if (hasLikelyInvalidProjectConfig(firebaseConfig)) {
+  console.error('[FIREBASE] Configuração inconsistente: authDomain não corresponde ao projectId.', maskSensitiveConfig(firebaseConfig));
   window.__FIREBASE_DISABLED__ = true;
   auth = createDisabledAuth();
   db = createDisabledDb();
