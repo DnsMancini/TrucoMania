@@ -77,7 +77,6 @@ async function initAuthFlow() {
   authFlowStarted = true;
 
   AuthLog.info('Iniciando fluxo de autenticação');
-  const isOffline = window.__OFFLINE_MODE__ === true;
 
   try {
     showScreen(AUTH_STATE.SPLASH);
@@ -162,15 +161,13 @@ async function loadUserProfile(user) {
         uid: user.uid,
         email: user.email || '',
         nickname: user.displayName || emailNome || 'Jogador',
-        coins: 1000,
-        gems: 100,
+        coins: 0,
+        gems: 0,
         rank: 'Iniciante',
         avatar: (user.displayName || 'J').charAt(0).toUpperCase(),
         wins: 0,
         losses: 0,
-        createdAt: window.__OFFLINE_MODE__
-          ? new Date().toISOString()
-          : firebase.firestore.FieldValue.serverTimestamp()
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
       };
       await db.collection('players').doc(user.uid).set(currentUserData);
       AuthLog.info('Perfil criado com sucesso');
@@ -183,8 +180,8 @@ async function loadUserProfile(user) {
       uid: user.uid,
       email: user.email || '',
       nickname: user.displayName || 'Jogador',
-      coins: 1000,
-      gems: 100,
+      coins: 0,
+      gems: 0,
       rank: 'Iniciante',
       avatar: 'U',
       wins: 0,
@@ -205,8 +202,8 @@ async function saveProfileNickname(uid, nickname) {
         uid,
         nickname,
         avatar: nickname.charAt(0).toUpperCase(),
-        coins: 1000,
-        gems: 100,
+        coins: 0,
+        gems: 0,
         rank: 'Iniciante',
         wins: 0,
         losses: 0,
@@ -224,9 +221,28 @@ function enterLobby() {
   try {
     authTransitions.authToLobby(authOverlay, document.getElementById('lobby'));
 
-    const displayName = document.getElementById('playerDisplayName');
-    if (displayName && currentUserData) {
-      displayName.textContent = currentUserData.nickname || 'Truqueiro';
+    // Atualizar toda a UI do lobby com dados do perfil
+    if (typeof window.updateLobbyUI === 'function') {
+      window.updateLobbyUI(currentUserData);
+    } else {
+      // Fallback caso profile.js não tenha carregado
+      const displayName = document.getElementById('playerDisplayName');
+      if (displayName && currentUserData) {
+        displayName.textContent = currentUserData.nickname || 'Truqueiro';
+      }
+      const avatarEl = document.getElementById('playerAvatar');
+      if (avatarEl && currentUserData) {
+        avatarEl.textContent = currentUserData.avatar || 
+          (currentUserData.nickname ? currentUserData.nickname.charAt(0).toUpperCase() : 'TM');
+      }
+      const coinsEl = document.getElementById('playerCoins');
+      if (coinsEl && currentUserData) {
+        coinsEl.textContent = (currentUserData.coins || 0).toLocaleString('pt-BR');
+      }
+      const gemsEl = document.getElementById('playerGems');
+      if (gemsEl && currentUserData) {
+        gemsEl.textContent = (currentUserData.gems || 0).toLocaleString('pt-BR');
+      }
     }
 
     document.dispatchEvent(new CustomEvent('user-authenticated', {
@@ -248,12 +264,10 @@ function enterLobby() {
 
 document.addEventListener('DOMContentLoaded', () => {
   AuthLog.info('DOMContentLoaded - registrando handlers');
-  const isOffline = window.__OFFLINE_MODE__ === true;
 
   // ========== LOGIN ==========
   const loginForm = document.getElementById('loginForm');
   const btnLogin = document.getElementById('btnLogin');
-  const btnGuest = document.getElementById('btnGuestLogin');
   const btnGoRegister = document.getElementById('btnGoToRegister');
   const btnGoForgot = document.getElementById('btnGoToForgot');
 
@@ -277,22 +291,15 @@ document.addEventListener('DOMContentLoaded', () => {
       AuthLog.info('Tentando login:', email);
 
       try {
-        if (!isOffline) {
-          try {
-            const persistence = rememberMe
-              ? firebase.auth.Auth.Persistence.LOCAL
-              : firebase.auth.Auth.Persistence.SESSION;
-            await auth.setPersistence(persistence);
-          } catch (pe) { AuthLog.warn('Persistência:', pe.message); }
-        }
+        try {
+          const persistence = rememberMe
+            ? firebase.auth.Auth.Persistence.LOCAL
+            : firebase.auth.Auth.Persistence.SESSION;
+          await auth.setPersistence(persistence);
+        } catch (pe) { AuthLog.warn('Persistência:', pe.message); }
 
         const result = await auth.signInWithEmailAndPassword(email, password);
         AuthLog.info('Login OK! UID:', result.user.uid);
-
-        // Se for offline, salvar nickname se veio do registro
-        if (isOffline && result.user.displayName && result.user.displayName !== email.split('@')[0]) {
-          await saveProfileNickname(result.user.uid, result.user.displayName);
-        }
 
         await loadUserProfile(result.user);
         enterLobby();
@@ -317,23 +324,6 @@ document.addEventListener('DOMContentLoaded', () => {
         btnLogin.disabled = false;
         UIEffects.hideLoading(btnLogin);
       }
-    });
-  }
-
-  // Convidado
-  if (btnGuest) {
-    btnGuest.addEventListener('click', () => {
-      AuthLog.info('Entrando como visitante');
-      currentUserData = {
-        uid: 'guest_' + Date.now(),
-        email: null,
-        nickname: 'Visitante',
-        coins: 500, gems: 50,
-        rank: 'Visitante', avatar: '👤',
-        wins: 0, losses: 0,
-        createdAt: new Date().toISOString()
-      };
-      enterLobby();
     });
   }
 
@@ -417,13 +407,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Atualizar displayName com o nickname
         try {
-          if (typeof result.user.updateProfile === 'function') {
-            // Firebase real
-            await result.user.updateProfile({ displayName: nickname });
-          } else if (window.__offlineUpdateProfile) {
-            // Offline
-            await window.__offlineUpdateProfile(result.user.uid, { nickname });
-          }
+          await result.user.updateProfile({ displayName: nickname });
           AuthLog.info('displayName atualizado para:', nickname);
         } catch (upErr) {
           AuthLog.warn('Falha ao atualizar displayName:', upErr.message);
@@ -434,13 +418,11 @@ document.addEventListener('DOMContentLoaded', () => {
           uid: result.user.uid,
           email: email,
           nickname: nickname,
-          coins: 1000, gems: 100,
+        coins: 0, gems: 0,
           rank: 'Iniciante',
           avatar: nickname.charAt(0).toUpperCase(),
           wins: 0, losses: 0,
-          createdAt: isOffline
-            ? new Date().toISOString()
-            : firebase.firestore.FieldValue.serverTimestamp()
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
         };
 
         try {
@@ -465,7 +447,7 @@ document.addEventListener('DOMContentLoaded', () => {
           case 'auth/operation-not-allowed': msg = 'Cadastro não habilitado no Firebase'; break;
           case 'auth/invalid-api-key': msg = 'ERRO: Firebase API Key inválida'; break;
           case 'auth/network-request-failed': msg = 'Falha de conexão'; break;
-          case 'auth/configuration-not-found': msg = 'ERRO: Firebase não configurado. Usando modo OFFLINE automático'; break;
+          case 'auth/configuration-not-found': msg = 'ERRO: Firebase não configurado. Verifique as credenciais'; break;
           case 'auth/too-many-requests': msg = 'Muitas tentativas. Aguarde'; break;
           default: msg = `Erro: ${error.message}`;
         }
@@ -551,6 +533,18 @@ document.addEventListener('DOMContentLoaded', () => {
       showScreen(AUTH_STATE.LOGIN);
     });
   }
+
+  // Botão de logout
+  const btnLogout = document.getElementById('btnLogout');
+  if (btnLogout) {
+    btnLogout.addEventListener('click', () => {
+      if (typeof window.logout === 'function') {
+        window.logout();
+      } else {
+        logout();
+      }
+    });
+  }
 });
 
 // =============================================
@@ -598,13 +592,14 @@ async function logout() {
 
 window.logout = logout;
 window.getCurrentUser = () => currentUserData;
-window.isAuthenticated = () => !!auth.currentUser || !!currentUserData?.uid?.startsWith('guest_');
+window.currentUserData = currentUserData;
+window.isAuthenticated = () => !!auth.currentUser;
 window.AuthLog = AuthLog;
 
 // =============================================
 // INICIALIZAÇÃO
 // =============================================
 document.addEventListener('DOMContentLoaded', () => {
-  AuthLog.info('DOM pronto. Modo offline:', window.__OFFLINE_MODE__ === true);
+  AuthLog.info('DOM pronto. Modo: Firebase ONLINE');
   setTimeout(initAuthFlow, 300);
 });

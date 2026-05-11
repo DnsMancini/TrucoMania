@@ -77,7 +77,6 @@
               <button type="button" class="auth-link" id="btnGoToForgot">Esqueci minha senha</button>
             </div>
 
-            <button type="button" class="auth-guest-btn animate-child" id="btnGuestLogin">Continuar como visitante</button>
           </div>
         </div>
       </div>
@@ -186,15 +185,15 @@
       <div class="lobby-shell">
         <header class="topbar-premium">
           <div class="player-chip">
-            <div class="player-avatar">TM</div>
+            <div class="player-avatar" id="playerAvatar">TM</div>
             <div>
               <p class="chip-kicker">Competidor</p>
               <strong id="playerDisplayName">Truqueiro</strong>
             </div>
           </div>
           <div class="currency-strip">
-            <div class="currency-pill"><span>🪙</span> 250.850</div>
-            <div class="currency-pill"><span>💎</span> 2.560</div>
+            <div class="currency-pill"><span>🪙</span> <span id="playerCoins">0</span></div>
+            <div class="currency-pill"><span>💎</span> <span id="playerGems">0</span></div>
           </div>
           <div class="topbar-actions">
             <button class="icon-btn">🔔</button>
@@ -250,12 +249,53 @@
         </main>
 
         <nav class="bottom-nav">
-          <button>Loja</button>
-          <button>Perfil</button>
+          <button id="btnNavShop">Loja</button>
+          <button id="btnNavProfile">Perfil</button>
           <button class="active">Jogar</button>
           <button>Ranking</button>
           <button>Mais</button>
         </nav>
+      </div>
+    </div>
+
+    <!-- MODAL DE PERFIL -->
+    <div id="profileModal" class="modal-overlay" style="display:none">
+      <div class="modal-container">
+        <div class="modal-header">
+          <h2>Meu Perfil</h2>
+          <button class="modal-close" id="btnCloseProfile">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="profile-avatar-section">
+            <div class="profile-current-avatar" id="profileCurrentAvatar">🎮</div>
+            <p class="profile-nickname" id="profileNickname">Jogador</p>
+            <p class="profile-rank" id="profileRank">Iniciante</p>
+          </div>
+          <div class="profile-stats">
+            <div class="profile-stat">
+              <span class="profile-stat-label">🪙 Moedas</span>
+              <span class="profile-stat-value" id="profileStatsCoins">0</span>
+            </div>
+            <div class="profile-stat">
+              <span class="profile-stat-label">💎 Gems</span>
+              <span class="profile-stat-value" id="profileStatsGems">0</span>
+            </div>
+            <div class="profile-stat">
+              <span class="profile-stat-label">🏆 Vitórias</span>
+              <span class="profile-stat-value" id="profileStatsWins">0</span>
+            </div>
+            <div class="profile-stat">
+              <span class="profile-stat-label">❌ Derrotas</span>
+              <span class="profile-stat-value" id="profileStatsLosses">0</span>
+            </div>
+          </div>
+          <div class="profile-avatar-selector">
+            <h3>Escolher Avatar</h3>
+            <div class="avatar-grid" id="avatarGrid">
+              <!-- Avatares serão gerados dinamicamente -->
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -355,6 +395,7 @@
   <script src="auth/transitions.js"></script>
   <script src="auth/ui-effects.js"></script>
   <script src="auth/auth.js"></script>
+  <script src="auth/profile.js"></script>
 
   <!-- Game -->
   <script src="/socket.io/socket.io.js"></script>

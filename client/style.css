@@ -762,6 +762,191 @@ body {
   }
 }
 
+/* ===== MODAL DE PERFIL ===== */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5000;
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.2s ease;
+}
+
+.modal-container {
+  background: linear-gradient(145deg, #1a1a2e, #16213e);
+  border: 1px solid rgba(255, 215, 0, 0.2);
+  border-radius: 20px;
+  width: 90%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 40px rgba(255, 215, 0, 0.05);
+  animation: slideUp 0.3s ease;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.5px;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 22px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.modal-close:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.modal-body {
+  padding: 20px 24px 24px;
+}
+
+/* Seção do avatar */
+.profile-avatar-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.profile-current-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f7971e, #ffd200);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36px;
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+  margin-bottom: 12px;
+  transition: transform 0.3s;
+}
+
+.profile-current-avatar:hover {
+  transform: scale(1.05);
+}
+
+.profile-nickname {
+  margin: 0 0 4px;
+  font-size: 20px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.profile-rank {
+  margin: 0;
+  font-size: 14px;
+  color: #ffd700;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Stats */
+.profile-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.profile-stat {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.profile-stat-label {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 500;
+}
+
+.profile-stat-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: #fff;
+}
+
+/* Seletor de avatar */
+.profile-avatar-selector h3 {
+  margin: 0 0 12px;
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 600;
+}
+
+.avatar-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+}
+
+.avatar-option {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 12px;
+  border: 2px solid transparent;
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.avatar-option:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 215, 0, 0.3);
+  transform: scale(1.1);
+}
+
+.avatar-option.selected {
+  background: rgba(255, 215, 0, 0.15);
+  border-color: #ffd700;
+  box-shadow: 0 0 12px rgba(255, 215, 0, 0.2);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 @media (max-width: 1024px) and (orientation: landscape) {
   .avisoOrientacao { display: flex !important; }
   #gameWrapper > *:not(.avisoOrientacao) { display: none !important; }
