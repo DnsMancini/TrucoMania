@@ -5,8 +5,6 @@ const lobbyDiv = document.getElementById('lobby');
 const gameWrapper = document.getElementById('gameWrapper');
 const nameInput = document.getElementById('nameInput');
 const createBtn = document.getElementById('createBtn');
-const roomInput = document.getElementById('roomInput');
-const joinBtn = document.getElementById('joinBtn');
 const roomsListEl = document.getElementById('roomsList');
 const contagemEl = document.getElementById('contagemRegressiva');
 const contagemNumero = document.getElementById('contagemNumero');
@@ -60,6 +58,8 @@ let turnTimerInterval = null;
 let timeLeft = 25;
 let currentGameCode = null;
 let currentHandValue = 1; // valor da mão atual
+let isRespondingToBet = false;
+let currentBetLevel = null;
 
 // ========== INDICADOR DE VEZ (seta dinâmica) ==========
 const turnIndicator = document.createElement('div');
@@ -67,7 +67,7 @@ turnIndicator.id = 'turnIndicator';
 document.body.appendChild(turnIndicator);
 
 function posicionarSeta(currentPlayer) {
-  if (!gameActive || currentPlayer === undefined || currentPlayer === null) {
+  if (!gameActive || currentPlayer === undefined || currentPlayer === null || myPlayerIndex === null) {
     turnIndicator.classList.remove('visible');
     return;
   }
@@ -75,36 +75,26 @@ function posicionarSeta(currentPlayer) {
   // Mapear índice original do jogador para posição visual (após rotação)
   const rotated = rotateArrayForPlayer([0, 1, 2, 3], myPlayerIndex);
   const visualPos = rotated.indexOf(currentPlayer);
-  const slotId = SLOT_ORDER[visualPos];
-  const slotEl = document.getElementById(slotId);
-  if (!slotEl) {
+  if (visualPos < 0) {
     turnIndicator.classList.remove('visible');
     return;
   }
 
-  const slotRect = slotEl.getBoundingClientRect();
-  const indicatorX = slotRect.left + slotRect.width / 2;
-  const indicatorY = slotRect.top - 20;
-
-  // Alvo: carta do meio da mão do jogador da vez.
-  const handEl = visualPos === 0 ? maoDiv : HAND_SLOTS[visualPos];
-  const cards = handEl ? handEl.querySelectorAll('.carta') : [];
-  const middleCard = cards.length ? cards[Math.floor(cards.length / 2)] : null;
-
-  let rotation = 0;
-  if (middleCard) {
-    const cardRect = middleCard.getBoundingClientRect();
-    const targetX = cardRect.left + cardRect.width / 2;
-    const targetY = cardRect.top + cardRect.height / 2;
-    const dx = targetX - indicatorX;
-    const dy = targetY - indicatorY;
-    // A seta padrão (0°) aponta para baixo.
-    rotation = (Math.atan2(dy, dx) * 180 / Math.PI) - 90;
+  const slotId = SLOT_ORDER[visualPos];
+  const slot = document.getElementById(slotId);
+  if (!slot) {
+    turnIndicator.classList.remove('visible');
+    return;
   }
+
+  const rect = slot.getBoundingClientRect();
+  const indicatorX = rect.left + rect.width / 2;
+  const indicatorY = rect.top + rect.height / 2;
+  const rotations = [0, 90, 180, -90];
 
   turnIndicator.style.left = indicatorX + 'px';
   turnIndicator.style.top = indicatorY + 'px';
-  turnIndicator.style.transform = `translate(-50%, 0) rotate(${rotation}deg)`;
+  turnIndicator.style.transform = `translate(-50%, -50%) rotate(${rotations[visualPos]}deg)`;
   turnIndicator.classList.add('visible');
 }
 
@@ -137,16 +127,6 @@ createBtn.onclick = () => {
   });
 };
 
-joinBtn.onclick = () => {
-  const name = nameInput.value.trim() || 'Jogador';
-  const code = roomInput.value.trim().toUpperCase();
-  if (!code) return;
-  socket.emit('joinRoom', { roomCode: code, playerName: name }, (res) => {
-    if (res.error) return alert(res.error);
-    currentGameCode = res.roomCode;
-    enterWaitingRoom(res);
-  });
-};
 
 function joinRoomFromList(code) {
   const name = nameInput.value.trim() || 'Jogador';
@@ -179,13 +159,20 @@ socket.on('roomsUpdate', (rooms) => {
   if (!roomsListEl) return;
   roomsListEl.innerHTML = '';
   if (rooms.length === 0) {
-    roomsListEl.innerHTML = '<div style="color:#aaa; text-align:center;">Nenhuma sala disponível</div>';
+    roomsListEl.innerHTML = '<div class="lobby-empty">Nenhuma sala disponível no momento</div>'; 
     return;
   }
   rooms.forEach(room => {
     const div = document.createElement('div');
     div.className = 'room-item';
-    div.innerHTML = `<span>Sala ${room.code} (${room.players}/4 jogadores)</span><button class="join-room-btn">Entrar</button>`;
+    div.innerHTML = `
+      <div class="room-item-main">
+        <div class="room-tier">Mesa competitiva</div>
+        <strong class="room-code">Sala ${room.code}</strong>
+        <div class="room-meta">${room.players}/4 jogadores <span class="room-live-dot"></span> Ao vivo</div>
+      </div>
+      <button class="join-room-btn">Entrar</button>
+    `;
     div.querySelector('.join-room-btn').addEventListener('click', () => joinRoomFromList(room.code));
     roomsListEl.appendChild(div);
   });
@@ -238,6 +225,8 @@ socket.on('handStart', (data) => {
     btnCorrer.classList.add('oculto');
   }
   aguardandoResposta = false;
+  isRespondingToBet = false;
+  currentBetLevel = null;
   viraEl.classList.remove('oculto', 'virada');
   viraEl.innerHTML = createCardHTML(data.vira);
   mesaCartas.innerHTML = '';
@@ -316,6 +305,8 @@ socket.on('roundResult', ({ round, winner }) => {
 socket.on('handEnd', ({ winnerTeam, points, scores }) => {
   gameActive = false;
   aguardandoResposta = false;
+  isRespondingToBet = false;
+  currentBetLevel = null;
   isMyTurn = false;
   clearTurnTimer();
   teamAScoreEl.textContent = scores[0];
@@ -337,6 +328,8 @@ socket.on('handEnd', ({ winnerTeam, points, scores }) => {
 
 socket.on('matchOver', ({ winnerTeam }) => {
   aguardandoResposta = false;
+  isRespondingToBet = false;
+  currentBetLevel = null;
   isMyTurn = false;
   clearTurnTimer();
   contagemEl.classList.add('oculto');
@@ -348,11 +341,28 @@ socket.on('matchOver', ({ winnerTeam }) => {
   esconderSeta();
 });
 
-socket.on('betCalled', ({ level }) => {
-  btnTruco.classList.add('oculto');
-  btnCorrer.classList.remove('oculto');
+socket.on('betCalled', ({ level, responderTeam }) => {
+  currentBetLevel = level;
   aguardandoResposta = true;
-  audioTruco.play().catch(e => {});
+  isRespondingToBet = responderTeam === (myPlayerIndex % 2);
+
+  if (isRespondingToBet) {
+    btnCorrer.classList.remove('oculto');
+    atualizarBotaoTruco();
+  } else {
+    btnTruco.classList.add('oculto');
+    btnCorrer.classList.add('oculto');
+  }
+
+  const audioByLevel = { truco: audioTruco, retruco: audioSeis, valenove: audioNove, valedoze: audioDoze };
+  const selectedAudio = audioByLevel[level] || audioTruco;
+  selectedAudio.play().catch(() => {});
+});
+
+socket.on('turnToRespond', () => {
+  isRespondingToBet = true;
+  atualizarBotaoTruco();
+  btnCorrer.classList.remove('oculto');
 });
 
 socket.on('betAccepted', ({ handValue }) => {
@@ -363,20 +373,37 @@ socket.on('betAccepted', ({ handValue }) => {
     atualizarBotaoTruco();
   }
   aguardandoResposta = false;
+  isRespondingToBet = false;
+  currentBetLevel = null;
   atualizarInfoLive();
 });
 
 // ========== BOTÕES ==========
 function atualizarBotaoTruco() {
-  if (!gameActive || aguardandoResposta || !isMyTurn) {
+  if (!gameActive) {
     btnTruco.classList.add('oculto');
     return;
   }
+
+  if (isRespondingToBet) {
+    btnTruco.classList.remove('oculto');
+    const raiseLabel = currentBetLevel === 'truco' ? 'AUMENTAR PARA 6' : currentBetLevel === 'retruco' ? 'AUMENTAR PARA 9' : currentBetLevel === 'valenove' ? 'AUMENTAR PARA 12' : '';
+    btnTruco.textContent = currentBetLevel === 'valedoze' ? 'ACEITAR' : `ACEITAR / ${raiseLabel}`;
+    return;
+  }
+
+  if (aguardandoResposta || !isMyTurn) {
+    btnTruco.classList.add('oculto');
+    return;
+  }
+
   btnTruco.classList.remove('oculto');
   if (currentHandValue >= 12) {
     btnTruco.classList.add('oculto');
+  } else if (currentHandValue >= 9) {
+    btnTruco.textContent = 'VALE DOZE';
   } else if (currentHandValue >= 6) {
-    btnTruco.textContent = 'VALE QUATRO';
+    btnTruco.textContent = 'VALE NOVE';
   } else if (currentHandValue >= 3) {
     btnTruco.textContent = 'RETRUCO';
   } else {
@@ -385,19 +412,38 @@ function atualizarBotaoTruco() {
 }
 
 btnTruco.onclick = () => {
-  if (!isMyTurn || !gameActive || aguardandoResposta) return;
+  if (!gameActive) return;
+
+  if (isRespondingToBet) {
+    const canRaise = currentBetLevel === 'truco' || currentBetLevel === 'retruco' || currentBetLevel === 'valenove';
+    if (!canRaise) {
+      socket.emit('respondBet', 'accept');
+    } else {
+      const aumentar = !window.confirm('OK = Aceitar\nCancelar = Aumentar aposta');
+      let raiseTo = 'retruco';
+      if (currentBetLevel === 'retruco') raiseTo = 'valenove';
+      else if (currentBetLevel === 'valenove') raiseTo = 'valedoze';
+      socket.emit('respondBet', aumentar ? raiseTo : 'accept');
+    }
+    clearTurnTimer();
+    return;
+  }
+
+  if (!isMyTurn || aguardandoResposta) return;
   let betType = 'truco';
-  if (currentHandValue >= 6) betType = 'valequatro';
+  if (currentHandValue >= 9) betType = 'valedoze';
+  else if (currentHandValue >= 6) betType = 'valenove';
   else if (currentHandValue >= 3) betType = 'retruco';
   socket.emit('callBet', betType);
   clearTurnTimer();
 };
 
 btnCorrer.onclick = () => {
-  if (!isMyTurn || !gameActive) return;
-  if (aguardandoResposta) {
+  if (!gameActive) return;
+  if (isRespondingToBet) {
     socket.emit('respondBet', 'flee');
   } else {
+    if (!isMyTurn) return;
     socket.emit('fleeHand');
   }
   clearTurnTimer();
