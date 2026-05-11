@@ -5,12 +5,13 @@
 // Quando configurar as credenciais reais, o Firebase ativa automaticamente.
 
 const defaultFirebaseConfig = {
-  apiKey: "",
-  authDomain: "",
-  projectId: "",
-  storageBucket: "",
-  messagingSenderId: "",
-  appId: ""
+  apiKey: "AIzaSyAbuVNRLpOHoYEr8m8QHK2SqJ4oMn-7GAQ",
+  authDomain: "trucomania-fe149.firebaseapp.com",
+  projectId: "trucomania-fe149",
+  storageBucket: "trucomania-fe149.firebasestorage.app",
+  messagingSenderId: "838967045086",
+  appId: "1:838967045086:web:bdb65c50d95c48b804cb4f",
+  measurementId: "G-FZQS567CEF"
 };
 
 const runtimeFirebaseConfig = window.__TRUCOMANIA_CONFIG__?.firebaseConfig || {};
