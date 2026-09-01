@@ -4,7 +4,6 @@ const { Server } = require('socket.io');
 const path = require('path');
 const { handleSocket } = require('./socketHandler');
 const adminRoutes = require('./adminRoutes');
-const { admin } = require('./firebaseAdmin');
 require('dotenv').config();
 
 const app = express();
@@ -17,28 +16,6 @@ const io = new Server(server, {
   cors: {
     origin: CLIENT_URL === '*' ? true : CLIENT_URL,
     methods: ['GET', 'POST']
-  }
-});
-
-// Autenticar o Socket.IO com o ID Token do Firebase antes de aceitar a conexão.
-io.use(async (socket, next) => {
-  const token = socket.handshake.auth?.token;
-
-  if (!token) {
-    return next(new Error('Não autenticado'));
-  }
-
-  try {
-    const decodedToken = await admin.auth().verifyIdToken(token);
-    socket.user = {
-      uid: decodedToken.uid,
-      email: decodedToken.email || null,
-      name: decodedToken.name || null
-    };
-    next();
-  } catch (error) {
-    console.error('[socket-auth] Token Firebase inválido:', error.message);
-    next(new Error('Não autenticado'));
   }
 });
 
