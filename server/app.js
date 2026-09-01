@@ -49,37 +49,111 @@ app.get('/', (_req, res) => {
   const socketAuthScript = `
 <script>
 (() => {
+  let socketAuthenticated = false;
+  let authenticationInProgress = null;
+
   const authenticateSocket = async (user) => {
-    if (!user || typeof socket === 'undefined') return;
-    try {
-      const token = await user.getIdToken();
-      const sendAuth = () => {
-        socket.emit('authenticate', token, (result) => {
-          if (result && result.error) {
-            console.error('[socket-auth] Falha ao autenticar:', result.error);
-          }
+    if (!user || typeof socket === 'undefined') return false;
+
+    if (socketAuthenticated) return true;
+    if (authenticationInProgress) return authenticationInProgress;
+
+    authenticationInProgress = (async () => {
+      try {
+        const token = await user.getIdToken();
+
+        if (!socket.connected) {
+          socket.connect();
+          await new Promise((resolve) => {
+            if (socket.connected) return resolve();
+            socket.once('connect', resolve);
+          });
+        }
+
+        return await new Promise((resolve) => {
+          socket.emit('authenticate', token, (result) => {
+            if (result && result.ok) {
+              socketAuthenticated = true;
+              console.log('[socket-auth] Socket autenticado com Firebase.');
+              resolve(true);
+              return;
+            }
+
+            socketAuthenticated = false;
+            console.error('[socket-auth] Falha ao autenticar:', result?.error || 'Erro desconhecido');
+            resolve(false);
+          });
         });
-      };
-      if (socket.connected) sendAuth();
-      else socket.once('connect', sendAuth);
-      if (!socket.connected) socket.connect();
-    } catch (error) {
-      console.error('[socket-auth] Não foi possível obter token Firebase:', error.message);
-    }
+      } catch (error) {
+        socketAuthenticated = false;
+        console.error('[socket-auth] Não foi possível autenticar:', error.message);
+        return false;
+      } finally {
+        authenticationInProgress = null;
+      }
+    })();
+
+    return authenticationInProgress;
   };
 
   const setup = () => {
     if (typeof auth === 'undefined' || typeof socket === 'undefined') return;
 
+    const originalEmit = socket.emit.bind(socket);
+    const protectedEvents = new Set(['createRoom', 'joinRoom']);
+
+    socket.emit = (...args) => {
+      const eventName = args[0];
+
+      if (!protectedEvents.has(eventName)) {
+        return originalEmit(...args);
+      }
+
+      const user = auth.currentUser;
+      if (!user) {
+        const callback = typeof args[args.length - 1] === 'function' ? args[args.length - 1] : null;
+        if (callback) callback({ error: 'Não autenticado' });
+        return socket;
+      }
+
+      const callback = typeof args[args.length - 1] === 'function' ? args.pop() : null;
+
+      authenticateSocket(user).then((authenticated) => {
+        if (!authenticated) {
+          if (callback) callback({ error: 'Não autenticado' });
+          return;
+        }
+
+        if (callback) args.push(callback);
+        originalEmit(...args);
+      });
+
+      return socket;
+    };
+
+    socket.on('authenticated', () => {
+      socketAuthenticated = true;
+    });
+
+    socket.on('authError', () => {
+      socketAuthenticated = false;
+    });
+
+    socket.on('disconnect', () => {
+      socketAuthenticated = false;
+    });
+
     socket.on('connect', () => {
+      socketAuthenticated = false;
       if (auth.currentUser) authenticateSocket(auth.currentUser);
     });
 
     auth.onAuthStateChanged((user) => {
       if (user) {
         authenticateSocket(user);
-      } else if (socket.connected) {
-        socket.disconnect();
+      } else {
+        socketAuthenticated = false;
+        if (socket.connected) socket.disconnect();
       }
     });
   };
