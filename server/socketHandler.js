@@ -1,5 +1,6 @@
 const { Game4P } = require('./game');
 const { createBot, shouldCallBet, respondBet, chooseCard } = require('./bot');
+const { admin } = require('./firebaseAdmin');
 
 const rooms = new Map();
 const MAX_ROOMS = 8;
@@ -24,13 +25,47 @@ function broadcastRooms(io) {
   io.emit('roomsUpdate', openRooms);
 }
 
+function authenticateSocket(socket, token) {
+  return admin.auth().verifyIdToken(token).then(decodedToken => {
+    socket.user = {
+      uid: decodedToken.uid,
+      email: decodedToken.email || null,
+      name: decodedToken.name || null
+    };
+    return socket.user;
+  });
+}
+
+function requireAuth(socket, callback) {
+  if (socket.user) return true;
+  if (typeof callback === 'function') callback({ error: 'Não autenticado' });
+  else socket.emit('authError', { message: 'Sessão não autenticada. Faça login novamente.' });
+  return false;
+}
+
 function handleSocket(io) {
   io.on('connection', (socket) => {
     broadcastRooms(io);
 
+    socket.on('authenticate', async (token, callback) => {
+      try {
+        if (!token) throw new Error('Token ausente');
+        const user = await authenticateSocket(socket, token);
+        if (typeof callback === 'function') callback({ ok: true, uid: user.uid });
+        socket.emit('authenticated', { uid: user.uid });
+        broadcastRooms(io);
+      } catch (error) {
+        socket.user = null;
+        console.error('[socket-auth] Token Firebase inválido:', error.message);
+        if (typeof callback === 'function') callback({ error: 'Não autenticado' });
+        socket.emit('authError', { message: 'Sessão inválida. Faça login novamente.' });
+      }
+    });
+
     socket.on('getRooms', () => broadcastRooms(io));
 
     socket.on('createRoom', (playerName, callback) => {
+      if (!requireAuth(socket, callback)) return;
       if (rooms.size >= MAX_ROOMS) {
         return callback({ error: 'Máximo de salas atingido.' });
       }
@@ -63,6 +98,7 @@ function handleSocket(io) {
     });
 
     socket.on('joinRoom', ({ roomCode, playerName }, callback) => {
+      if (!requireAuth(socket, callback)) return;
       const room = rooms.get(roomCode);
       if (!room) return callback({ error: 'Sala não encontrada' });
       if (room.players.length >= 4 && room.status !== 'playing') {
@@ -94,6 +130,7 @@ function handleSocket(io) {
     });
 
     socket.on('playCard', (card) => {
+      if (!requireAuth(socket)) return;
       const room = findRoomBySocket(socket.id);
       if (!room || !room.game) return;
       const playerIndex = room.players.findIndex(p => p.id === socket.id);
@@ -103,6 +140,7 @@ function handleSocket(io) {
     });
 
     socket.on('callBet', (betType) => {
+      if (!requireAuth(socket)) return;
       const room = findRoomBySocket(socket.id);
       if (!room || !room.game) return;
       const playerIndex = room.players.findIndex(p => p.id === socket.id);
@@ -112,6 +150,7 @@ function handleSocket(io) {
     });
 
     socket.on('respondBet', (action) => {
+      if (!requireAuth(socket)) return;
       const room = findRoomBySocket(socket.id);
       if (!room || !room.game) return;
       const playerIndex = room.players.findIndex(p => p.id === socket.id);
@@ -123,6 +162,7 @@ function handleSocket(io) {
     });
 
     socket.on('fleeHand', () => {
+      if (!requireAuth(socket)) return;
       const room = findRoomBySocket(socket.id);
       if (!room || !room.game) return;
       const playerIndex = room.players.findIndex(p => p.id === socket.id);
