@@ -37,7 +37,7 @@ function handleSocket(io) {
       let code = generateRoomCode();
       while (rooms.has(code)) code = generateRoomCode();
       const room = {
-        players: [{ id: socket.id, name: playerName, isBot: false, online: true, pendingReplace: false }],
+        players: [{ id: socket.id, uid: socket.user.uid, name: playerName, isBot: false, online: true, pendingReplace: false }],
         game: null,
         countdownInterval: null,
         pendingJoin: [],
@@ -73,13 +73,13 @@ function handleSocket(io) {
         if (room.game && room.game.setWins[0] === 1 && room.game.setWins[1] === 1) {
           return callback({ error: 'Partida no terceiro set, entrada não permitida.' });
         }
-        room.pendingJoin.push({ socket, playerName });
+        room.pendingJoin.push({ socket, playerName, uid: socket.user.uid });
         socket.join(roomCode);
         callback({ roomCode, waiting: true });
         return;
       }
 
-      room.players.push({ id: socket.id, name: playerName, isBot: false, online: true, pendingReplace: false });
+      room.players.push({ id: socket.id, uid: socket.user.uid, name: playerName, isBot: false, online: true, pendingReplace: false });
       socket.join(roomCode);
       callback({ roomCode, players: room.players.map(p => ({ name: p.name, isBot: p.isBot, online: p.online })) });
       broadcastRooms(io);
@@ -211,8 +211,8 @@ function processPendingJoins(room, io) {
   while (room.pendingJoin.length > 0) {
     const botIndex = room.players.findIndex(p => p.isBot);
     if (botIndex === -1) break;
-    const { socket, playerName } = room.pendingJoin.shift();
-    room.players[botIndex] = { id: socket.id, name: playerName, isBot: false, online: true, pendingReplace: false };
+    const { socket, playerName, uid } = room.pendingJoin.shift();
+    room.players[botIndex] = { id: socket.id, uid, name: playerName, isBot: false, online: true, pendingReplace: false };
     socket.join(room.code);
   }
   for (let i = 0; i < room.players.length; i++) {
