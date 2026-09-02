@@ -67,6 +67,58 @@ function handleSocket(io) {
 
     socket.on('getRooms', () => broadcastRooms(io));
 
+    // Procura uma partida pública em andamento com vaga de bot.
+    // Se não encontrar, procura uma sala pública aguardando jogadores.
+    // O cliente pode criar uma sala pública automaticamente como último recurso.
+    socket.on('randomMatch', (playerName, callback) => {
+      if (!requireAuth(socket, callback)) return;
+
+      const candidatesPlaying = [];
+      const candidatesWaiting = [];
+
+      for (const room of rooms.values()) {
+        if (room.isPublic === false) continue;
+        if (room.players.some(player => player.uid === socket.user.uid && !player.isBot)) continue;
+
+        if (room.status === 'playing') {
+          const hasBot = room.players.some(player => player.isBot);
+          const thirdSet = room.game && room.game.setWins[0] === 1 && room.game.setWins[1] === 1;
+          const hasPendingJoin = room.pendingJoin?.some(join => join.uid === socket.user.uid);
+          if (hasBot && !thirdSet && !hasPendingJoin) {
+            candidatesPlaying.push(room);
+          }
+        } else if (room.status === 'waiting' && room.players.length < 4) {
+          candidatesWaiting.push(room);
+        }
+      }
+
+      if (candidatesPlaying.length > 0) {
+        const room = candidatesPlaying[Math.floor(Math.random() * candidatesPlaying.length)];
+        room.pendingJoin.push({ socket, playerName, uid: socket.user.uid });
+        socket.join(room.code);
+        return callback({ roomCode: room.code, waiting: true, mode: 'bot-replacement' });
+      }
+
+      if (candidatesWaiting.length > 0) {
+        const room = candidatesWaiting[Math.floor(Math.random() * candidatesWaiting.length)];
+        room.players.push({ id: socket.id, uid: socket.user.uid, name: playerName, isBot: false, online: true, pendingReplace: false });
+        socket.join(room.code);
+        callback({ roomCode: room.code, players: room.players.map(p => ({ name: p.name, isBot: p.isBot, online: p.online })), mode: 'waiting-room' });
+        broadcastRooms(io);
+
+        if (room.players.length === 4) {
+          if (room.countdownInterval) {
+            clearInterval(room.countdownInterval);
+            room.countdownInterval = null;
+          }
+          fillWithBotsAndStart(room.code, io);
+        }
+        return;
+      }
+
+      callback({ createNew: true, message: 'Nenhuma partida pública disponível. Criando uma nova mesa.' });
+    });
+
     // Suporta tanto a chamada antiga (playerName, callback) quanto a nova
     // (playerName, options, callback), mantendo compatibilidade com o cliente atual.
     socket.on('createRoom', (playerName, optionsOrCallback, maybeCallback) => {
