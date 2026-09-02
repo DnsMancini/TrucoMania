@@ -1,6 +1,6 @@
 const { Game4P } = require('./game');
 const { createBot, shouldCallBet, respondBet, chooseCard } = require('./bot');
-const { admin } = require('./firebaseAdmin');
+const { admin, db } = require('./firebaseAdmin');
 
 const rooms = new Map();
 const MAX_ROOMS = 8;
@@ -21,21 +21,47 @@ function broadcastRooms(io) {
   io.emit('roomsUpdate', openRooms);
 }
 
-function authenticateSocket(socket, token) {
-  return admin.auth().verifyIdToken(token).then(decodedToken => {
-    socket.user = {
-      uid: decodedToken.uid,
-      email: decodedToken.email || null,
-      name: decodedToken.name || null
-    };
-    return socket.user;
-  });
+async function authenticateSocket(socket, token) {
+  const decodedToken = await admin.auth().verifyIdToken(token);
+  const playerDoc = await db.collection('players').doc(decodedToken.uid).get();
+  const playerData = playerDoc.exists ? playerDoc.data() : null;
+
+  if (playerData?.banned === true) {
+    const error = new Error('Conta banida');
+    error.code = 'account-banned';
+    throw error;
+  }
+
+  socket.user = {
+    uid: decodedToken.uid,
+    email: decodedToken.email || null,
+    name: decodedToken.name || null,
+    banned: false
+  };
+
+  socket.banUnsubscribe = db.collection('players').doc(decodedToken.uid).onSnapshot(
+    snapshot => {
+      const banned = snapshot.exists && snapshot.data()?.banned === true;
+      if (!socket.user) return;
+      socket.user.banned = banned;
+      if (banned) {
+        console.warn(`[socket-auth] Usuário banido durante sessão: ${decodedToken.uid}`);
+        socket.emit('authError', { message: 'Sua conta foi banida.' });
+        socket.disconnect(true);
+      }
+    },
+    error => {
+      console.error('[socket-auth] Erro ao monitorar banimento:', error.message);
+    }
+  );
+
+  return socket.user;
 }
 
 function requireAuth(socket, callback) {
-  if (socket.user) return true;
-  if (typeof callback === 'function') callback({ error: 'Não autenticado' });
-  else socket.emit('authError', { message: 'Sessão não autenticada. Faça login novamente.' });
+  if (socket.user && socket.user.banned !== true) return true;
+  if (typeof callback === 'function') callback({ error: socket.user?.banned ? 'Conta banida' : 'Não autenticado' });
+  else socket.emit('authError', { message: socket.user?.banned ? 'Sua conta foi banida.' : 'Sessão não autenticada. Faça login novamente.' });
   return false;
 }
 
@@ -131,10 +157,14 @@ function handleSocket(io) {
         socket.emit('authenticated', { uid: user.uid, reconnectAvailable: Boolean(found) });
         broadcastRooms(io);
       } catch (error) {
+        if (socket.banUnsubscribe) {
+          socket.banUnsubscribe();
+          socket.banUnsubscribe = null;
+        }
         socket.user = null;
-        console.error('[socket-auth] Token Firebase inválido:', error.message);
-        if (typeof callback === 'function') callback({ error: 'Não autenticado' });
-        socket.emit('authError', { message: 'Sessão inválida. Faça login novamente.' });
+        console.error('[socket-auth] Falha na autenticação:', error.message);
+        if (typeof callback === 'function') callback({ error: error.code === 'account-banned' ? 'Conta banida' : 'Não autenticado' });
+        socket.emit('authError', { message: error.code === 'account-banned' ? 'Sua conta foi banida.' : 'Sessão inválida. Faça login novamente.' });
       }
     });
 
@@ -367,6 +397,10 @@ function handleSocket(io) {
     });
 
     socket.on('disconnect', () => {
+      if (socket.banUnsubscribe) {
+        socket.banUnsubscribe();
+        socket.banUnsubscribe = null;
+      }
       const room = findRoomBySocket(socket.id);
       if (!room) return;
       const player = room.players.find(p => p.id === socket.id);
@@ -517,39 +551,29 @@ function checkBotResponse(room, io) {
   if (!room.game || room.game.turnStage !== 'respond' || !room.game.betState) return;
   const respTeam = room.game.betState.responderTeam;
   const teamPlayers = [respTeam, respTeam + 2];
+  const botIndex = teamPlayers.find(index => room.players[index]?.isBot);
+  if (botIndex === undefined) return;
 
-  if (teamPlayers.every(i => room.players[i] && room.players[i].isBot)) {
-    const botPlayer = teamPlayers
-      .map(i => ({ index: i, player: room.players[i] }))
-      .find(p => p.player && p.player.isBot);
-
-    if (botPlayer) {
-      const playerIndex = botPlayer.index;
-      const hand = room.game.hands[playerIndex];
-      if (hand) {
-        const context = buildBotContext(room, playerIndex);
-        const action = respondBet(hand, room.game.vira.rank, room.game.betState.level, context);
-
-        setTimeout(() => {
-          if (room.game && room.game.betState) {
-            room.game.respondBet(playerIndex, action);
-            checkBotResponse(room, io);
-            checkBotTurn(room, io);
-          }
-        }, 2000 + Math.random() * 2000);
-      }
-    }
-  }
-}
-
-function hasBotPartner(players, playerIndex) {
-  const partnerIndex = (playerIndex + 2) % 4;
-  return Boolean(players[partnerIndex]?.isBot);
+  setTimeout(() => {
+    if (!room.game || room.game.turnStage !== 'respond' || !room.game.betState) return;
+    const player = room.players[botIndex];
+    if (!player?.isBot) return;
+    const context = buildBotContext(room, botIndex);
+    const action = respondBet(room.game.betState.level, context);
+    room.game.respondBet(botIndex, action);
+    checkBotTurn(room, io);
+  }, 1000 + Math.random() * 2000);
 }
 
 function findRoomBySocket(socketId) {
-  for (const [, room] of rooms) if (room.players.some(p => p.id === socketId)) return room;
+  for (const room of rooms.values()) {
+    if (room.players.some(player => player.id === socketId)) return room;
+  }
   return null;
 }
 
-module.exports = { handleSocket };
+module.exports = {
+  handleSocket,
+  rooms,
+  findRoomByUid
+};
