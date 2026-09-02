@@ -16,8 +16,7 @@ function parseServiceAccountFromEnv() {
 }
 
 function parseServiceAccountFromFile() {
-  const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
-  if (!serviceAccountPath) return null;
+  const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH || '/etc/secrets/firebase-service-account.json';
 
   const resolvedPath = path.isAbsolute(serviceAccountPath)
     ? serviceAccountPath
