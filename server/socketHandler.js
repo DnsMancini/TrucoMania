@@ -42,24 +42,19 @@ function normalizeRoomOptions(value) {
   if (typeof value !== 'object' || Array.isArray(value)) return null;
   if (value.visibility !== undefined && value.visibility !== 'private' && value.visibility !== 'public') return null;
   if (value.fillWithBots !== undefined && typeof value.fillWithBots !== 'boolean') return null;
-  return {
-    visibility: value.visibility,
-    fillWithBots: value.fillWithBots
-  };
+  return { visibility: value.visibility, fillWithBots: value.fillWithBots };
 }
 
 function isRateLimited(socket, eventName) {
   const limit = RATE_LIMITS[eventName];
   if (!limit) return false;
   if (!socket.rateLimits) socket.rateLimits = new Map();
-
   const now = Date.now();
   const state = socket.rateLimits.get(eventName);
   if (!state || now - state.startedAt >= limit.windowMs) {
     socket.rateLimits.set(eventName, { startedAt: now, count: 1 });
     return false;
   }
-
   state.count++;
   return state.count > limit.max;
 }
@@ -77,24 +72,15 @@ async function authenticateSocket(socket, token) {
     socket.banUnsubscribe();
     socket.banUnsubscribe = null;
   }
-
   const decodedToken = await admin.auth().verifyIdToken(token);
   const playerDoc = await db.collection('players').doc(decodedToken.uid).get();
   const playerData = playerDoc.exists ? playerDoc.data() : null;
-
   if (playerData?.banned === true) {
     const error = new Error('Conta banida');
     error.code = 'account-banned';
     throw error;
   }
-
-  socket.user = {
-    uid: decodedToken.uid,
-    email: decodedToken.email || null,
-    name: decodedToken.name || null,
-    banned: false
-  };
-
+  socket.user = { uid: decodedToken.uid, email: decodedToken.email || null, name: decodedToken.name || null, banned: false };
   socket.banUnsubscribe = db.collection('players').doc(decodedToken.uid).onSnapshot(
     snapshot => {
       const banned = snapshot.exists && snapshot.data()?.banned === true;
@@ -106,11 +92,8 @@ async function authenticateSocket(socket, token) {
         socket.disconnect(true);
       }
     },
-    error => {
-      console.error('[socket-auth] Erro ao monitorar banimento:', error.message);
-    }
+    error => console.error('[socket-auth] Erro ao monitorar banimento:', error.message)
   );
-
   return socket.user;
 }
 
@@ -133,24 +116,19 @@ function findRoomByUid(uid) {
 function restoreAuthenticatedPlayer(socket, uid, io) {
   const found = findRoomByUid(uid);
   if (!found) return null;
-
   const { room, playerIndex } = found;
   const player = room.players[playerIndex];
   const previousSocketId = player.id;
-
   if (previousSocketId === socket.id && player.online) return room;
-
   const previousTimer = room.offlineTimers.get(previousSocketId);
   if (previousTimer) {
     clearTimeout(previousTimer);
     room.offlineTimers.delete(previousSocketId);
   }
-
   player.id = socket.id;
   player.online = true;
   player.pendingReplace = false;
   socket.join(room.code);
-
   emitPlayerStatus(room, io);
   sendCurrentGameState(room, socket, playerIndex);
   return room;
@@ -158,7 +136,6 @@ function restoreAuthenticatedPlayer(socket, uid, io) {
 
 function sendCurrentGameState(room, socket, playerIndex) {
   if (!room.game) return;
-
   socket.emit('gameStateRestore', {
     roomCode: room.code,
     player: playerIndex,
@@ -182,19 +159,12 @@ function sendCurrentGameState(room, socket, playerIndex) {
     betState: room.game.betState,
     players: room.players.map(p => ({ name: p.name, isBot: p.isBot, online: p.online }))
   });
-
   if (room.game.turnStage === 'play') {
     socket.emit('turn', { currentPlayer: room.game.currentPlayer });
   } else if (room.game.turnStage === 'respond' && room.game.betState) {
     const responderTeam = room.game.betState.responderTeam;
-    socket.emit('betCalled', {
-      challenger: room.game.betState.challenger,
-      level: room.game.betState.level,
-      responderTeam
-    });
-    if (playerIndex % 2 === responderTeam) {
-      socket.emit('turnToRespond', { responderTeam });
-    }
+    socket.emit('betCalled', { challenger: room.game.betState.challenger, level: room.game.betState.level, responderTeam });
+    if (playerIndex % 2 === responderTeam) socket.emit('turnToRespond', { responderTeam });
   } else if (room.game.turnStage === 'mao11Decision' && room.game.maoDe11 && playerIndex % 2 === room.game.maoDe11Team && !room.game.maoDe11DecisionMade) {
     socket.emit('maoDe11Decision', { team: room.game.maoDe11Team });
   }
@@ -239,7 +209,6 @@ function handleSocket(io) {
       if (!room) return callback?.({ ok: true });
       const playerIndex = room.players.findIndex(p => p.id === socket.id);
       if (playerIndex === -1) return callback?.({ ok: true });
-      const player = room.players[playerIndex];
       const offlineTimer = room.offlineTimers.get(socket.id);
       if (offlineTimer) { clearTimeout(offlineTimer); room.offlineTimers.delete(socket.id); }
       if (room.status === 'waiting') {
@@ -513,6 +482,7 @@ function processPendingJoins(room, io) {
     const botIndex = room.players.findIndex(p => p.isBot);
     if (botIndex === -1) break;
     const { socket, playerName, uid } = room.pendingJoin.shift();
+    if (!socket || !socket.connected || !uid || findRoomByUid(uid)) continue;
     room.players[botIndex] = { id: socket.id, uid, name: playerName, isBot: false, online: true, pendingReplace: false };
     socket.join(room.code);
     sendCurrentGameState(room, socket, botIndex);
@@ -552,6 +522,8 @@ function buildBotContext(room, playerIndex) {
     hand: game.hands[playerIndex] || [],
     vira: game.vira,
     roundCards: game.roundCards,
+    currentRound: game.currentRound,
+    roundWins: game.roundWins,
     handValue: game.handValue,
     scores: game.scores,
     setWins: game.setWins,
@@ -560,6 +532,7 @@ function buildBotContext(room, playerIndex) {
     maoDe11DecisionMade: game.maoDe11DecisionMade,
     turnStage: game.turnStage,
     betState: game.betState,
+    style: player.style,
     players: room.players.map(p => ({ name: p.name, isBot: p.isBot, online: p.online }))
   };
 }
@@ -575,7 +548,15 @@ function checkBotTurn(room, io) {
     if (!room.game || room.status !== 'playing') return;
     if (room.game.turnStage !== 'play' || room.game.currentPlayer !== playerIndex) return;
     const context = buildBotContext(room, playerIndex);
-    const card = chooseCard(context);
+    const bet = shouldCallBet(context.hand, context.vira, context.handValue, context.maoDe11, context);
+    if (bet) {
+      if (room.game.callBet(playerIndex, bet)) {
+        checkBotResponse(room, io);
+        return;
+      }
+    }
+    const card = chooseCard(context.hand, context.vira, context);
+    if (!card) return;
     room.game.playCard(playerIndex, card);
     checkBotResponse(room, io);
     checkBotTurn(room, io);
@@ -590,7 +571,8 @@ function checkBotResponse(room, io) {
   setTimeout(() => {
     if (!room.game || room.status !== 'playing') return;
     if (room.game.turnStage !== 'respond' || room.game.betState?.responderTeam !== responderTeam) return;
-    const action = respondBet(buildBotContext(room, responderIndex));
+    const context = buildBotContext(room, responderIndex);
+    const action = respondBet(context.hand, context.vira, context.betState.level, context);
     room.game.respondBet(responderIndex, action);
     checkBotTurn(room, io);
     checkBotResponse(room, io);
