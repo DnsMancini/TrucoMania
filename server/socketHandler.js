@@ -170,6 +170,23 @@ function sendCurrentGameState(room, socket, playerIndex) {
   }
 }
 
+function broadcastRooms(io) {
+  const publicRooms = Array.from(rooms.values())
+    .filter(room => room.visibility !== 'private' && room.status === 'waiting')
+    .map(room => ({
+      code: room.code,
+      players: room.players.map(player => ({
+        name: player.name,
+        isBot: player.isBot,
+        online: player.online
+      })),
+      playerCount: room.players.length,
+      maxPlayers: 4,
+      status: room.status
+    }));
+  io.emit('roomsList', publicRooms);
+}
+
 function handleSocket(io) {
   io.on('connection', (socket) => {
     broadcastRooms(io);
@@ -229,356 +246,325 @@ function handleSocket(io) {
         callback?.({ ok: true, roomCode: room.code, status: 'playing' });
         checkBotResponse(room, io);
         checkBotTurn(room, io);
-        checkAllHumansGone(room, io);
-        broadcastRooms(io);
         return;
       }
-      socket.leave(room.code);
       callback?.({ ok: true });
     });
 
-    socket.on('getRooms', () => broadcastRooms(io));
-
-    socket.on('randomMatch', (playerName, callback) => {
-      if (!requireRateLimit(socket, 'randomMatch', callback)) return;
-      if (!requireAuth(socket, callback)) return;
-      const normalizedName = normalizePlayerName(playerName);
-      if (!normalizedName) return callback?.({ error: 'Nome inválido. Use de 1 a 20 caracteres.' });
+    socket.on('createRoom', (payload = {}, callback) => {
+      if (!requireRateLimit(socket, 'createRoom', callback) || !requireAuth(socket, callback)) return;
+      const playerName = normalizePlayerName(payload.playerName);
+      const options = normalizeRoomOptions(payload.options);
+      if (!playerName || !options) return callback?.({ error: 'Dados da sala inválidos.' });
       if (findRoomByUid(socket.user.uid)) return callback?.({ error: 'Você já está em uma partida.' });
-      const candidatesPlaying = [];
-      const candidatesWaiting = [];
-      for (const room of rooms.values()) {
-        if (room.isPublic === false) continue;
-        if (room.players.some(player => player.uid === socket.user.uid && !player.isBot)) continue;
-        if (room.pendingJoin?.some(join => join.uid === socket.user.uid)) continue;
-        if (room.status === 'playing') {
-          const hasBot = room.players.some(player => player.isBot);
-          const thirdSet = room.game && room.game.setWins[0] === 1 && room.game.setWins[1] === 1;
-          if (hasBot && !thirdSet) candidatesPlaying.push(room);
-        } else if (room.status === 'waiting' && room.players.length < 4) candidatesWaiting.push(room);
-      }
-      if (candidatesPlaying.length > 0) {
-        const room = candidatesPlaying[Math.floor(Math.random() * candidatesPlaying.length)];
-        room.pendingJoin.push({ socket, playerName: normalizedName, uid: socket.user.uid });
-        socket.join(room.code);
-        return callback?.({ roomCode: room.code, waiting: true, mode: 'bot-replacement' });
-      }
-      if (candidatesWaiting.length > 0) {
-        const room = candidatesWaiting[Math.floor(Math.random() * candidatesWaiting.length)];
-        room.players.push({ id: socket.id, uid: socket.user.uid, name: normalizedName, isBot: false, online: true, pendingReplace: false });
-        socket.join(room.code);
-        callback?.({ roomCode: room.code, players: room.players.map(p => ({ name: p.name, isBot: p.isBot, online: p.online })), mode: 'waiting-room' });
-        broadcastRooms(io);
-        if (room.players.length === 4) {
-          if (room.countdownInterval) { clearInterval(room.countdownInterval); room.countdownInterval = null; }
-          fillWithBotsAndStart(room.code, io);
-        }
-        return;
-      }
-      callback?.({ createNew: true, message: 'Nenhuma partida pública disponível. Criando uma nova mesa.' });
-    });
-
-    socket.on('createRoom', (playerName, optionsOrCallback, maybeCallback) => {
-      const callback = typeof optionsOrCallback === 'function' ? optionsOrCallback : maybeCallback;
-      if (!requireRateLimit(socket, 'createRoom', callback)) return;
-      const normalizedName = normalizePlayerName(playerName);
-      if (!normalizedName) return callback?.({ error: 'Nome inválido. Use de 1 a 20 caracteres.' });
-      const options = normalizeRoomOptions(typeof optionsOrCallback === 'function' ? null : optionsOrCallback);
-      if (options === null) return callback?.({ error: 'Opções da sala inválidas.' });
-      if (!requireAuth(socket, callback)) return;
-      if (findRoomByUid(socket.user.uid)) return callback?.({ error: 'Você já está em uma partida.' });
-      if (rooms.size >= MAX_ROOMS) return callback?.({ error: 'Máximo de salas atingido.' });
-      let code = generateRoomCode();
-      while (rooms.has(code)) code = generateRoomCode();
+      if (rooms.size >= MAX_ROOMS) return callback?.({ error: 'Limite de salas atingido.' });
+      let code;
+      do { code = generateRoomCode(); } while (rooms.has(code));
       const room = {
-        players: [{ id: socket.id, uid: socket.user.uid, name: normalizedName, isBot: false, online: true, pendingReplace: false }],
-        game: null,
-        countdownInterval: null,
-        pendingJoin: [],
-        offlineTimers: new Map(),
         code,
         status: 'waiting',
-        isPublic: options.visibility !== 'private',
-        fillWithBots: options.fillWithBots !== false
+        visibility: options.visibility || 'public',
+        players: [{ id: socket.id, uid: socket.user.uid, name: playerName, isBot: false, online: true, pendingReplace: false }],
+        game: null,
+        offlineTimers: new Map(),
+        pendingJoins: new Map(),
+        countdownInterval: null
       };
       rooms.set(code, room);
       socket.join(code);
-      callback?.({ roomCode: code, isPublic: room.isPublic, fillWithBots: room.fillWithBots, players: room.players.map(p => ({ name: p.name, isBot: false, online: true })) });
+      callback?.({ ok: true, roomCode: code });
+      emitPlayerStatus(room, io);
       broadcastRooms(io);
-      if (room.fillWithBots) {
-        let count = BOT_WAIT_SECONDS;
-        io.to(code).emit('lobbyCountdown', { count });
-        room.countdownInterval = setInterval(() => {
-          count--;
-          io.to(code).emit('lobbyCountdown', { count });
-          if (count <= 0) {
-            clearInterval(room.countdownInterval);
-            room.countdownInterval = null;
-            fillWithBotsAndStart(code, io);
-          }
-        }, 1000);
-      }
+      if (options.fillWithBots === true) scheduleBotFill(room, io);
     });
 
-    socket.on('joinRoom', (payload, callback) => {
-      if (!requireRateLimit(socket, 'joinRoom', callback)) return;
-      if (!requireAuth(socket, callback)) return;
-      if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return callback?.({ error: 'Dados da sala inválidos.' });
-      const roomCode = normalizeRoomCode(payload.roomCode);
+    socket.on('joinRoom', (payload = {}, callback) => {
+      if (!requireRateLimit(socket, 'joinRoom', callback) || !requireAuth(socket, callback)) return;
       const playerName = normalizePlayerName(payload.playerName);
-      if (!roomCode) return callback?.({ error: 'Código da sala inválido.' });
-      if (!playerName) return callback?.({ error: 'Nome inválido. Use de 1 a 20 caracteres.' });
+      const code = normalizeRoomCode(payload.roomCode);
+      if (!playerName || !code) return callback?.({ error: 'Dados de entrada inválidos.' });
       if (findRoomByUid(socket.user.uid)) return callback?.({ error: 'Você já está em uma partida.' });
-      const room = rooms.get(roomCode);
-      if (!room) return callback?.({ error: 'Sala não encontrada' });
-      if (room.pendingJoin?.some(join => join.uid === socket.user.uid)) return callback?.({ error: 'Você já solicitou entrada nesta partida.' });
-      if (room.status === 'waiting' && room.players.length >= 4) return callback?.({ error: 'Sala cheia' });
-      if (room.status === 'playing') {
-        if (room.game && room.game.setWins[0] === 1 && room.game.setWins[1] === 1) return callback?.({ error: 'Partida no terceiro set, entrada não permitida.' });
-        room.pendingJoin.push({ socket, playerName, uid: socket.user.uid });
-        socket.join(roomCode);
-        callback?.({ roomCode, waiting: true });
-        return;
-      }
-      room.players.push({ id: socket.id, uid: socket.user.uid, name: playerName, isBot: false, online: true, pendingReplace: false });
-      socket.join(roomCode);
-      callback?.({ roomCode, players: room.players.map(p => ({ name: p.name, isBot: p.isBot, online: p.online })) });
-      broadcastRooms(io);
-      if (room.players.length === 4) {
-        if (room.countdownInterval) { clearInterval(room.countdownInterval); room.countdownInterval = null; }
-        fillWithBotsAndStart(roomCode, io);
-      }
+      const room = rooms.get(code);
+      if (!room || room.status !== 'waiting') return callback?.({ error: 'Sala não encontrada ou partida já iniciada.' });
+      if (room.players.length >= 4) return callback?.({ error: 'Sala cheia.' });
+      if (room.pendingJoins.has(socket.user.uid)) return callback?.({ error: 'Entrada já solicitada.' });
+      const player = { id: socket.id, uid: socket.user.uid, name: playerName, isBot: false, online: true, pendingReplace: false };
+      room.pendingJoins.set(socket.user.uid, { socket, player });
+      callback?.({ ok: true, pending: true });
+      processPendingJoins(room, io);
     });
 
-    socket.on('playCard', (card) => {
-      if (!requireRateLimit(socket, 'playCard')) return;
-      if (!requireAuth(socket)) return;
-      const room = findRoomBySocket(socket.id);
-      if (!room || !room.game) return;
-      const playerIndex = room.players.findIndex(p => p.id === socket.id);
-      if (playerIndex === -1) return;
-      updateActivity(room, socket.id, io);
-      room.game.playCard(playerIndex, card);
-      checkBotTurn(room, io);
+    socket.on('randomMatch', (payload = {}, callback) => {
+      if (!requireRateLimit(socket, 'randomMatch', callback) || !requireAuth(socket, callback)) return;
+      const playerName = normalizePlayerName(payload.playerName);
+      if (!playerName) return callback?.({ error: 'Nome inválido.' });
+      if (findRoomByUid(socket.user.uid)) return callback?.({ error: 'Você já está em uma partida.' });
+      const candidates = Array.from(rooms.values()).filter(room => room.visibility !== 'private' && room.status === 'waiting' && room.players.length < 4);
+      if (!candidates.length) return callback?.({ error: 'Nenhuma sala disponível.' });
+      const room = candidates[Math.floor(Math.random() * candidates.length)];
+      room.pendingJoins.set(socket.user.uid, { socket, player: { id: socket.id, uid: socket.user.uid, name: playerName, isBot: false, online: true, pendingReplace: false } });
+      callback?.({ ok: true, pending: true });
+      processPendingJoins(room, io);
     });
 
-    socket.on('callBet', (betType) => {
-      if (!requireRateLimit(socket, 'callBet')) return;
-      if (!requireAuth(socket)) return;
+    socket.on('playCard', (card, callback) => {
+      if (!requireRateLimit(socket, 'playCard', callback) || !requireAuth(socket, callback)) return;
       const room = findRoomBySocket(socket.id);
-      if (!room || !room.game) return;
+      if (!room?.game) return callback?.({ error: 'Partida não encontrada.' });
       const playerIndex = room.players.findIndex(p => p.id === socket.id);
-      if (playerIndex === -1) return;
-      updateActivity(room, socket.id, io);
-      room.game.callBet(playerIndex, betType);
-      checkBotResponse(room, io);
-    });
-
-    socket.on('respondBet', (action) => {
-      if (!requireRateLimit(socket, 'respondBet')) return;
-      if (!requireAuth(socket)) return;
-      const room = findRoomBySocket(socket.id);
-      if (!room || !room.game) return;
-      const playerIndex = room.players.findIndex(p => p.id === socket.id);
-      if (playerIndex === -1) return;
-      updateActivity(room, socket.id, io);
-      room.game.respondBet(playerIndex, action);
+      if (playerIndex < 0 || room.players[playerIndex].isBot) return callback?.({ error: 'Jogador inválido.' });
+      if (!card || typeof card !== 'object' || !['ouros','espadas','copas','paus'].includes(card.suit) || !['4','5','6','7','Q','J','K','A','2','3'].includes(card.rank)) return callback?.({ error: 'Carta inválida.' });
+      try { room.game.playCard(playerIndex, card); callback?.({ ok: true }); } catch (error) { callback?.({ error: error.message }); }
       checkBotResponse(room, io);
       checkBotTurn(room, io);
     });
 
-    socket.on('respondMaoDe11', (action) => {
-      if (!requireRateLimit(socket, 'respondMaoDe11')) return;
-      if (!requireAuth(socket)) return;
+    socket.on('callBet', (type, callback) => {
+      if (!requireRateLimit(socket, 'callBet', callback) || !requireAuth(socket, callback)) return;
       const room = findRoomBySocket(socket.id);
-      if (!room || !room.game) return;
+      if (!room?.game) return callback?.({ error: 'Partida não encontrada.' });
       const playerIndex = room.players.findIndex(p => p.id === socket.id);
-      if (playerIndex === -1) return;
-      updateActivity(room, socket.id, io);
-      const handled = room.game.respondMaoDe11(playerIndex, action);
-      if (handled) {
-        checkBotTurn(room, io);
-        checkBotResponse(room, io);
-      }
+      if (playerIndex < 0 || room.players[playerIndex].isBot || !['truco','retruco','valenove','valedoze'].includes(type)) return callback?.({ error: 'Aposta inválida.' });
+      try { room.game.callBet(playerIndex, type); callback?.({ ok: true }); } catch (error) { callback?.({ error: error.message }); }
+      checkBotResponse(room, io);
     });
 
-    socket.on('fleeHand', () => {
-      if (!requireRateLimit(socket, 'fleeHand')) return;
-      if (!requireAuth(socket)) return;
+    socket.on('respondBet', (response, callback) => {
+      if (!requireRateLimit(socket, 'respondBet', callback) || !requireAuth(socket, callback)) return;
       const room = findRoomBySocket(socket.id);
-      if (!room || !room.game) return;
+      if (!room?.game) return callback?.({ error: 'Partida não encontrada.' });
       const playerIndex = room.players.findIndex(p => p.id === socket.id);
-      if (playerIndex === -1) return;
-      updateActivity(room, socket.id, io);
-      room.game.fleeHand(playerIndex);
+      if (playerIndex < 0 || room.players[playerIndex].isBot || !['accept','flee','retruco','valenove','valedoze'].includes(response)) return callback?.({ error: 'Resposta inválida.' });
+      try { room.game.respondBet(playerIndex, response); callback?.({ ok: true }); } catch (error) { callback?.({ error: error.message }); }
+      checkBotResponse(room, io);
+      checkBotTurn(room, io);
+    });
+
+    socket.on('respondMaoDe11', (response, callback) => {
+      if (!requireRateLimit(socket, 'respondMaoDe11', callback) || !requireAuth(socket, callback)) return;
+      const room = findRoomBySocket(socket.id);
+      if (!room?.game) return callback?.({ error: 'Partida não encontrada.' });
+      const playerIndex = room.players.findIndex(p => p.id === socket.id);
+      if (playerIndex < 0 || room.players[playerIndex].isBot || !['play','flee'].includes(response)) return callback?.({ error: 'Resposta inválida.' });
+      try { room.game.respondMaoDe11(playerIndex, response); callback?.({ ok: true }); } catch (error) { callback?.({ error: error.message }); }
+      checkBotResponse(room, io);
+      checkBotTurn(room, io);
+    });
+
+    socket.on('fleeHand', (callback) => {
+      if (!requireRateLimit(socket, 'fleeHand', callback) || !requireAuth(socket, callback)) return;
+      const room = findRoomBySocket(socket.id);
+      if (!room?.game) return callback?.({ error: 'Partida não encontrada.' });
+      const playerIndex = room.players.findIndex(p => p.id === socket.id);
+      if (playerIndex < 0 || room.players[playerIndex].isBot) return callback?.({ error: 'Jogador inválido.' });
+      try { room.game.fleeHand(playerIndex); callback?.({ ok: true }); } catch (error) { callback?.({ error: error.message }); }
+      checkBotResponse(room, io);
+      checkBotTurn(room, io);
     });
 
     socket.on('disconnect', () => {
-      if (socket.banUnsubscribe) {
-        socket.banUnsubscribe();
-        socket.banUnsubscribe = null;
-      }
-      if (socket.rateLimits) socket.rateLimits.clear();
+      if (typeof socket.banUnsubscribe === 'function') { socket.banUnsubscribe(); socket.banUnsubscribe = null; }
+      socket.rateLimits?.clear();
       const room = findRoomBySocket(socket.id);
       if (!room) return;
-      const player = room.players.find(p => p.id === socket.id);
-      if (player && !player.isBot) {
-        player.online = false;
+      const playerIndex = room.players.findIndex(p => p.id === socket.id);
+      if (playerIndex === -1) return;
+      const player = room.players[playerIndex];
+      if (room.pendingJoins?.has(player.uid)) room.pendingJoins.delete(player.uid);
+      if (room.status === 'waiting') {
+        room.players.splice(playerIndex, 1);
+        socket.leave(room.code);
+        if (room.players.length === 0) { if (room.countdownInterval) clearInterval(room.countdownInterval); rooms.delete(room.code); }
         emitPlayerStatus(room, io);
-        if (room.game && room.game.currentPlayer === room.players.indexOf(player) && room.game.turnStage === 'play') room.game.scheduleOfflineTurn();
-        if (room.game && room.game.turnStage === 'mao11Decision') room.game.scheduleMaoDe11Decision();
+        broadcastRooms(io);
+        return;
+      }
+      if (room.status === 'playing') {
+        player.online = false;
+        player.pendingReplace = true;
+        emitPlayerStatus(room, io);
         const timer = setTimeout(() => {
-          if (room.players.includes(player)) player.pendingReplace = true;
+          if (!rooms.has(room.code)) return;
+          const current = room.players[playerIndex];
+          if (current?.id === socket.id && !current.online && current.pendingReplace) {
+            const bot = createBot(playerIndex);
+            bot.online = true;
+            room.players[playerIndex] = bot;
+            current.pendingReplace = false;
+            emitPlayerStatus(room, io);
+            checkBotResponse(room, io);
+            checkBotTurn(room, io);
+          }
         }, OFFLINE_TIMEOUT);
         room.offlineTimers.set(socket.id, timer);
-        broadcastRooms(io);
+        setTimeout(() => { if (!room.players.some(p => !p.isBot && p.online)) { io.to(room.code).emit('matchOver', { reason: 'all_offline' }); rooms.delete(room.code); } }, OFFLINE_TIMEOUT);
       }
     });
   });
 }
 
-function updateActivity(room, socketId, io) {
-  const timer = room.offlineTimers.get(socketId);
-  if (timer) {
-    clearTimeout(timer);
-    room.offlineTimers.delete(socketId);
-  }
-  const player = room.players.find(p => p.id === socketId);
-  if (player && !player.online) {
-    player.online = true;
-    player.pendingReplace = false;
-    emitPlayerStatus(room, io);
-  }
-}
-
-function fillWithBotsAndStart(code, io) {
-  const room = rooms.get(code);
-  if (!room || room.status !== 'waiting') return;
-  const needed = 4 - room.players.length;
-  for (let i = 0; i < needed; i++) {
-    const bot = createBot(room.players.length);
-    bot.online = true;
-    room.players.push(bot);
-  }
-  room.status = 'playing';
-  broadcastRooms(io);
-  startGame(room, io);
-}
-
-function startGame(room, io) {
-  const emit = (event, data, target) => {
-    if (target === 'all') io.to(room.code).emit(event, data);
-    else if (!room.players.find(p => p.id === target)?.isBot) io.to(target).emit(event, data);
-  };
-  room.game = new Game4P(room.code, room.players, emit, () => { rooms.delete(room.code); broadcastRooms(io); }, () => processPendingJoins(room, io));
-  room.game.checkBotTurn = () => checkBotTurn(room, io);
-  room.game.startGame();
-  setTimeout(() => checkBotTurn(room, io), 100);
-  emitPlayerStatus(room, io);
-}
-
-function processPendingJoins(room, io) {
-  while (room.pendingJoin.length > 0) {
-    const botIndex = room.players.findIndex(p => p.isBot);
-    if (botIndex === -1) break;
-    const { socket, playerName, uid } = room.pendingJoin.shift();
-    if (!socket || !socket.connected || !uid || findRoomByUid(uid)) continue;
-    room.players[botIndex] = { id: socket.id, uid, name: playerName, isBot: false, online: true, pendingReplace: false };
-    socket.join(room.code);
-    sendCurrentGameState(room, socket, botIndex);
-  }
-  for (let i = 0; i < room.players.length; i++) {
-    const p = room.players[i];
-    if (!p.isBot && p.pendingReplace) {
-      const bot = createBot(i);
-      bot.online = true;
-      room.players[i] = bot;
-    }
-  }
-  emitPlayerStatus(room, io);
-  checkAllHumansGone(room, io);
-}
-
-function checkAllHumansGone(room, io) {
-  const humansLeft = room.players.some(p => !p.isBot && p.online);
-  if (!humansLeft) {
-    io.to(room.code).emit('matchOver', { winnerTeam: -1, setWins: [0,0], message: 'Todos os jogadores saíram.' });
-    rooms.delete(room.code);
-    broadcastRooms(io);
-  }
+function findRoomBySocket(socketId) {
+  for (const room of rooms.values()) if (room.players.some(player => player.id === socketId)) return room;
+  return null;
 }
 
 function emitPlayerStatus(room, io) {
-  io.to(room.code).emit('playerStatusUpdate', room.players.map(p => ({ name: p.name, isBot: p.isBot, online: p.online })));
+  io.to(room.code).emit('playerStatus', room.players.map(p => ({ name: p.name, isBot: p.isBot, online: p.online })));
 }
 
 function buildBotContext(room, playerIndex) {
   const game = room.game;
-  const player = room.players[playerIndex] || {};
   return {
-    playerIndex,
-    currentPlayer: game.currentPlayer,
-    playerName: player.name,
     hand: game.hands[playerIndex] || [],
     vira: game.vira,
-    currentRound: game.currentRound,
-    roundCards: game.roundCards,
-    roundWins: game.roundWins,
     handValue: game.handValue,
+    maoDe11: game.maoDe11,
+    playerIndex,
     scores: game.scores,
     setWins: game.setWins,
-    maoDe11: game.maoDe11,
-    maoDe11Team: game.maoDe11Team,
-    maoDe11DecisionMade: game.maoDe11DecisionMade,
+    roundWins: game.roundWins,
+    currentRound: game.currentRound,
+    roundCards: game.roundCards,
     turnStage: game.turnStage,
     betState: game.betState,
-    style: player.style,
-    players: room.players.map(p => ({ name: p.name, isBot: p.isBot, online: p.online }))
+    style: room.players[playerIndex]?.style
   };
 }
 
+function chooseBotBet(room, playerIndex) {
+  const context = buildBotContext(room, playerIndex);
+  const { hand, vira, handValue, maoDe11 } = context;
+  if (maoDe11) return null;
+  return shouldCallBet(hand, vira.rank, handValue, maoDe11, context);
+}
+
 function checkBotTurn(room, io) {
-  if (!room || !room.game) return;
-  const game = room.game;
-  if (game.turnStage !== 'play') return;
-  const playerIndex = game.currentPlayer;
+  if (!room.game || room.game.turnStage !== 'play') return;
+  const playerIndex = room.game.currentPlayer;
   const player = room.players[playerIndex];
   if (!player?.isBot) return;
-  setTimeout(() => {
-    if (!room.game || room.status !== 'playing') return;
-    if (room.game.turnStage !== 'play' || room.game.currentPlayer !== playerIndex) return;
+  if (room.game.botTurnTimer) return;
+  room.game.botTurnTimer = setTimeout(() => {
+    room.game.botTurnTimer = null;
+    if (!rooms.has(room.code) || room.game.turnStage !== 'play' || room.game.currentPlayer !== playerIndex) return;
     const context = buildBotContext(room, playerIndex);
-    const viraRank = context.vira?.rank;
-    const bet = shouldCallBet(context.hand, viraRank, context.handValue, context.maoDe11, context);
-    if (bet) {
-      if (room.game.callBet(playerIndex, bet)) {
-        checkBotResponse(room, io);
-        return;
-      }
-    }
-    const card = chooseCard(context.hand, viraRank, context);
+    const card = chooseCard(context.hand, context.vira.rank, context);
     if (!card) return;
-    room.game.playCard(playerIndex, card);
+    try { room.game.playCard(playerIndex, card); } catch (error) { console.error('[bot] Erro ao jogar carta:', error.message); }
     checkBotResponse(room, io);
     checkBotTurn(room, io);
-  }, 700);
+  }, 900);
 }
 
 function checkBotResponse(room, io) {
-  if (!room || !room.game || room.game.turnStage !== 'respond' || !room.game.betState) return;
+  if (!room.game) return;
+  if (room.game.turnStage === 'mao11Decision') {
+    const team = room.game.maoDe11Team;
+    const playerIndex = room.players.findIndex((p, index) => p.isBot && index % 2 === team);
+    if (playerIndex !== -1) {
+      if (room.game.botDecisionTimer) return;
+      room.game.botDecisionTimer = setTimeout(() => {
+        room.game.botDecisionTimer = null;
+        if (!rooms.has(room.code) || room.game.turnStage !== 'mao11Decision') return;
+        try { room.game.respondMaoDe11(playerIndex, 'play'); } catch (error) { console.error('[bot] Erro na decisão da mão de 11:', error.message); }
+        checkBotResponse(room, io);
+        checkBotTurn(room, io);
+      }, 700);
+    }
+    return;
+  }
+  if (room.game.turnStage !== 'respond' || !room.game.betState) return;
   const responderTeam = room.game.betState.responderTeam;
-  const responderIndex = room.players.findIndex(p => p.isBot && p.team === responderTeam);
-  if (responderIndex === -1) return;
-  setTimeout(() => {
-    if (!room.game || room.status !== 'playing') return;
-    if (room.game.turnStage !== 'respond' || room.game.betState?.responderTeam !== responderTeam) return;
-    const context = buildBotContext(room, responderIndex);
-    const viraRank = context.vira?.rank;
-    const action = respondBet(context.hand, viraRank, context.betState.level, context);
-    room.game.respondBet(responderIndex, action);
-    checkBotTurn(room, io);
+  const playerIndex = room.players.findIndex((p, index) => p.isBot && index % 2 === responderTeam);
+  if (playerIndex === -1) return;
+  if (room.game.botResponseTimer) return;
+  room.game.botResponseTimer = setTimeout(() => {
+    room.game.botResponseTimer = null;
+    if (!rooms.has(room.code) || room.game.turnStage !== 'respond' || !room.game.betState) return;
+    const context = buildBotContext(room, playerIndex);
+    const response = respondBet(context.hand, context.vira.rank, room.game.betState.level, context);
+    try { room.game.respondBet(playerIndex, response); } catch (error) { console.error('[bot] Erro ao responder aposta:', error.message); }
     checkBotResponse(room, io);
+    checkBotTurn(room, io);
   }, 700);
 }
 
-module.exports = { handleSocket };
+function processPendingJoins(room, io) {
+  if (!rooms.has(room.code) || room.status !== 'waiting') return;
+  for (const [uid, pending] of room.pendingJoins) {
+    if (!pending?.socket?.connected || !pending.socket.user || pending.socket.user.uid !== uid) {
+      room.pendingJoins.delete(uid);
+      continue;
+    }
+    if (room.players.length >= 4) break;
+    if (room.players.some(player => player.uid === uid && !player.isBot)) {
+      room.pendingJoins.delete(uid);
+      continue;
+    }
+    room.players.push(pending.player);
+    room.pendingJoins.delete(uid);
+    pending.socket.join(room.code);
+    pending.socket.emit('roomJoined', { roomCode: room.code, player: room.players.length - 1 });
+    emitPlayerStatus(room, io);
+    broadcastRooms(io);
+    if (room.players.length === 4) startGame(room, io);
+  }
+}
+
+function scheduleBotFill(room, io) {
+  if (room.status !== 'waiting') return;
+  const startedAt = Date.now();
+  room.botFillTimer = setTimeout(() => {
+    if (!rooms.has(room.code) || room.status !== 'waiting') return;
+    while (room.players.length < 4) {
+      const bot = createBot(room.players.length);
+      bot.online = true;
+      room.players.push(bot);
+    }
+    emitPlayerStatus(room, io);
+    broadcastRooms(io);
+    startGame(room, io);
+  }, BOT_WAIT_SECONDS * 1000);
+  room.botFillStartedAt = startedAt;
+}
+
+function startGame(room, io) {
+  if (room.status === 'playing') return;
+  if (room.players.length !== 4) return;
+  if (room.countdownInterval) { clearInterval(room.countdownInterval); room.countdownInterval = null; }
+  if (room.botFillTimer) { clearTimeout(room.botFillTimer); room.botFillTimer = null; }
+  room.status = 'playing';
+  room.game = new Game4P(room.players, {
+    onStateChange: () => {
+      io.to(room.code).emit('gameState', room.game.getPublicState());
+      checkBotResponse(room, io);
+      checkBotTurn(room, io);
+    },
+    onGameEnd: (result) => {
+      io.to(room.code).emit('gameEnd', result);
+      updatePlayerStats(room, result).catch(error => console.error('[stats] Erro ao atualizar estatísticas:', error.message));
+      rooms.delete(room.code);
+      broadcastRooms(io);
+    }
+  });
+  room.game.start();
+  emitPlayerStatus(room, io);
+  broadcastRooms(io);
+}
+
+async function updatePlayerStats(room, result) {
+  if (!result?.winner || !Array.isArray(room.players)) return;
+  const batch = db.batch();
+  for (const player of room.players) {
+    if (!player.uid || player.isBot) continue;
+    const ref = db.collection('players').doc(player.uid);
+    const isWinner = player.team === result.winner;
+    batch.set(ref, {
+      wins: admin.firestore.FieldValue.increment(isWinner ? 1 : 0),
+      losses: admin.firestore.FieldValue.increment(isWinner ? 0 : 1)
+    }, { merge: true });
+  }
+  await batch.commit();
+}
+
+module.exports = { handleSocket, rooms };
