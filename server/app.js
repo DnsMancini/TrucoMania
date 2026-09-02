@@ -11,7 +11,6 @@ const app = express();
 app.use(express.json());
 const server = http.createServer(app);
 
-// CORS para Socket.IO - usar URL específica em produção
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:3000';
 const io = new Server(server, {
   cors: {
@@ -40,8 +39,6 @@ app.get('/config.js', (_req, res) => {
 
 app.use('/admin', adminRoutes);
 
-// A autenticação do Firebase acontece no navegador. O script abaixo conecta
-// a sessão Firebase ao socket já criado pelo game.js, sem alterar o fluxo visual.
 app.get('/', (_req, res) => {
   const indexPath = path.join(__dirname, '..', 'client', 'index.html');
   let html = fs.readFileSync(indexPath, 'utf8');
@@ -54,14 +51,12 @@ app.get('/', (_req, res) => {
 
   const authenticateSocket = async (user) => {
     if (!user || typeof socket === 'undefined') return false;
-
     if (socketAuthenticated) return true;
     if (authenticationInProgress) return authenticationInProgress;
 
     authenticationInProgress = (async () => {
       try {
         const token = await user.getIdToken();
-
         if (!socket.connected) {
           socket.connect();
           await new Promise((resolve) => {
@@ -78,7 +73,6 @@ app.get('/', (_req, res) => {
               resolve(true);
               return;
             }
-
             socketAuthenticated = false;
             console.error('[socket-auth] Falha ao autenticar:', result?.error || 'Erro desconhecido');
             resolve(false);
@@ -148,13 +142,12 @@ app.get('/', (_req, res) => {
         if (result?.error) return alert(result.error);
         currentGameCode = result.roomCode;
         if (result.isPublic === false) {
-          alert(\`Sala privada criada!\\nCódigo: ${result.roomCode}\\nCompartilhe este código com quem você quiser convidar.\`);
+          alert('Sala privada criada!\\nCódigo: ' + result.roomCode + '\\nCompartilhe este código com quem você quiser convidar.');
         }
         enterWaitingRoom(result);
       });
     };
 
-    // Se alguma integração substituir o botão depois, manter a referência do fluxo original.
     createButton.dataset.originalCreateHandler = originalCreateOnClick ? 'preserved' : 'none';
 
     const joinCodeButton = document.getElementById('joinCodeBtn');
@@ -218,10 +211,7 @@ app.get('/', (_req, res) => {
 
     socket.emit = (...args) => {
       const eventName = args[0];
-
-      if (!protectedEvents.has(eventName)) {
-        return originalEmit(...args);
-      }
+      if (!protectedEvents.has(eventName)) return originalEmit(...args);
 
       const user = auth.currentUser;
       if (!user) {
@@ -231,13 +221,11 @@ app.get('/', (_req, res) => {
       }
 
       const callback = typeof args[args.length - 1] === 'function' ? args.pop() : null;
-
       authenticateSocket(user).then((authenticated) => {
         if (!authenticated) {
           if (callback) callback({ error: 'Não autenticado' });
           return;
         }
-
         if (callback) args.push(callback);
         originalEmit(...args);
       });
@@ -245,18 +233,9 @@ app.get('/', (_req, res) => {
       return socket;
     };
 
-    socket.on('authenticated', () => {
-      socketAuthenticated = true;
-    });
-
-    socket.on('authError', () => {
-      socketAuthenticated = false;
-    });
-
-    socket.on('disconnect', () => {
-      socketAuthenticated = false;
-    });
-
+    socket.on('authenticated', () => { socketAuthenticated = true; });
+    socket.on('authError', () => { socketAuthenticated = false; });
+    socket.on('disconnect', () => { socketAuthenticated = false; });
     socket.on('connect', () => {
       socketAuthenticated = false;
       if (auth.currentUser) authenticateSocket(auth.currentUser);
@@ -271,8 +250,6 @@ app.get('/', (_req, res) => {
       }
     });
 
-    // game.js já carregou neste ponto, então podemos adicionar os controles sem
-    // modificar o código existente do cliente nem o motor da partida.
     setupLobbyRoomControls();
   };
 
@@ -284,7 +261,6 @@ app.get('/', (_req, res) => {
   res.type('html').send(html);
 });
 
-// Servir arquivos do front-end
 app.use(express.static(path.join(__dirname, '..', 'client')));
 
 handleSocket(io);
