@@ -25,6 +25,34 @@ function shuffle(deck) {
   }
 }
 
+function isValidPlayerIndex(playerIndex) {
+  return Number.isInteger(playerIndex) && playerIndex >= 0 && playerIndex < NUM_PLAYERS;
+}
+
+function isValidCard(card) {
+  return Boolean(
+    card &&
+    typeof card === 'object' &&
+    !Array.isArray(card) &&
+    typeof card.suit === 'string' &&
+    SUITS.includes(card.suit) &&
+    typeof card.rank === 'string' &&
+    RANKS.includes(card.rank)
+  );
+}
+
+function isValidBetType(betType) {
+  return typeof betType === 'string' && Object.prototype.hasOwnProperty.call(BET_VALUES, betType);
+}
+
+function isValidBetAction(action) {
+  return typeof action === 'string' && ['flee', 'accept', 'retruco', 'valenove', 'valedoze'].includes(action);
+}
+
+function isValidMaoDe11Action(action) {
+  return action === 'play' || action === 'flee';
+}
+
 class Game4P {
   constructor(roomId, players, emit, onMatchOver = null, onBeforeNewHand = null) {
     this.roomId = roomId;
@@ -143,6 +171,7 @@ class Game4P {
   }
 
   playCard(playerIndex, card) {
+    if (!isValidPlayerIndex(playerIndex) || !isValidCard(card)) return false;
     if (this.turnStage !== 'play' || playerIndex !== this.currentPlayer) return false;
 
     const hand = this.hands[playerIndex];
@@ -284,10 +313,10 @@ class Game4P {
   }
 
   respondMaoDe11(playerIndex, action) {
+    if (!isValidPlayerIndex(playerIndex) || !isValidMaoDe11Action(action)) return false;
     if (this.turnStage !== 'mao11Decision' || !this.maoDe11) return false;
     if (this.maoDe11DecisionMade) return false;
     if (playerIndex % 2 !== this.maoDe11Team) return false;
-    if (action !== 'play' && action !== 'flee') return false;
 
     this.maoDe11DecisionMade = true;
 
@@ -352,6 +381,7 @@ class Game4P {
   }
 
   fleeHand(playerIndex) {
+    if (!isValidPlayerIndex(playerIndex)) return false;
     if (this.turnStage !== 'play') return false;
     if (this.maoDe11 || this.maoDeFerro) return false;
     if (playerIndex !== this.currentPlayer) return false;
@@ -374,10 +404,10 @@ class Game4P {
   }
 
   callBet(playerIndex, betType) {
+    if (!isValidPlayerIndex(playerIndex) || !isValidBetType(betType)) return false;
     if (this.maoDe11 || this.maoDeFerro) return false;
     if (this.turnStage !== 'play' || playerIndex !== this.currentPlayer) return false;
     if (this.betState) return false;
-    if (!(betType in BET_VALUES)) return false;
     if (betType === 'truco' && this.handValue >= 3) return false;
     if (betType === 'retruco' && this.handValue >= 6) return false;
     if (betType === 'valenove' && this.handValue >= 9) return false;
@@ -414,16 +444,13 @@ class Game4P {
   }
 
   respondBet(playerIndex, action) {
+    if (!isValidPlayerIndex(playerIndex) || !isValidBetAction(action)) return false;
     if (this.turnStage !== 'respond' || !this.betState) return false;
 
     const responderTeam = this.betState.responderTeam;
     if (playerIndex % 2 !== responderTeam) return false;
 
     const { challenger, level } = this.betState;
-
-    if (action !== 'flee' && action !== 'accept' && action !== 'retruco' && action !== 'valenove' && action !== 'valedoze') {
-      return false;
-    }
 
     if (this.offlineActionTimer) {
       clearTimeout(this.offlineActionTimer);
