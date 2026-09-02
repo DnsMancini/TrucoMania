@@ -10,10 +10,17 @@ const COLLECTIONS = {
   auditLogs: 'audit_logs',
   matches: 'matches'
 };
+const MAX_BALANCE_ADJUSTMENT = 1000000;
 
 function parseNumber(value, fallback = 0) {
   const n = Number(value);
   return Number.isFinite(n) ? n : fallback;
+}
+
+function parsePositiveAdjustment(value) {
+  const n = Number(value);
+  if (!Number.isSafeInteger(n) || n <= 0 || n > MAX_BALANCE_ADJUSTMENT) return null;
+  return n;
 }
 
 async function writeAuditLog({ adminUid, action, targetUid, before, after, reason }) {
@@ -23,7 +30,7 @@ async function writeAuditLog({ adminUid, action, targetUid, before, after, reaso
     targetUid,
     before: before || null,
     after: after || null,
-    reason: reason || null,
+    reason: typeof reason === 'string' ? reason.trim().slice(0, 500) || null : null,
     createdAt: admin.firestore.FieldValue.serverTimestamp()
   });
 }
@@ -150,7 +157,7 @@ router.get('/dashboard', async (_req, res) => {
 
 router.get('/users', async (req, res) => {
   try {
-    const q = (req.query.q || '').toString().trim().toLowerCase();
+    const q = (req.query.q || '').toString().trim().toLowerCase().slice(0, 100);
     const snap = await db.collection(COLLECTIONS.players).limit(500).get();
     let users = snap.docs.map((doc) => ({ uid: doc.id, ...doc.data() }));
 
@@ -172,7 +179,9 @@ router.get('/users', async (req, res) => {
 
 router.get('/user/:uid', async (req, res) => {
   try {
-    const doc = await db.collection(COLLECTIONS.players).doc(req.params.uid).get();
+    const uid = typeof req.params.uid === 'string' ? req.params.uid.trim() : '';
+    if (!uid || uid.length > 128) return res.status(400).json({ error: 'UID inválido.' });
+    const doc = await db.collection(COLLECTIONS.players).doc(uid).get();
     if (!doc.exists) return res.status(404).json({ error: 'Usuário não encontrado.' });
     res.json({ user: { uid: doc.id, ...doc.data() } });
   } catch (error) {
@@ -182,25 +191,30 @@ router.get('/user/:uid', async (req, res) => {
 });
 
 async function adjustBalance(req, res, signal) {
-  const { uid, amount, reason } = req.body;
-  const delta = parseNumber(amount);
-  if (!uid || delta <= 0) return res.status(400).json({ error: 'uid/amount inválidos.' });
+  const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+  const { uid, amount, reason } = body;
+  const delta = parsePositiveAdjustment(amount);
+  if (typeof uid !== 'string' || uid.trim().length === 0 || uid.trim().length > 128 || delta === null) {
+    return res.status(400).json({ error: 'uid/amount inválidos.' });
+  }
 
   try {
-    const ref = db.collection(COLLECTIONS.players).doc(uid);
+    const targetUid = uid.trim();
+    const ref = db.collection(COLLECTIONS.players).doc(targetUid);
     const result = await db.runTransaction(async (tx) => {
       const snap = await tx.get(ref);
       if (!snap.exists) throw new Error('user_not_found');
       const user = snap.data();
-      const before = parseNumber(user.coins);
+      const before = Number.isSafeInteger(Number(user.coins)) && Number(user.coins) >= 0 ? Number(user.coins) : 0;
       const after = signal === 1 ? before + delta : Math.max(0, before - delta);
+      if (!Number.isSafeInteger(after)) throw new Error('balance_overflow');
 
       tx.update(ref, { coins: after, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
       return { before, after, user };
     });
 
     await writeTransaction({
-      uid,
+      uid: targetUid,
       type: signal === 1 ? 'admin_adjust_add' : 'admin_adjust_remove',
       amount: signal === 1 ? delta : -delta,
       balanceBefore: result.before,
@@ -210,7 +224,7 @@ async function adjustBalance(req, res, signal) {
     await writeAuditLog({
       adminUid: req.adminUser.uid,
       action: signal === 1 ? 'add_coins' : 'remove_coins',
-      targetUid: uid,
+      targetUid,
       before: { coins: result.before },
       after: { coins: result.after },
       reason
@@ -219,6 +233,7 @@ async function adjustBalance(req, res, signal) {
     res.json({ ok: true, before: result.before, after: result.after });
   } catch (error) {
     if (error.message === 'user_not_found') return res.status(404).json({ error: 'Usuário não encontrado.' });
+    if (error.message === 'balance_overflow') return res.status(400).json({ error: 'Saldo excederia o limite seguro.' });
     console.error('[admin] Erro ajuste saldo:', error);
     res.status(500).json({ error: 'Falha ao ajustar saldo.' });
   }
@@ -228,10 +243,12 @@ router.post('/add-coins', (req, res) => adjustBalance(req, res, 1));
 router.post('/remove-coins', (req, res) => adjustBalance(req, res, -1));
 
 router.post('/ban-user', async (req, res) => {
-  const { uid, banned, reason } = req.body;
-  if (!uid || typeof banned !== 'boolean') return res.status(400).json({ error: 'uid/banned inválidos.' });
+  const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+  const { uid, banned, reason } = body;
+  if (typeof uid !== 'string' || !uid.trim() || uid.trim().length > 128 || typeof banned !== 'boolean') return res.status(400).json({ error: 'uid/banned inválidos.' });
   try {
-    const ref = db.collection(COLLECTIONS.players).doc(uid);
+    const targetUid = uid.trim();
+    const ref = db.collection(COLLECTIONS.players).doc(targetUid);
     const snap = await ref.get();
     if (!snap.exists) return res.status(404).json({ error: 'Usuário não encontrado.' });
     const before = snap.data();
@@ -240,7 +257,7 @@ router.post('/ban-user', async (req, res) => {
     await writeAuditLog({
       adminUid: req.adminUser.uid,
       action: banned ? 'ban_user' : 'unban_user',
-      targetUid: uid,
+      targetUid,
       before: { banned: before.banned || false },
       after: { banned },
       reason
