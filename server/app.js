@@ -96,6 +96,83 @@ app.get('/', (_req, res) => {
     return authenticationInProgress;
   };
 
+  const setupLobbyRoomControls = () => {
+    if (typeof socket === 'undefined') return;
+
+    const entryPanel = document.querySelector('.entry-panel');
+    const lobbyMenu = document.querySelector('.entry-panel .lobby-menu');
+    const createButton = document.getElementById('createBtn');
+    if (!entryPanel || !lobbyMenu || !createButton || document.getElementById('roomVisibility')) return;
+
+    const controls = document.createElement('div');
+    controls.className = 'room-creation-controls';
+    controls.style.cssText = 'display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;margin-top:10px;align-items:center;';
+    controls.innerHTML = `
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;">
+        <span>Tipo</span>
+        <select id="roomVisibility" class="lobby-input" style="flex:1;min-width:0;">
+          <option value="public">🌐 Pública</option>
+          <option value="private">🔒 Privada</option>
+        </select>
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;">
+        <input id="roomFillBots" type="checkbox" checked />
+        <span>Completar com bots</span>
+      </label>
+    `;
+    entryPanel.appendChild(controls);
+
+    const joinByCode = document.createElement('div');
+    joinByCode.className = 'room-code-entry';
+    joinByCode.style.cssText = 'display:flex;gap:10px;margin-top:10px;';
+    joinByCode.innerHTML = `
+      <input id="roomCodeInput" class="lobby-input" placeholder="Código da sala" maxlength="4" autocomplete="off" style="text-transform:uppercase;flex:1;" />
+      <button id="joinCodeBtn" class="lobby-button">Entrar por código</button>
+    `;
+    entryPanel.appendChild(joinByCode);
+
+    const originalCreateOnClick = createButton.onclick;
+    createButton.onclick = () => {
+      const name = nameInput.value.trim() || 'Jogador';
+      const visibility = document.getElementById('roomVisibility')?.value || 'public';
+      const fillWithBots = document.getElementById('roomFillBots')?.checked !== false;
+
+      socket.emit('createRoom', name, { visibility, fillWithBots }, (result) => {
+        if (result?.error) return alert(result.error);
+        currentGameCode = result.roomCode;
+        if (result.isPublic === false) {
+          alert(`Sala privada criada!\nCódigo: ${result.roomCode}\nCompartilhe este código com quem você quiser convidar.`);
+        }
+        enterWaitingRoom(result);
+      });
+    };
+
+    // Se alguma integração substituir o botão depois, manter a referência do fluxo original.
+    createButton.dataset.originalCreateHandler = originalCreateOnClick ? 'preserved' : 'none';
+
+    const joinCodeButton = document.getElementById('joinCodeBtn');
+    const roomCodeInput = document.getElementById('roomCodeInput');
+    const joinByCode = () => {
+      const roomCode = roomCodeInput.value.trim().toUpperCase();
+      const name = nameInput.value.trim() || 'Jogador';
+      if (!roomCode) return alert('Digite o código da sala.');
+
+      socket.emit('joinRoom', { roomCode, playerName: name }, (result) => {
+        if (result?.error) return alert(result.error);
+        currentGameCode = result.roomCode;
+        enterWaitingRoom(result);
+      });
+    };
+
+    joinCodeButton.onclick = joinByCode;
+    roomCodeInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') joinByCode();
+    });
+    roomCodeInput.addEventListener('input', () => {
+      roomCodeInput.value = roomCodeInput.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 4);
+    });
+  };
+
   const setup = () => {
     if (typeof auth === 'undefined' || typeof socket === 'undefined') return;
 
@@ -156,6 +233,10 @@ app.get('/', (_req, res) => {
         if (socket.connected) socket.disconnect();
       }
     });
+
+    // game.js já carregou neste ponto, então podemos adicionar os controles sem
+    // modificar o código existente do cliente nem o motor da partida.
+    setupLobbyRoomControls();
   };
 
   setup();
