@@ -59,6 +59,7 @@ let timeLeft = 25;
 let currentGameCode = null;
 let currentHandValue = 1; // valor da mão atual
 let myNickname = '';
+let isMaoDe11Decision = false;
 
 // Sistema de autenticação - usar nickname do auth
 document.addEventListener('user-authenticated', (e) => {
@@ -146,7 +147,6 @@ createBtn.onclick = () => {
   });
 };
 
-
 function joinRoomFromList(code) {
   const name = nameInput.value.trim() || 'Jogador';
   socket.emit('joinRoom', { roomCode: code, playerName: name }, (res) => {
@@ -178,7 +178,7 @@ socket.on('roomsUpdate', (rooms) => {
   if (!roomsListEl) return;
   roomsListEl.innerHTML = '';
   if (rooms.length === 0) {
-    roomsListEl.innerHTML = '<div class="lobby-empty">Nenhuma sala disponível no momento</div>'; 
+    roomsListEl.innerHTML = '<div class="lobby-empty">Nenhuma sala disponível no momento</div>';
     return;
   }
   rooms.forEach(room => {
@@ -210,6 +210,7 @@ socket.on('handStart', (data) => {
   myPlayerIndex = data.player;
   currentHandValue = data.handValue;
   lastBetTeam = null;
+  isMaoDe11Decision = Boolean(data.maoDe11 && data.turnStage === 'mao11Decision' && !data.maoDe11DecisionMade && data.player % 2 === data.maoDe11Team);
 
   const rotatedPlayers = rotateArrayForPlayer(data.players, myPlayerIndex);
   for (let i = 0; i < 4; i++) {
@@ -220,7 +221,6 @@ socket.on('handStart', (data) => {
 
   for (let i = 1; i <= 3; i++) {
     HAND_SLOTS[i].innerHTML = '';
-    const op = rotatedPlayers[i];
     for (let j = 0; j < 3; j++) {
       const carta = document.createElement('div');
       carta.className = 'carta virada';
@@ -232,18 +232,11 @@ socket.on('handStart', (data) => {
   teamAScoreEl.textContent = data.scores[0];
   teamBScoreEl.textContent = data.scores[1];
   infoRodadaEl.textContent = 'Rodada 1 de 3';
-  trucoStatusEl.textContent = 'Truco: Nenhum';
+  trucoStatusEl.textContent = data.maoDe11 ? 'Mão de 11' : 'Truco: Nenhum';
   isMyTurn = (data.currentPlayer === myPlayerIndex);
   posicionarSeta(data.currentPlayer);
   atualizarInfoLive();
 
-  if (isMyTurn && !aguardandoResposta) {
-    btnCorrer.classList.remove('oculto');
-    atualizarBotaoTruco();
-  } else {
-    btnTruco.classList.add('oculto');
-    btnCorrer.classList.add('oculto');
-  }
   aguardandoResposta = false;
   isRespondingToBet = false;
   currentBetLevel = null;
@@ -257,10 +250,55 @@ socket.on('handStart', (data) => {
 
   audioDistribuir.play().catch(e => {});
   clearTurnTimer();
-  if (isMyTurn && !aguardandoResposta) startTurnTimer();
+
+  if (isMaoDe11Decision) {
+    mostrarControlesMaoDe11();
+  } else if (isMyTurn) {
+    btnCorrer.classList.remove('oculto');
+    atualizarBotaoTruco();
+    startTurnTimer();
+  } else {
+    btnTruco.classList.add('oculto');
+    btnCorrer.classList.add('oculto');
+  }
+});
+
+socket.on('maoDe11Decision', ({ team }) => {
+  isMaoDe11Decision = gameActive && myPlayerIndex !== null && myPlayerIndex % 2 === team;
+  aguardandoResposta = false;
+  isRespondingToBet = false;
+  currentBetLevel = null;
+  clearTurnTimer();
+  if (isMaoDe11Decision) mostrarControlesMaoDe11();
+  else {
+    btnTruco.classList.add('oculto');
+    btnCorrer.classList.add('oculto');
+  }
+  atualizarInfoLive();
+});
+
+socket.on('maoDe11Started', ({ handValue, currentPlayer }) => {
+  isMaoDe11Decision = false;
+  currentHandValue = handValue;
+  trucoStatusEl.textContent = `Truco: ${handValue} pts`;
+  posicionarSeta(currentPlayer);
+  isMyTurn = currentPlayer === myPlayerIndex;
+  aguardandoResposta = false;
+  isRespondingToBet = false;
+  currentBetLevel = null;
+  btnCorrer.classList.remove('oculto');
+  if (isMyTurn) {
+    atualizarBotaoTruco();
+    startTurnTimer();
+  } else {
+    btnTruco.classList.add('oculto');
+    clearTurnTimer();
+  }
+  atualizarInfoLive();
 });
 
 socket.on('turn', ({ currentPlayer }) => {
+  if (isMaoDe11Decision) return;
   isMyTurn = (currentPlayer === myPlayerIndex);
   posicionarSeta(currentPlayer);
   if (!aguardandoResposta) {
@@ -293,9 +331,7 @@ socket.on('cardPlayed', ({ player, card }) => {
     const relIndex = rotatedPlayers.findIndex(p => p.id === player);
     if (relIndex > 0) {
       const handEl = HAND_SLOTS[relIndex];
-      if (handEl && handEl.children.length > 0) {
-        handEl.removeChild(handEl.lastChild);
-      }
+      if (handEl && handEl.children.length > 0) handEl.removeChild(handEl.lastChild);
     }
   }
 
@@ -314,9 +350,7 @@ socket.on('roundResult', ({ round, winner }) => {
   const bolinhas = painelHistorico.querySelectorAll('.bolinha-rodada');
   if (bolinhas[round]) {
     let corClasse = 'bolinha-ouro';
-    if (winner !== -1) {
-      corClasse = (winner % 2 === myPlayerIndex % 2) ? 'bolinha-verde' : 'bolinha-azul';
-    }
+    if (winner !== -1) corClasse = (winner % 2 === myPlayerIndex % 2) ? 'bolinha-verde' : 'bolinha-azul';
     bolinhas[round].className = 'bolinha-rodada ' + corClasse;
   }
   setTimeout(() => { mesaCartas.innerHTML = ''; }, 1200);
@@ -324,6 +358,7 @@ socket.on('roundResult', ({ round, winner }) => {
 
 socket.on('handEnd', ({ winnerTeam, points, scores }) => {
   gameActive = false;
+  isMaoDe11Decision = false;
   aguardandoResposta = false;
   isRespondingToBet = false;
   currentBetLevel = null;
@@ -348,6 +383,7 @@ socket.on('handEnd', ({ winnerTeam, points, scores }) => {
 });
 
 socket.on('matchOver', ({ winnerTeam }) => {
+  isMaoDe11Decision = false;
   aguardandoResposta = false;
   isRespondingToBet = false;
   currentBetLevel = null;
@@ -364,6 +400,7 @@ socket.on('matchOver', ({ winnerTeam }) => {
 });
 
 socket.on('betCalled', ({ level, responderTeam, challenger }) => {
+  if (isMaoDe11Decision) return;
   currentBetLevel = level;
   lastBetTeam = challenger % 2;
   aguardandoResposta = true;
@@ -383,18 +420,18 @@ socket.on('betCalled', ({ level, responderTeam, challenger }) => {
 });
 
 socket.on('turnToRespond', () => {
+  if (isMaoDe11Decision) return;
   isRespondingToBet = true;
   atualizarBotaoTruco();
   btnCorrer.classList.remove('oculto');
 });
 
 socket.on('betAccepted', ({ handValue }) => {
+  if (isMaoDe11Decision) return;
   currentHandValue = handValue;
   trucoStatusEl.textContent = `Truco: ${handValue} pts`;
   btnCorrer.classList.remove('oculto');
-  if (isMyTurn && !aguardandoResposta) {
-    atualizarBotaoTruco();
-  }
+  if (isMyTurn && !aguardandoResposta) atualizarBotaoTruco();
   aguardandoResposta = false;
   isRespondingToBet = false;
   currentBetLevel = null;
@@ -402,9 +439,17 @@ socket.on('betAccepted', ({ handValue }) => {
 });
 
 // ========== BOTÕES ==========
+function mostrarControlesMaoDe11() {
+  btnTruco.classList.remove('oculto');
+  btnTruco.textContent = 'JOGAR MÃO DE 11';
+  btnCorrer.classList.remove('oculto');
+  clearTurnTimer();
+}
+
 function atualizarBotaoTruco() {
-  if (!gameActive) {
-    btnTruco.classList.add('oculto');
+  if (!gameActive || isMaoDe11Decision) {
+    if (isMaoDe11Decision) mostrarControlesMaoDe11();
+    else btnTruco.classList.add('oculto');
     return;
   }
 
@@ -426,21 +471,21 @@ function atualizarBotaoTruco() {
   }
 
   btnTruco.classList.remove('oculto');
-  if (currentHandValue >= 12) {
-    btnTruco.classList.add('oculto');
-  } else if (currentHandValue >= 9) {
-    btnTruco.textContent = 'VALE DOZE';
-  } else if (currentHandValue >= 6) {
-    btnTruco.textContent = 'VALE NOVE';
-  } else if (currentHandValue >= 3) {
-    btnTruco.textContent = 'RETRUCO';
-  } else {
-    btnTruco.textContent = 'TRUCO';
-  }
+  if (currentHandValue >= 12) btnTruco.classList.add('oculto');
+  else if (currentHandValue >= 9) btnTruco.textContent = 'VALE DOZE';
+  else if (currentHandValue >= 6) btnTruco.textContent = 'VALE NOVE';
+  else if (currentHandValue >= 3) btnTruco.textContent = 'RETRUCO';
+  else btnTruco.textContent = 'TRUCO';
 }
 
 btnTruco.onclick = () => {
   if (!gameActive) return;
+
+  if (isMaoDe11Decision) {
+    socket.emit('respondMaoDe11', 'play');
+    clearTurnTimer();
+    return;
+  }
 
   if (isRespondingToBet) {
     const canRaise = currentBetLevel === 'truco' || currentBetLevel === 'retruco' || currentBetLevel === 'valenove';
@@ -468,7 +513,9 @@ btnTruco.onclick = () => {
 
 btnCorrer.onclick = () => {
   if (!gameActive) return;
-  if (isRespondingToBet) {
+  if (isMaoDe11Decision) {
+    socket.emit('respondMaoDe11', 'flee');
+  } else if (isRespondingToBet) {
     socket.emit('respondBet', 'flee');
   } else {
     if (!isMyTurn) return;
@@ -481,9 +528,11 @@ btnCorrer.onclick = () => {
 function atualizarInfoLive() {
   if (!gameActive) return;
   const base = infoRodadaEl.textContent.replace(/<span.*<\/span>/, '').trim();
-  infoRodadaEl.innerHTML = base + (isMyTurn
-    ? ' <span style="color:#5cb85c;">🎯 Sua vez!</span>'
-    : ' <span style="color:#f1c40f;">⏳ Aguardando oponente</span>');
+  infoRodadaEl.innerHTML = base + (isMaoDe11Decision
+    ? ' <span style="color:#f1c40f;">⚠️ Decida a Mão de 11</span>'
+    : isMyTurn
+      ? ' <span style="color:#5cb85c;">🎯 Sua vez!</span>'
+      : ' <span style="color:#f1c40f;">⏳ Aguardando oponente</span>');
 }
 
 function renderizarMao(hand) {
@@ -495,7 +544,7 @@ function renderizarMao(hand) {
     carta.style.pointerEvents = 'auto';
     carta.addEventListener('click', () => {
       console.log('Carta clicada! gameActive:', gameActive, 'isMyTurn:', isMyTurn);
-      if (!isMyTurn || !gameActive) return;
+      if (!isMyTurn || !gameActive || isMaoDe11Decision) return;
       socket.emit('playCard', c);
       clearTurnTimer();
     });
@@ -527,7 +576,7 @@ function clearTurnTimer() {
 }
 
 function autoPlayRandomCard() {
-  if (!gameActive || !isMyTurn || playerHand.length === 0) return;
+  if (!gameActive || !isMyTurn || isMaoDe11Decision || playerHand.length === 0) return;
   const idx = Math.floor(Math.random() * playerHand.length);
   socket.emit('playCard', playerHand[idx]);
 }
