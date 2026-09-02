@@ -40,6 +40,7 @@ class Game4P {
     this.handValue = 1;
     this.maoDe11 = false;
     this.maoDe11Team = null;
+    this.maoDe11DecisionMade = false;
     this.maoDeFerro = false;
 
     this.deck = [];
@@ -100,6 +101,7 @@ class Game4P {
       this.maoDeFerro = false;
     }
 
+    this.maoDe11DecisionMade = false;
     this.currentPlayer = (this.dealerIndex + 3) % NUM_PLAYERS;
     this.turnStage = this.maoDe11 ? 'mao11Decision' : 'play';
     this.betState = null;
@@ -124,6 +126,7 @@ class Game4P {
           setWins: this.setWins,
           maoDe11: this.maoDe11,
           maoDe11Team: this.maoDe11Team,
+          maoDe11DecisionMade: this.maoDe11DecisionMade,
           maoDeFerro: this.maoDeFerro,
           turnStage: this.turnStage,
           players: this.players.map(p => ({ name: p.name, isBot: p.isBot, online: p.online }))
@@ -282,8 +285,11 @@ class Game4P {
 
   respondMaoDe11(playerIndex, action) {
     if (this.turnStage !== 'mao11Decision' || !this.maoDe11) return false;
+    if (this.maoDe11DecisionMade) return false;
     if (playerIndex % 2 !== this.maoDe11Team) return false;
     if (action !== 'play' && action !== 'flee') return false;
+
+    this.maoDe11DecisionMade = true;
 
     if (this.offlineActionTimer) {
       clearTimeout(this.offlineActionTimer);
@@ -320,11 +326,18 @@ class Game4P {
   }
 
   scheduleMaoDe11Decision() {
-    if (this.turnStage !== 'mao11Decision' || !this.maoDe11) return;
-    if (this.offlineActionTimer) clearTimeout(this.offlineActionTimer);
+    if (this.turnStage !== 'mao11Decision' || !this.maoDe11 || this.maoDe11DecisionMade) return;
 
     const team = this.maoDe11Team;
-    const playerIndex = [team, team + 2].find(index => {
+    const teamPlayers = [team, team + 2];
+    if (teamPlayers.every(index => this.players[index] && this.players[index].isBot)) {
+      this.respondMaoDe11(teamPlayers[0], 'play');
+      return;
+    }
+
+    if (this.offlineActionTimer) clearTimeout(this.offlineActionTimer);
+
+    const playerIndex = teamPlayers.find(index => {
       const player = this.players[index];
       return player && !player.isBot && player.online === false;
     });
@@ -333,7 +346,7 @@ class Game4P {
 
     this.offlineActionTimer = setTimeout(() => {
       this.offlineActionTimer = null;
-      if (this.turnStage !== 'mao11Decision' || !this.maoDe11) return;
+      if (this.turnStage !== 'mao11Decision' || !this.maoDe11 || this.maoDe11DecisionMade) return;
       this.respondMaoDe11(playerIndex, 'play');
     }, DECISION_TIMEOUT);
   }
