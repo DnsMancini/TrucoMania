@@ -49,6 +49,7 @@ app.get('/', (_req, res) => {
   let socketAuthenticated = false;
   let authenticationInProgress = null;
   let reconnectButton = null;
+  let reconnectStateSetup = false;
 
   const authenticateSocket = async (user) => {
     if (!user || typeof socket === 'undefined') return false;
@@ -135,8 +136,8 @@ app.get('/', (_req, res) => {
   };
 
   const setupReconnectGameState = () => {
-    if (typeof socket === 'undefined' || socket.dataset.reconnectStateSetup === '1') return;
-    socket.dataset.reconnectStateSetup = '1';
+    if (typeof socket === 'undefined' || reconnectStateSetup) return;
+    reconnectStateSetup = true;
 
     socket.on('authenticated', (data) => {
       if (data?.reconnectAvailable) showReconnectButton();
