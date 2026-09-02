@@ -8,7 +8,7 @@ const adminRoutes = require('./adminRoutes');
 require('dotenv').config();
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '50kb' }));
 const server = http.createServer(app);
 
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:3000';
