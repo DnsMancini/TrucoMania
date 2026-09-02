@@ -1,7 +1,7 @@
 const SUITS = ['paus', 'copas', 'espadas', 'ouros'];
 const RANKS = ['4', '5', '6', '7', 'Q', 'J', 'K', 'A', '2', '3'];
 const { cardStrength } = require('./utils');
-const { createBot: createPlayerBot } = require('./bot');
+const { createBot: createPlayerBot, respondBet: botRespondBet, chooseCard: botChooseCard } = require('./bot');
 
 const BET_VALUES = { truco: 3, retruco: 6, valenove: 9, valedoze: 12 };
 const CARDS_PER_PLAYER = 3;
@@ -47,6 +47,7 @@ class Game4P {
     this.playersInRound = 0;
     this.roundStarter = 0;
     this.checkBotTurn = null;
+    this.offlineActionTimer = null;
   }
 
   startGame() { this.startNewHand(); }
@@ -89,6 +90,8 @@ class Game4P {
         }, this.players[i].id);
       }
     }
+
+    this.scheduleOfflineTurn();
   }
 
   playCard(playerIndex, card) {
@@ -97,6 +100,11 @@ class Game4P {
     const cardIdx = hand.findIndex(c => c.suit === card.suit && c.rank === card.rank);
     if (cardIdx === -1) return false;
     const played = hand.splice(cardIdx, 1)[0];
+
+    if (this.offlineActionTimer) {
+      clearTimeout(this.offlineActionTimer);
+      this.offlineActionTimer = null;
+    }
 
     if (this.playersInRound === 0) this.roundStarter = playerIndex;
 
@@ -110,6 +118,7 @@ class Game4P {
     else {
       this.currentPlayer = (playerIndex + 3) % NUM_PLAYERS;
       this.emit('turn', { currentPlayer: this.currentPlayer }, 'all');
+      this.scheduleOfflineTurn();
     }
     return true;
   }
@@ -150,6 +159,7 @@ class Game4P {
     this.currentPlayer = bestPlayer !== -1 ? bestPlayer : this.roundStarter;
     this.roundStarter = this.currentPlayer;
     this.emit('turn', { currentPlayer: this.currentPlayer }, 'all');
+    this.scheduleOfflineTurn();
   }
 
   checkMatchOver(winningTeam) {
@@ -210,6 +220,7 @@ class Game4P {
     for (let i = 0; i < NUM_PLAYERS; i++)
       if (i % 2 === responderTeam && !this.players[i].isBot)
         this.emit('turnToRespond', { responderTeam }, this.players[i].id);
+    this.scheduleOfflineResponse();
     return true;
   }
 
@@ -217,6 +228,11 @@ class Game4P {
     if (this.turnStage !== 'respond' || !this.betState) return false;
     const respTeam = this.betState.responderTeam;
     if (playerIndex % 2 !== respTeam) return false;
+
+    if (this.offlineActionTimer) {
+      clearTimeout(this.offlineActionTimer);
+      this.offlineActionTimer = null;
+    }
 
     const { challenger, level } = this.betState;
 
@@ -236,6 +252,7 @@ class Game4P {
       this.turnStage = 'play';
       this.emit('betAccepted', { handValue: this.handValue }, 'all');
       this.emit('turn', { currentPlayer: this.currentPlayer }, 'all');
+      this.scheduleOfflineTurn();
       return true;
     }
 
@@ -251,9 +268,46 @@ class Game4P {
       for (let i = 0; i < NUM_PLAYERS; i++)
         if (i % 2 === challenger % 2 && !this.players[i].isBot)
           this.emit('turnToRespond', { responderTeam: challenger % 2 }, this.players[i].id);
+      this.scheduleOfflineResponse();
       return true;
     }
     return false;
+  }
+
+  scheduleOfflineTurn() {
+    if (this.turnStage !== 'play') return;
+    const playerIndex = this.currentPlayer;
+    const player = this.players[playerIndex];
+    if (!player || player.isBot || player.online !== false) return;
+
+    if (this.offlineActionTimer) clearTimeout(this.offlineActionTimer);
+    this.offlineActionTimer = setTimeout(() => {
+      this.offlineActionTimer = null;
+      if (this.turnStage !== 'play' || this.currentPlayer !== playerIndex) return;
+      const hand = this.hands[playerIndex];
+      if (!hand || hand.length === 0) return;
+      const card = botChooseCard(hand, this.vira.rank);
+      this.playCard(playerIndex, card);
+    }, 1000 + Math.random() * 1200);
+  }
+
+  scheduleOfflineResponse() {
+    if (this.turnStage !== 'respond' || !this.betState) return;
+    const responderTeam = this.betState.responderTeam;
+    const playerIndex = [responderTeam, responderTeam + 2]
+      .find(index => this.players[index] && !this.players[index].isBot && this.players[index].online === false);
+
+    if (playerIndex === undefined) return;
+
+    if (this.offlineActionTimer) clearTimeout(this.offlineActionTimer);
+    this.offlineActionTimer = setTimeout(() => {
+      this.offlineActionTimer = null;
+      if (this.turnStage !== 'respond' || !this.betState || this.betState.responderTeam !== responderTeam) return;
+      const hand = this.hands[playerIndex];
+      if (!hand) return;
+      const action = botRespondBet(hand, this.vira.rank, this.betState.level);
+      this.respondBet(playerIndex, action);
+    }, 1200 + Math.random() * 1200);
   }
 
   getBetValueBefore(level) {
