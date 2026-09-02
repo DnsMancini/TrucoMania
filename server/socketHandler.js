@@ -14,8 +14,6 @@ function generateRoomCode() {
 function broadcastRooms(io) {
   const openRooms = [];
   for (const [code, room] of rooms) {
-    // Somente salas públicas aguardando jogadores aparecem no lobby.
-    // Salas privadas e partidas já iniciadas ficam fora da lista pública.
     if (room.status === 'waiting' && room.isPublic !== false) {
       openRooms.push({ code, players: room.players.length, status: room.status });
     }
@@ -80,8 +78,10 @@ function sendCurrentGameState(room, socket, playerIndex) {
   if (!room.game) return;
 
   socket.emit('gameStateRestore', {
+    roomCode: room.code,
     player: playerIndex,
     hand: room.game.hands[playerIndex] || [],
+    handsRemaining: room.game.hands.map(hand => hand.length),
     vira: room.game.vira,
     currentPlayer: room.game.currentPlayer,
     dealer: room.game.dealerIndex,
@@ -146,9 +146,6 @@ function handleSocket(io) {
 
     socket.on('getRooms', () => broadcastRooms(io));
 
-    // Procura uma partida pública em andamento com vaga de bot.
-    // Se não encontrar, procura uma sala pública aguardando jogadores.
-    // O cliente pode criar uma sala pública automaticamente como último recurso.
     socket.on('randomMatch', (playerName, callback) => {
       if (!requireAuth(socket, callback)) return;
 
@@ -198,8 +195,6 @@ function handleSocket(io) {
       callback({ createNew: true, message: 'Nenhuma partida pública disponível. Criando uma nova mesa.' });
     });
 
-    // Suporta tanto a chamada antiga (playerName, callback) quanto a nova
-    // (playerName, options, callback), mantendo compatibilidade com o cliente atual.
     socket.on('createRoom', (playerName, optionsOrCallback, maybeCallback) => {
       const callback = typeof optionsOrCallback === 'function' ? optionsOrCallback : maybeCallback;
       const options = (optionsOrCallback && typeof optionsOrCallback === 'object') ? optionsOrCallback : {};
@@ -307,7 +302,6 @@ function handleSocket(io) {
       const playerIndex = room.players.findIndex(p => p.id === socket.id);
       updateActivity(room, socket.id, io);
       room.game.respondBet(playerIndex, action);
-      // Após resposta humana, verificar se precisa continuar com bots
       checkBotResponse(room, io);
       checkBotTurn(room, io);
     });
@@ -328,9 +322,8 @@ function handleSocket(io) {
       if (player && !player.isBot) {
         player.online = false;
         emitPlayerStatus(room, io);
-        // Limpar timer do turno se estava em andamento
         if (room.game && room.game.currentPlayer === room.players.indexOf(player)) {
-          room.game.turnStage = 'play'; // para evitar travamento
+          room.game.turnStage = 'play';
         }
         const timer = setTimeout(() => {
           if (room.players.includes(player)) {
@@ -479,7 +472,6 @@ function checkBotResponse(room, io) {
   const respTeam = room.game.betState.responderTeam;
   const teamPlayers = [respTeam, respTeam + 2];
 
-  // Se TODOS os jogadores do time são bots, responder automaticamente
   if (teamPlayers.every(i => room.players[i] && room.players[i].isBot)) {
     const botPlayer = teamPlayers
       .map(i => ({ index: i, player: room.players[i] }))
@@ -499,7 +491,6 @@ function checkBotResponse(room, io) {
       }
     }
   }
-  // Se tem humano, o evento turnToRespond já foi emitido - aguardar resposta do socket
 }
 
 function hasBotPartner(players, playerIndex) {
