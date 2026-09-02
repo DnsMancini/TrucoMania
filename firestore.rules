@@ -1,0 +1,59 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Player profiles are readable/writable only by their owner.
+    // Server-side Admin SDK operations are not restricted by these rules.
+    match /players/{userId} {
+      allow read: if request.auth != null
+                   && request.auth.uid == userId;
+
+      // Browser-side profile creation is permitted only for the authenticated
+      // user's own document and only with the safe initial values used by the app.
+      allow create: if request.auth != null
+                    && request.auth.uid == userId
+                    && request.resource.data.keys().hasOnly([
+                      'uid', 'email', 'nickname', 'coins', 'gems',
+                      'rank', 'avatar', 'wins', 'losses', 'createdAt'
+                    ])
+                    && request.resource.data.uid == request.auth.uid
+                    && request.resource.data.email == request.auth.token.email
+                    && request.resource.data.coins == 0
+                    && request.resource.data.gems == 0
+                    && request.resource.data.rank == 'Iniciante'
+                    && request.resource.data.wins == 0
+                    && request.resource.data.losses == 0
+                    && request.resource.data.nickname is string
+                    && request.resource.data.nickname.size() >= 3
+                    && request.resource.data.nickname.size() <= 15
+                    && request.resource.data.nickname.matches('^[A-Za-zÀ-ÿ0-9_ ]+$')
+                    && request.resource.data.avatar is string
+                    && request.resource.data.avatar.size() <= 100
+                    && request.resource.data.createdAt == request.time;
+
+      // A player may change only presentation/profile fields from the browser.
+      // Coins, gems, rank, wins, losses, uid, email and createdAt remain server-controlled.
+      allow update: if request.auth != null
+                    && request.auth.uid == userId
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                      'nickname', 'avatar', 'avatarUrl'
+                    ])
+                    && request.resource.data.nickname is string
+                    && request.resource.data.nickname.size() >= 3
+                    && request.resource.data.nickname.size() <= 15
+                    && request.resource.data.nickname.matches('^[A-Za-zÀ-ÿ0-9_ ]+$')
+                    && request.resource.data.avatar is string
+                    && request.resource.data.avatar.size() <= 100
+                    && (!('avatarUrl' in request.resource.data)
+                        || (request.resource.data.avatarUrl is string
+                            && request.resource.data.avatarUrl.size() <= 2048));
+
+      allow delete: if false;
+    }
+
+    // Everything else remains server-only until an explicit client use case exists.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
