@@ -9,6 +9,19 @@ const AVAILABLE_AVATARS = [
   '💎', '🏆', '🚀', '⭐', '🎯', '🧊'
 ];
 
+function getRandomDefaultAvatar() {
+  return AVAILABLE_AVATARS[Math.floor(Math.random() * AVAILABLE_AVATARS.length)];
+}
+
+function ensureDefaultAvatar(userData) {
+  if (!userData || userData.avatarUrl) return false;
+  if (AVAILABLE_AVATARS.includes(userData.avatar)) return false;
+
+  userData.avatar = getRandomDefaultAvatar();
+  saveAvatarToDb(userData.avatar, undefined).catch(() => {});
+  return true;
+}
+
 let profileInitialized = false;
 
 function initProfileSystem() {
@@ -114,6 +127,7 @@ function openProfileModal() {
   if (!modal || !window.currentUserData) return;
 
   const userData = window.currentUserData;
+  ensureDefaultAvatar(userData);
   updateProfileAvatarDisplay(userData);
 
   document.getElementById('profileNickname').textContent = userData.nickname || 'Jogador';
@@ -147,6 +161,7 @@ function updateProfileAvatarDisplay(userData) {
     const btnRemove = document.getElementById('btnRemovePhoto');
     if (btnRemove) btnRemove.style.display = 'inline-flex';
   } else {
+    ensureDefaultAvatar(userData);
     avatarEl.innerHTML = '';
     avatarEl.textContent = userData.avatar || '🎮';
     const btnRemove = document.getElementById('btnRemovePhoto');
@@ -411,7 +426,7 @@ async function removeUploadedPhoto() {
 
     window.currentUserData.avatarUrl = null;
     if (!window.currentUserData.avatar) {
-      window.currentUserData.avatar = '🎮';
+      window.currentUserData.avatar = getRandomDefaultAvatar();
     }
 
     updateProfileAvatarDisplay(window.currentUserData);
@@ -437,10 +452,12 @@ function formatNumber(num) {
 function updateLobbyUI(userData) {
   if (!userData) return;
 
+  ensureDefaultAvatar(userData);
+
   const displayName = document.getElementById('playerDisplayName');
   if (displayName) displayName.textContent = userData.nickname || 'Truqueiro';
 
-  const avatarVal = userData.avatarUrl || userData.avatar || (userData.nickname ? userData.nickname.charAt(0).toUpperCase() : 'TM');
+  const avatarVal = userData.avatarUrl || userData.avatar || getRandomDefaultAvatar();
   updateLobbyAvatar(avatarVal);
 
   const coinsEl = document.getElementById('playerCoins');
