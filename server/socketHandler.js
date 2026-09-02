@@ -23,6 +23,31 @@ function generateRoomCode() {
   return crypto.randomBytes(3).toString('hex').substring(0, 4).toUpperCase();
 }
 
+function normalizePlayerName(value) {
+  if (typeof value !== 'string') return null;
+  const name = value.trim().replace(/\s+/g, ' ');
+  if (!name || name.length > 20) return null;
+  return name;
+}
+
+function normalizeRoomCode(value) {
+  if (typeof value !== 'string') return null;
+  const code = value.trim().toUpperCase();
+  if (!/^[A-Z0-9]{4}$/.test(code)) return null;
+  return code;
+}
+
+function normalizeRoomOptions(value) {
+  if (value == null) return {};
+  if (typeof value !== 'object' || Array.isArray(value)) return null;
+  if (value.visibility !== undefined && value.visibility !== 'private' && value.visibility !== 'public') return null;
+  if (value.fillWithBots !== undefined && typeof value.fillWithBots !== 'boolean') return null;
+  return {
+    visibility: value.visibility,
+    fillWithBots: value.fillWithBots
+  };
+}
+
 function isRateLimited(socket, eventName) {
   const limit = RATE_LIMITS[eventName];
   if (!limit) return false;
@@ -248,29 +273,32 @@ function handleSocket(io) {
     socket.on('randomMatch', (playerName, callback) => {
       if (!requireRateLimit(socket, 'randomMatch', callback)) return;
       if (!requireAuth(socket, callback)) return;
+      const normalizedName = normalizePlayerName(playerName);
+      if (!normalizedName) return callback?.({ error: 'Nome inválido. Use de 1 a 20 caracteres.' });
+      if (findRoomByUid(socket.user.uid)) return callback?.({ error: 'Você já está em uma partida.' });
       const candidatesPlaying = [];
       const candidatesWaiting = [];
       for (const room of rooms.values()) {
         if (room.isPublic === false) continue;
         if (room.players.some(player => player.uid === socket.user.uid && !player.isBot)) continue;
+        if (room.pendingJoin?.some(join => join.uid === socket.user.uid)) continue;
         if (room.status === 'playing') {
           const hasBot = room.players.some(player => player.isBot);
           const thirdSet = room.game && room.game.setWins[0] === 1 && room.game.setWins[1] === 1;
-          const hasPendingJoin = room.pendingJoin?.some(join => join.uid === socket.user.uid);
-          if (hasBot && !thirdSet && !hasPendingJoin) candidatesPlaying.push(room);
+          if (hasBot && !thirdSet) candidatesPlaying.push(room);
         } else if (room.status === 'waiting' && room.players.length < 4) candidatesWaiting.push(room);
       }
       if (candidatesPlaying.length > 0) {
         const room = candidatesPlaying[Math.floor(Math.random() * candidatesPlaying.length)];
-        room.pendingJoin.push({ socket, playerName, uid: socket.user.uid });
+        room.pendingJoin.push({ socket, playerName: normalizedName, uid: socket.user.uid });
         socket.join(room.code);
-        return callback({ roomCode: room.code, waiting: true, mode: 'bot-replacement' });
+        return callback?.({ roomCode: room.code, waiting: true, mode: 'bot-replacement' });
       }
       if (candidatesWaiting.length > 0) {
         const room = candidatesWaiting[Math.floor(Math.random() * candidatesWaiting.length)];
-        room.players.push({ id: socket.id, uid: socket.user.uid, name: playerName, isBot: false, online: true, pendingReplace: false });
+        room.players.push({ id: socket.id, uid: socket.user.uid, name: normalizedName, isBot: false, online: true, pendingReplace: false });
         socket.join(room.code);
-        callback({ roomCode: room.code, players: room.players.map(p => ({ name: p.name, isBot: p.isBot, online: p.online })), mode: 'waiting-room' });
+        callback?.({ roomCode: room.code, players: room.players.map(p => ({ name: p.name, isBot: p.isBot, online: p.online })), mode: 'waiting-room' });
         broadcastRooms(io);
         if (room.players.length === 4) {
           if (room.countdownInterval) { clearInterval(room.countdownInterval); room.countdownInterval = null; }
@@ -278,19 +306,23 @@ function handleSocket(io) {
         }
         return;
       }
-      callback({ createNew: true, message: 'Nenhuma partida pública disponível. Criando uma nova mesa.' });
+      callback?.({ createNew: true, message: 'Nenhuma partida pública disponível. Criando uma nova mesa.' });
     });
 
     socket.on('createRoom', (playerName, optionsOrCallback, maybeCallback) => {
       const callback = typeof optionsOrCallback === 'function' ? optionsOrCallback : maybeCallback;
       if (!requireRateLimit(socket, 'createRoom', callback)) return;
-      const options = (optionsOrCallback && typeof optionsOrCallback === 'object') ? optionsOrCallback : {};
+      const normalizedName = normalizePlayerName(playerName);
+      if (!normalizedName) return callback?.({ error: 'Nome inválido. Use de 1 a 20 caracteres.' });
+      const options = normalizeRoomOptions(typeof optionsOrCallback === 'function' ? null : optionsOrCallback);
+      if (options === null) return callback?.({ error: 'Opções da sala inválidas.' });
       if (!requireAuth(socket, callback)) return;
-      if (rooms.size >= MAX_ROOMS) return callback({ error: 'Máximo de salas atingido.' });
+      if (findRoomByUid(socket.user.uid)) return callback?.({ error: 'Você já está em uma partida.' });
+      if (rooms.size >= MAX_ROOMS) return callback?.({ error: 'Máximo de salas atingido.' });
       let code = generateRoomCode();
       while (rooms.has(code)) code = generateRoomCode();
       const room = {
-        players: [{ id: socket.id, uid: socket.user.uid, name: playerName, isBot: false, online: true, pendingReplace: false }],
+        players: [{ id: socket.id, uid: socket.user.uid, name: normalizedName, isBot: false, online: true, pendingReplace: false }],
         game: null,
         countdownInterval: null,
         pendingJoin: [],
@@ -302,7 +334,7 @@ function handleSocket(io) {
       };
       rooms.set(code, room);
       socket.join(code);
-      callback({ roomCode: code, isPublic: room.isPublic, fillWithBots: room.fillWithBots, players: room.players.map(p => ({ name: p.name, isBot: false, online: true })) });
+      callback?.({ roomCode: code, isPublic: room.isPublic, fillWithBots: room.fillWithBots, players: room.players.map(p => ({ name: p.name, isBot: false, online: true })) });
       broadcastRooms(io);
       if (room.fillWithBots) {
         let count = BOT_WAIT_SECONDS;
@@ -319,22 +351,29 @@ function handleSocket(io) {
       }
     });
 
-    socket.on('joinRoom', ({ roomCode, playerName }, callback) => {
+    socket.on('joinRoom', (payload, callback) => {
       if (!requireRateLimit(socket, 'joinRoom', callback)) return;
       if (!requireAuth(socket, callback)) return;
+      if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return callback?.({ error: 'Dados da sala inválidos.' });
+      const roomCode = normalizeRoomCode(payload.roomCode);
+      const playerName = normalizePlayerName(payload.playerName);
+      if (!roomCode) return callback?.({ error: 'Código da sala inválido.' });
+      if (!playerName) return callback?.({ error: 'Nome inválido. Use de 1 a 20 caracteres.' });
+      if (findRoomByUid(socket.user.uid)) return callback?.({ error: 'Você já está em uma partida.' });
       const room = rooms.get(roomCode);
-      if (!room) return callback({ error: 'Sala não encontrada' });
-      if (room.status === 'waiting' && room.players.length >= 4) return callback({ error: 'Sala cheia' });
+      if (!room) return callback?.({ error: 'Sala não encontrada' });
+      if (room.pendingJoin?.some(join => join.uid === socket.user.uid)) return callback?.({ error: 'Você já solicitou entrada nesta partida.' });
+      if (room.status === 'waiting' && room.players.length >= 4) return callback?.({ error: 'Sala cheia' });
       if (room.status === 'playing') {
-        if (room.game && room.game.setWins[0] === 1 && room.game.setWins[1] === 1) return callback({ error: 'Partida no terceiro set, entrada não permitida.' });
+        if (room.game && room.game.setWins[0] === 1 && room.game.setWins[1] === 1) return callback?.({ error: 'Partida no terceiro set, entrada não permitida.' });
         room.pendingJoin.push({ socket, playerName, uid: socket.user.uid });
         socket.join(roomCode);
-        callback({ roomCode, waiting: true });
+        callback?.({ roomCode, waiting: true });
         return;
       }
       room.players.push({ id: socket.id, uid: socket.user.uid, name: playerName, isBot: false, online: true, pendingReplace: false });
       socket.join(roomCode);
-      callback({ roomCode, players: room.players.map(p => ({ name: p.name, isBot: p.isBot, online: p.online })) });
+      callback?.({ roomCode, players: room.players.map(p => ({ name: p.name, isBot: p.isBot, online: p.online })) });
       broadcastRooms(io);
       if (room.players.length === 4) {
         if (room.countdownInterval) { clearInterval(room.countdownInterval); room.countdownInterval = null; }
@@ -557,3 +596,5 @@ function checkBotResponse(room, io) {
     checkBotResponse(room, io);
   }, 700);
 }
+
+module.exports = { handleSocket };
