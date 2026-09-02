@@ -17,6 +17,15 @@ async function api(path, options = {}) {
   return response.json();
 }
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function renderStats(data) {
   const stats = document.getElementById('stats');
   stats.innerHTML = [
@@ -24,19 +33,19 @@ function renderStats(data) {
     ['Online', data.onlineUsers],
     ['Moedas totais', data.totalCoins],
     ['Alertas suspeitos', data.suspiciousAlerts.length]
-  ].map(([k, v]) => `<div class="card"><strong>${k}</strong><div>${v}</div></div>`).join('');
+  ].map(([k, v]) => `<div class="card"><strong>${k}</strong><div>${escapeHtml(v)}</div></div>`).join('');
 }
 
 function renderUsers(users) {
   const tbody = document.querySelector('#usersTable tbody');
   tbody.innerHTML = users.map((u) => `
     <tr>
-      <td>${u.uid}</td><td>${u.displayName || u.name || '-'}</td><td>${u.email || '-'}</td>
-      <td>${u.coins || 0}</td><td>${u.gems || 0}</td><td>${u.rank || '-'}</td>
+      <td>${escapeHtml(u.uid)}</td><td>${escapeHtml(u.displayName || u.name || '-')}</td><td>${escapeHtml(u.email || '-')}</td>
+      <td>${escapeHtml(u.coins || 0)}</td><td>${escapeHtml(u.gems || 0)}</td><td>${escapeHtml(u.rank || '-')}</td>
       <td>
-        <button onclick="changeCoins('${u.uid}', 1)">+ moedas</button>
-        <button onclick="changeCoins('${u.uid}', -1)">- moedas</button>
-        <button onclick="toggleBan('${u.uid}', ${u.banned ? 'false' : 'true'})">${u.banned ? 'Desbanir' : 'Banir'}</button>
+        <button onclick="changeCoins('${escapeHtml(u.uid)}', 1)">+ moedas</button>
+        <button onclick="changeCoins('${escapeHtml(u.uid)}', -1)">- moedas</button>
+        <button onclick="toggleBan('${escapeHtml(u.uid)}', ${u.banned ? 'false' : 'true'})">${u.banned ? 'Desbanir' : 'Banir'}</button>
       </td>
     </tr>`).join('');
 }
