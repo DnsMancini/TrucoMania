@@ -217,17 +217,29 @@ async function saveProfileNickname(uid, nickname) {
     await db.collection('players').doc(uid).update({ nickname, avatar: nickname.charAt(0).toUpperCase() });
   } catch (e) {
     try {
-      await db.collection('players').doc(uid).set({
-        uid,
-        nickname,
-        avatar: nickname.charAt(0).toUpperCase(),
-        coins: 0,
-        gems: 0,
-        rank: 'Iniciante',
-        wins: 0,
-        losses: 0,
-        createdAt: new Date().toISOString()
-      });
+      const playerRef = db.collection('players').doc(uid);
+      const playerDoc = await playerRef.get();
+
+      if (playerDoc.exists) {
+        // O perfil já existe: nunca substitua campos de progresso por valores padrão.
+        await playerRef.set({
+          nickname,
+          avatar: nickname.charAt(0).toUpperCase()
+        }, { merge: true });
+      } else {
+        // O perfil realmente não existe: somente aqui é seguro inicializar os padrões.
+        await playerRef.set({
+          uid,
+          nickname,
+          avatar: nickname.charAt(0).toUpperCase(),
+          coins: 0,
+          gems: 0,
+          rank: 'Iniciante',
+          wins: 0,
+          losses: 0,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      }
     } catch (e2) {
       AuthLog.warn('Falha ao salvar nickname no perfil:', e2.message);
     }
