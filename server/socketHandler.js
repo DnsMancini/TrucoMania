@@ -89,6 +89,8 @@ function sendCurrentGameState(room, socket, playerIndex) {
     scores: room.game.scores,
     setWins: room.game.setWins,
     maoDe11: room.game.maoDe11,
+    maoDe11Team: room.game.maoDe11Team,
+    maoDe11DecisionMade: room.game.maoDe11DecisionMade,
     currentRound: room.game.currentRound,
     roundCards: room.game.roundCards,
     roundWins: room.game.roundWins,
@@ -111,6 +113,8 @@ function sendCurrentGameState(room, socket, playerIndex) {
     if (playerIndex % 2 === responderTeam) {
       socket.emit('turnToRespond', { responderTeam });
     }
+  } else if (room.game.turnStage === 'mao11Decision' && room.game.maoDe11 && playerIndex % 2 === room.game.maoDe11Team && !room.game.maoDe11DecisionMade) {
+    socket.emit('maoDe11Decision', { team: room.game.maoDe11Team });
   }
 }
 
@@ -340,6 +344,19 @@ function handleSocket(io) {
       checkBotTurn(room, io);
     });
 
+    socket.on('respondMaoDe11', (action) => {
+      if (!requireAuth(socket)) return;
+      const room = findRoomBySocket(socket.id);
+      if (!room || !room.game) return;
+      const playerIndex = room.players.findIndex(p => p.id === socket.id);
+      updateActivity(room, socket.id, io);
+      const handled = room.game.respondMaoDe11(playerIndex, action);
+      if (handled) {
+        checkBotTurn(room, io);
+        checkBotResponse(room, io);
+      }
+    });
+
     socket.on('fleeHand', () => {
       if (!requireAuth(socket)) return;
       const room = findRoomBySocket(socket.id);
@@ -356,7 +373,8 @@ function handleSocket(io) {
       if (player && !player.isBot) {
         player.online = false;
         emitPlayerStatus(room, io);
-        if (room.game && room.game.currentPlayer === room.players.indexOf(player)) room.game.turnStage = 'play';
+        if (room.game && room.game.currentPlayer === room.players.indexOf(player) && room.game.turnStage === 'play') room.game.scheduleOfflineTurn();
+        if (room.game && room.game.turnStage === 'mao11Decision') room.game.scheduleMaoDe11Decision();
         const timer = setTimeout(() => {
           if (room.players.includes(player)) player.pendingReplace = true;
         }, OFFLINE_TIMEOUT);
@@ -462,6 +480,11 @@ function buildBotContext(room, playerIndex) {
 
 function checkBotTurn(room, io) {
   if (!room.game) return;
+
+  if (room.game.turnStage === 'mao11Decision') {
+    room.game.scheduleMaoDe11Decision();
+    return;
+  }
 
   if (room.game.turnStage === 'play') {
     const cp = room.game.currentPlayer;
