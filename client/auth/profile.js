@@ -279,15 +279,24 @@ async function saveAvatarToDb(emoji, avatarUrl) {
     }
   } catch (e) {
     try {
-      await db.collection('players').doc(user.uid).set({ 
-        ...data, 
-        coins: 0, 
-        gems: 0, 
-        rank: 'Iniciante', 
-        wins: 0, 
-        losses: 0,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      }, { merge: true });
+      const playerRef = db.collection('players').doc(user.uid);
+      const playerDoc = await playerRef.get();
+
+      if (playerDoc.exists) {
+        // O perfil já existe: nunca substitua campos de progresso por valores padrão.
+        await playerRef.set(data, { merge: true });
+      } else {
+        // O perfil realmente não existe: somente aqui é seguro inicializar os padrões.
+        await playerRef.set({
+          ...data,
+          coins: 0,
+          gems: 0,
+          rank: 'Iniciante',
+          wins: 0,
+          losses: 0,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      }
     } catch (e2) {
       console.warn('[PROFILE] Falha ao salvar avatar:', e2.message);
     }
