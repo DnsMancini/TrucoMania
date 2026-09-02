@@ -206,20 +206,9 @@ async function loadUserProfile(user) {
     }
     return currentUserData;
   } catch (error) {
-    AuthLog.error('Falha ao acessar Firestore:', error.message);
-    currentUserData = {
-      uid: user.uid,
-      email: user.email || '',
-      nickname: user.displayName || 'Jogador',
-      coins: 0,
-      gems: 0,
-      rank: 'Iniciante',
-      avatar: 'U',
-      wins: 0,
-      losses: 0,
-      createdAt: new Date().toISOString()
-    };
-    return currentUserData;
+    AuthLog.error('Falha ao acessar Firestore:', error.message, error.stack);
+    currentUserData = null;
+    throw error;
   }
 }
 
