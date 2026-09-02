@@ -6,25 +6,47 @@ const rooms = new Map();
 const MAX_ROOMS = 8;
 const OFFLINE_TIMEOUT = 90000; // 90 segundos
 const BOT_WAIT_SECONDS = 15;
+const RATE_LIMITS = {
+  authenticate: { windowMs: 10000, max: 5 },
+  createRoom: { windowMs: 10000, max: 5 },
+  joinRoom: { windowMs: 10000, max: 10 },
+  randomMatch: { windowMs: 10000, max: 10 },
+  playCard: { windowMs: 1000, max: 5 },
+  callBet: { windowMs: 1000, max: 5 },
+  respondBet: { windowMs: 1000, max: 5 },
+  respondMaoDe11: { windowMs: 1000, max: 5 },
+  fleeHand: { windowMs: 1000, max: 5 }
+};
 
 function generateRoomCode() {
   return Math.random().toString(36).substring(2, 6).toUpperCase();
 }
 
-function broadcastRooms(io) {
-  const openRooms = [];
-  for (const [code, room] of rooms) {
-    if (room.status === 'waiting' && room.isPublic !== false) {
-      openRooms.push({ code, players: room.players.length, status: room.status });
-    }
+function isRateLimited(socket, eventName) {
+  const limit = RATE_LIMITS[eventName];
+  if (!limit) return false;
+  if (!socket.rateLimits) socket.rateLimits = new Map();
+
+  const now = Date.now();
+  const state = socket.rateLimits.get(eventName);
+  if (!state || now - state.startedAt >= limit.windowMs) {
+    socket.rateLimits.set(eventName, { startedAt: now, count: 1 });
+    return false;
   }
-  io.emit('roomsUpdate', openRooms);
+
+  state.count++;
+  return state.count > limit.max;
+}
+
+function requireRateLimit(socket, eventName, callback) {
+  if (!isRateLimited(socket, eventName)) return true;
+  const message = 'Muitas solicitações. Aguarde um momento e tente novamente.';
+  if (typeof callback === 'function') callback({ error: message });
+  else socket.emit('gameError', { message });
+  return false;
 }
 
 async function authenticateSocket(socket, token) {
-  // Uma conexão pode receber mais de uma autenticação (ex.: renovação/troca
-  // de sessão). Garanta que nunca existam dois listeners de banimento ativos
-  // para o mesmo socket.
   if (typeof socket.banUnsubscribe === 'function') {
     socket.banUnsubscribe();
     socket.banUnsubscribe = null;
@@ -157,6 +179,7 @@ function handleSocket(io) {
     broadcastRooms(io);
 
     socket.on('authenticate', async (token, callback) => {
+      if (!requireRateLimit(socket, 'authenticate', callback)) return;
       try {
         if (!token) throw new Error('Token ausente');
         const user = await authenticateSocket(socket, token);
@@ -186,40 +209,27 @@ function handleSocket(io) {
 
     socket.on('leaveRoom', (callback) => {
       if (!requireAuth(socket, callback)) return;
-
       const room = findRoomBySocket(socket.id);
       if (!room) return callback?.({ ok: true });
-
       const playerIndex = room.players.findIndex(p => p.id === socket.id);
       if (playerIndex === -1) return callback?.({ ok: true });
       const player = room.players[playerIndex];
-
       const offlineTimer = room.offlineTimers.get(socket.id);
-      if (offlineTimer) {
-        clearTimeout(offlineTimer);
-        room.offlineTimers.delete(socket.id);
-      }
-
+      if (offlineTimer) { clearTimeout(offlineTimer); room.offlineTimers.delete(socket.id); }
       if (room.status === 'waiting') {
         room.players.splice(playerIndex, 1);
-        if (room.countdownInterval && room.players.length === 0) {
-          clearInterval(room.countdownInterval);
-          room.countdownInterval = null;
-          rooms.delete(room.code);
-        }
+        if (room.countdownInterval && room.players.length === 0) { clearInterval(room.countdownInterval); room.countdownInterval = null; rooms.delete(room.code); }
         socket.leave(room.code);
         callback?.({ ok: true, roomCode: room.code, status: 'waiting' });
         emitPlayerStatus(room, io);
         broadcastRooms(io);
         return;
       }
-
       if (room.status === 'playing' && room.game) {
         const bot = createBot(playerIndex);
         bot.online = true;
         room.players[playerIndex] = bot;
         socket.leave(room.code);
-
         emitPlayerStatus(room, io);
         callback?.({ ok: true, roomCode: room.code, status: 'playing' });
         checkBotResponse(room, io);
@@ -228,7 +238,6 @@ function handleSocket(io) {
         broadcastRooms(io);
         return;
       }
-
       socket.leave(room.code);
       callback?.({ ok: true });
     });
@@ -236,62 +245,49 @@ function handleSocket(io) {
     socket.on('getRooms', () => broadcastRooms(io));
 
     socket.on('randomMatch', (playerName, callback) => {
+      if (!requireRateLimit(socket, 'randomMatch', callback)) return;
       if (!requireAuth(socket, callback)) return;
-
       const candidatesPlaying = [];
       const candidatesWaiting = [];
-
       for (const room of rooms.values()) {
         if (room.isPublic === false) continue;
         if (room.players.some(player => player.uid === socket.user.uid && !player.isBot)) continue;
-
         if (room.status === 'playing') {
           const hasBot = room.players.some(player => player.isBot);
           const thirdSet = room.game && room.game.setWins[0] === 1 && room.game.setWins[1] === 1;
           const hasPendingJoin = room.pendingJoin?.some(join => join.uid === socket.user.uid);
           if (hasBot && !thirdSet && !hasPendingJoin) candidatesPlaying.push(room);
-        } else if (room.status === 'waiting' && room.players.length < 4) {
-          candidatesWaiting.push(room);
-        }
+        } else if (room.status === 'waiting' && room.players.length < 4) candidatesWaiting.push(room);
       }
-
       if (candidatesPlaying.length > 0) {
         const room = candidatesPlaying[Math.floor(Math.random() * candidatesPlaying.length)];
         room.pendingJoin.push({ socket, playerName, uid: socket.user.uid });
         socket.join(room.code);
         return callback({ roomCode: room.code, waiting: true, mode: 'bot-replacement' });
       }
-
       if (candidatesWaiting.length > 0) {
         const room = candidatesWaiting[Math.floor(Math.random() * candidatesWaiting.length)];
         room.players.push({ id: socket.id, uid: socket.user.uid, name: playerName, isBot: false, online: true, pendingReplace: false });
         socket.join(room.code);
         callback({ roomCode: room.code, players: room.players.map(p => ({ name: p.name, isBot: p.isBot, online: p.online })), mode: 'waiting-room' });
         broadcastRooms(io);
-
         if (room.players.length === 4) {
-          if (room.countdownInterval) {
-            clearInterval(room.countdownInterval);
-            room.countdownInterval = null;
-          }
+          if (room.countdownInterval) { clearInterval(room.countdownInterval); room.countdownInterval = null; }
           fillWithBotsAndStart(room.code, io);
         }
         return;
       }
-
       callback({ createNew: true, message: 'Nenhuma partida pública disponível. Criando uma nova mesa.' });
     });
 
     socket.on('createRoom', (playerName, optionsOrCallback, maybeCallback) => {
       const callback = typeof optionsOrCallback === 'function' ? optionsOrCallback : maybeCallback;
+      if (!requireRateLimit(socket, 'createRoom', callback)) return;
       const options = (optionsOrCallback && typeof optionsOrCallback === 'object') ? optionsOrCallback : {};
-
       if (!requireAuth(socket, callback)) return;
       if (rooms.size >= MAX_ROOMS) return callback({ error: 'Máximo de salas atingido.' });
-
       let code = generateRoomCode();
       while (rooms.has(code)) code = generateRoomCode();
-
       const room = {
         players: [{ id: socket.id, uid: socket.user.uid, name: playerName, isBot: false, online: true, pendingReplace: false }],
         game: null,
@@ -307,7 +303,6 @@ function handleSocket(io) {
       socket.join(code);
       callback({ roomCode: code, isPublic: room.isPublic, fillWithBots: room.fillWithBots, players: room.players.map(p => ({ name: p.name, isBot: false, online: true })) });
       broadcastRooms(io);
-
       if (room.fillWithBots) {
         let count = BOT_WAIT_SECONDS;
         io.to(code).emit('lobbyCountdown', { count });
@@ -324,11 +319,11 @@ function handleSocket(io) {
     });
 
     socket.on('joinRoom', ({ roomCode, playerName }, callback) => {
+      if (!requireRateLimit(socket, 'joinRoom', callback)) return;
       if (!requireAuth(socket, callback)) return;
       const room = rooms.get(roomCode);
       if (!room) return callback({ error: 'Sala não encontrada' });
       if (room.status === 'waiting' && room.players.length >= 4) return callback({ error: 'Sala cheia' });
-
       if (room.status === 'playing') {
         if (room.game && room.game.setWins[0] === 1 && room.game.setWins[1] === 1) return callback({ error: 'Partida no terceiro set, entrada não permitida.' });
         room.pendingJoin.push({ socket, playerName, uid: socket.user.uid });
@@ -336,46 +331,47 @@ function handleSocket(io) {
         callback({ roomCode, waiting: true });
         return;
       }
-
       room.players.push({ id: socket.id, uid: socket.user.uid, name: playerName, isBot: false, online: true, pendingReplace: false });
       socket.join(roomCode);
       callback({ roomCode, players: room.players.map(p => ({ name: p.name, isBot: p.isBot, online: p.online })) });
       broadcastRooms(io);
-
       if (room.players.length === 4) {
-        if (room.countdownInterval) {
-          clearInterval(room.countdownInterval);
-          room.countdownInterval = null;
-        }
+        if (room.countdownInterval) { clearInterval(room.countdownInterval); room.countdownInterval = null; }
         fillWithBotsAndStart(roomCode, io);
       }
     });
 
     socket.on('playCard', (card) => {
+      if (!requireRateLimit(socket, 'playCard')) return;
       if (!requireAuth(socket)) return;
       const room = findRoomBySocket(socket.id);
       if (!room || !room.game) return;
       const playerIndex = room.players.findIndex(p => p.id === socket.id);
+      if (playerIndex === -1) return;
       updateActivity(room, socket.id, io);
       room.game.playCard(playerIndex, card);
       checkBotTurn(room, io);
     });
 
     socket.on('callBet', (betType) => {
+      if (!requireRateLimit(socket, 'callBet')) return;
       if (!requireAuth(socket)) return;
       const room = findRoomBySocket(socket.id);
       if (!room || !room.game) return;
       const playerIndex = room.players.findIndex(p => p.id === socket.id);
+      if (playerIndex === -1) return;
       updateActivity(room, socket.id, io);
       room.game.callBet(playerIndex, betType);
       checkBotResponse(room, io);
     });
 
     socket.on('respondBet', (action) => {
+      if (!requireRateLimit(socket, 'respondBet')) return;
       if (!requireAuth(socket)) return;
       const room = findRoomBySocket(socket.id);
       if (!room || !room.game) return;
       const playerIndex = room.players.findIndex(p => p.id === socket.id);
+      if (playerIndex === -1) return;
       updateActivity(room, socket.id, io);
       room.game.respondBet(playerIndex, action);
       checkBotResponse(room, io);
@@ -383,10 +379,12 @@ function handleSocket(io) {
     });
 
     socket.on('respondMaoDe11', (action) => {
+      if (!requireRateLimit(socket, 'respondMaoDe11')) return;
       if (!requireAuth(socket)) return;
       const room = findRoomBySocket(socket.id);
       if (!room || !room.game) return;
       const playerIndex = room.players.findIndex(p => p.id === socket.id);
+      if (playerIndex === -1) return;
       updateActivity(room, socket.id, io);
       const handled = room.game.respondMaoDe11(playerIndex, action);
       if (handled) {
@@ -396,10 +394,12 @@ function handleSocket(io) {
     });
 
     socket.on('fleeHand', () => {
+      if (!requireRateLimit(socket, 'fleeHand')) return;
       if (!requireAuth(socket)) return;
       const room = findRoomBySocket(socket.id);
       if (!room || !room.game) return;
       const playerIndex = room.players.findIndex(p => p.id === socket.id);
+      if (playerIndex === -1) return;
       updateActivity(room, socket.id, io);
       room.game.fleeHand(playerIndex);
     });
@@ -409,6 +409,7 @@ function handleSocket(io) {
         socket.banUnsubscribe();
         socket.banUnsubscribe = null;
       }
+      if (socket.rateLimits) socket.rateLimits.clear();
       const room = findRoomBySocket(socket.id);
       if (!room) return;
       const player = room.players.find(p => p.id === socket.id);
