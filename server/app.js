@@ -131,6 +131,13 @@ app.get('/', (_req, res) => {
     `;
     entryPanel.appendChild(joinByCode);
 
+    const randomMatchButton = document.createElement('button');
+    randomMatchButton.id = 'randomMatchBtn';
+    randomMatchButton.className = 'lobby-button lobby-button-primary';
+    randomMatchButton.textContent = '🎲 Partida Aleatória';
+    randomMatchButton.style.cssText = 'width:100%;margin-top:10px;';
+    entryPanel.appendChild(randomMatchButton);
+
     const originalCreateOnClick = createButton.onclick;
     createButton.onclick = () => {
       const name = nameInput.value.trim() || 'Jogador';
@@ -171,13 +178,43 @@ app.get('/', (_req, res) => {
     roomCodeInput.addEventListener('input', () => {
       roomCodeInput.value = roomCodeInput.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 4);
     });
+
+    randomMatchButton.onclick = () => {
+      const name = nameInput.value.trim() || 'Jogador';
+      randomMatchButton.disabled = true;
+      randomMatchButton.textContent = '🎲 Procurando partida...';
+
+      socket.emit('randomMatch', name, (result) => {
+        if (result?.error) {
+          randomMatchButton.disabled = false;
+          randomMatchButton.textContent = '🎲 Partida Aleatória';
+          return alert(result.error);
+        }
+
+        if (result?.createNew) {
+          socket.emit('createRoom', name, { visibility: 'public', fillWithBots: true }, (createResult) => {
+            if (createResult?.error) {
+              randomMatchButton.disabled = false;
+              randomMatchButton.textContent = '🎲 Partida Aleatória';
+              return alert(createResult.error);
+            }
+            currentGameCode = createResult.roomCode;
+            enterWaitingRoom(createResult);
+          });
+          return;
+        }
+
+        currentGameCode = result.roomCode;
+        enterWaitingRoom(result);
+      });
+    };
   };
 
   const setup = () => {
     if (typeof auth === 'undefined' || typeof socket === 'undefined') return;
 
     const originalEmit = socket.emit.bind(socket);
-    const protectedEvents = new Set(['createRoom', 'joinRoom']);
+    const protectedEvents = new Set(['createRoom', 'joinRoom', 'randomMatch']);
 
     socket.emit = (...args) => {
       const eventName = args[0];
