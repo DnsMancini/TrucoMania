@@ -1,12 +1,14 @@
 const SUITS = ['paus', 'copas', 'espadas', 'ouros'];
 const RANKS = ['4', '5', '6', '7', 'Q', 'J', 'K', 'A', '2', '3'];
 const { cardStrength } = require('./utils');
+const { chooseCard, respondBet: chooseBotBet } = require('./bot');
 
 const BET_VALUES = { truco: 3, retruco: 6, valenove: 9, valedoze: 12 };
 const CARDS_PER_PLAYER = 3;
 const NUM_PLAYERS = 4;
 const WIN_SCORE = 12;
 const MAO_DE_11_TRIGGER = 11;
+const DECISION_TIMEOUT = 25000;
 
 function buildDeck() {
   const deck = [];
@@ -65,6 +67,11 @@ class Game4P {
   }
 
   startNewHand() {
+    if (this.offlineActionTimer) {
+      clearTimeout(this.offlineActionTimer);
+      this.offlineActionTimer = null;
+    }
+
     this.deck = buildDeck();
     shuffle(this.deck);
 
@@ -128,7 +135,8 @@ class Game4P {
       }
     }
 
-    this.scheduleOfflineTurn();
+    if (this.turnStage === 'mao11Decision') this.scheduleMaoDe11Decision();
+    else this.scheduleOfflineTurn();
   }
 
   playCard(playerIndex, card) {
@@ -242,6 +250,10 @@ class Game4P {
   }
 
   advanceToNextHand() {
+    if (this.offlineActionTimer) {
+      clearTimeout(this.offlineActionTimer);
+      this.offlineActionTimer = null;
+    }
     this.dealerIndex = (this.dealerIndex + 1) % NUM_PLAYERS;
     if (this.onBeforeNewHand) this.onBeforeNewHand();
 
@@ -305,6 +317,25 @@ class Game4P {
     this.emit('turn', { currentPlayer: this.currentPlayer }, 'all');
     this.scheduleOfflineTurn();
     return true;
+  }
+
+  scheduleMaoDe11Decision() {
+    if (this.turnStage !== 'mao11Decision' || !this.maoDe11) return;
+    if (this.offlineActionTimer) clearTimeout(this.offlineActionTimer);
+
+    const team = this.maoDe11Team;
+    const playerIndex = [team, team + 2].find(index => {
+      const player = this.players[index];
+      return player && !player.isBot && player.online === false;
+    });
+
+    if (playerIndex === undefined) return;
+
+    this.offlineActionTimer = setTimeout(() => {
+      this.offlineActionTimer = null;
+      if (this.turnStage !== 'mao11Decision' || !this.maoDe11) return;
+      this.respondMaoDe11(playerIndex, 'play');
+    }, DECISION_TIMEOUT);
   }
 
   fleeHand(playerIndex) {
@@ -375,12 +406,16 @@ class Game4P {
     const responderTeam = this.betState.responderTeam;
     if (playerIndex % 2 !== responderTeam) return false;
 
+    const { challenger, level } = this.betState;
+
+    if (action !== 'flee' && action !== 'accept' && action !== 'retruco' && action !== 'valenove' && action !== 'valedoze') {
+      return false;
+    }
+
     if (this.offlineActionTimer) {
       clearTimeout(this.offlineActionTimer);
       this.offlineActionTimer = null;
     }
-
-    const { challenger, level } = this.betState;
 
     if (action === 'flee') {
       const points = this.getBetValueBefore(level);
@@ -478,7 +513,7 @@ class Game4P {
       const hand = this.hands[playerIndex];
       if (!hand) return;
 
-      const action = respondBet(hand, this.vira.rank, this.betState.level);
+      const action = chooseBotBet(hand, this.vira.rank, this.betState.level);
       this.respondBet(playerIndex, action);
     }, 1200 + Math.random() * 1500);
   }
