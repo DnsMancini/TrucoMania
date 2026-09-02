@@ -66,14 +66,9 @@ document.addEventListener('user-authenticated', (e) => {
   if (e.detail && e.detail.nickname) {
     myNickname = e.detail.nickname;
     // Preencher input do nome se vazio
-    if (nameInput && !nameInput.value) {
-      nameInput.value = myNickname;
-    }
-    // Atualizar avatar/display se necessário
+    if (nameInput && !nameInput.value) nameInput.value = myNickname;
     const p0avatar = document.querySelector('#p0 .avatar');
-    if (p0avatar) {
-      p0avatar.textContent = e.detail.avatar || myNickname.charAt(0).toUpperCase();
-    }
+    if (p0avatar) p0avatar.textContent = e.detail.avatar || myNickname.charAt(0).toUpperCase();
   }
 });
 
@@ -91,36 +86,29 @@ function posicionarSeta(currentPlayer) {
     turnIndicator.classList.remove('visible');
     return;
   }
-
-  // Mapear índice original do jogador para posição visual (após rotação)
   const rotated = rotateArrayForPlayer([0, 1, 2, 3], myPlayerIndex);
   const visualPos = rotated.indexOf(currentPlayer);
   if (visualPos < 0) {
     turnIndicator.classList.remove('visible');
     return;
   }
-
   const slotId = SLOT_ORDER[visualPos];
   const slot = document.getElementById(slotId);
   if (!slot) {
     turnIndicator.classList.remove('visible');
     return;
   }
-
   const rect = slot.getBoundingClientRect();
   const indicatorX = rect.left + rect.width / 2;
   const indicatorY = rect.top + rect.height / 2;
   const rotations = [0, 90, 180, -90];
-
   turnIndicator.style.left = indicatorX + 'px';
   turnIndicator.style.top = indicatorY + 'px';
   turnIndicator.style.transform = `translate(-50%, -50%) rotate(${rotations[visualPos]}deg)`;
   turnIndicator.classList.add('visible');
 }
 
-function esconderSeta() {
-  turnIndicator.classList.remove('visible');
-}
+function esconderSeta() { turnIndicator.classList.remove('visible'); }
 
 // ========== UTILITÁRIOS ==========
 function rotateArrayForPlayer(arr, startIndex) {
@@ -170,9 +158,7 @@ function enterWaitingRoom(res) {
   esconderSeta();
 }
 
-socket.on('connect', () => {
-  socket.emit('getRooms');
-});
+socket.on('connect', () => socket.emit('getRooms'));
 
 socket.on('roomsUpdate', (rooms) => {
   if (!roomsListEl) return;
@@ -218,7 +204,6 @@ socket.on('handStart', (data) => {
     const player = rotatedPlayers[i];
     if (slotEl) slotEl.textContent = (player?.name || '') + (player?.isBot ? ' (Bot)' : '');
   }
-
   for (let i = 1; i <= 3; i++) {
     HAND_SLOTS[i].innerHTML = '';
     for (let j = 0; j < 3; j++) {
@@ -227,7 +212,6 @@ socket.on('handStart', (data) => {
       HAND_SLOTS[i].appendChild(carta);
     }
   }
-
   renderizarMao(playerHand);
   teamAScoreEl.textContent = data.scores[0];
   teamBScoreEl.textContent = data.scores[1];
@@ -235,19 +219,13 @@ socket.on('handStart', (data) => {
   trucoStatusEl.textContent = data.maoDe11 ? 'Mão de 11' : 'Truco: Nenhum';
   isMyTurn = (data.currentPlayer === myPlayerIndex);
   posicionarSeta(data.currentPlayer);
-  atualizarInfoLive();
-
   aguardandoResposta = false;
   isRespondingToBet = false;
   currentBetLevel = null;
   viraEl.classList.remove('oculto', 'virada');
   viraEl.innerHTML = createCardHTML(data.vira);
   mesaCartas.innerHTML = '';
-
-  painelHistorico.querySelectorAll('.bolinha-rodada').forEach(b => {
-    b.className = 'bolinha-rodada bolinha-branca';
-  });
-
+  painelHistorico.querySelectorAll('.bolinha-rodada').forEach(b => b.className = 'bolinha-rodada bolinha-branca');
   audioDistribuir.play().catch(e => {});
   clearTurnTimer();
 
@@ -261,6 +239,7 @@ socket.on('handStart', (data) => {
     btnTruco.classList.add('oculto');
     btnCorrer.classList.add('oculto');
   }
+  atualizarInfoLive();
 });
 
 socket.on('maoDe11Decision', ({ team }) => {
@@ -286,13 +265,14 @@ socket.on('maoDe11Started', ({ handValue, currentPlayer }) => {
   aguardandoResposta = false;
   isRespondingToBet = false;
   currentBetLevel = null;
-  btnCorrer.classList.remove('oculto');
+  clearTurnTimer();
   if (isMyTurn) {
+    btnCorrer.classList.remove('oculto');
     atualizarBotaoTruco();
     startTurnTimer();
   } else {
     btnTruco.classList.add('oculto');
-    clearTurnTimer();
+    btnCorrer.classList.add('oculto');
   }
   atualizarInfoLive();
 });
@@ -324,17 +304,13 @@ socket.on('cardPlayed', ({ player, card }) => {
     }
     clearTurnTimer();
   } else {
-    const rotatedPlayers = rotateArrayForPlayer(
-      Array.from({ length: 4 }, (_, i) => ({ id: i })),
-      myPlayerIndex
-    );
+    const rotatedPlayers = rotateArrayForPlayer(Array.from({ length: 4 }, (_, i) => ({ id: i })), myPlayerIndex);
     const relIndex = rotatedPlayers.findIndex(p => p.id === player);
     if (relIndex > 0) {
       const handEl = HAND_SLOTS[relIndex];
       if (handEl && handEl.children.length > 0) handEl.removeChild(handEl.lastChild);
     }
   }
-
   const rotatedPlayers = rotateArrayForPlayer([0, 1, 2, 3], myPlayerIndex);
   const relPos = rotatedPlayers.indexOf(player);
   const posicoes = ['c0', 'c3', 'c2', 'c1'];
@@ -405,7 +381,6 @@ socket.on('betCalled', ({ level, responderTeam, challenger }) => {
   lastBetTeam = challenger % 2;
   aguardandoResposta = true;
   isRespondingToBet = responderTeam === (myPlayerIndex % 2);
-
   if (isRespondingToBet) {
     btnCorrer.classList.remove('oculto');
     atualizarBotaoTruco();
@@ -413,7 +388,6 @@ socket.on('betCalled', ({ level, responderTeam, challenger }) => {
     btnTruco.classList.add('oculto');
     btnCorrer.classList.add('oculto');
   }
-
   const audioByLevel = { truco: audioTruco, retruco: audioSeis, valenove: audioNove, valedoze: audioDoze };
   const selectedAudio = audioByLevel[level] || audioTruco;
   selectedAudio.play().catch(() => {});
@@ -452,24 +426,20 @@ function atualizarBotaoTruco() {
     else btnTruco.classList.add('oculto');
     return;
   }
-
   if (isRespondingToBet) {
     btnTruco.classList.remove('oculto');
     const raiseLabel = currentBetLevel === 'truco' ? 'AUMENTAR PARA 6' : currentBetLevel === 'retruco' ? 'AUMENTAR PARA 9' : currentBetLevel === 'valenove' ? 'AUMENTAR PARA 12' : '';
     btnTruco.textContent = currentBetLevel === 'valedoze' ? 'ACEITAR' : `ACEITAR / ${raiseLabel}`;
     return;
   }
-
   if (aguardandoResposta || !isMyTurn) {
     btnTruco.classList.add('oculto');
     return;
   }
-
   if (currentHandValue >= 3 && lastBetTeam === (myPlayerIndex % 2)) {
     btnTruco.classList.add('oculto');
     return;
   }
-
   btnTruco.classList.remove('oculto');
   if (currentHandValue >= 12) btnTruco.classList.add('oculto');
   else if (currentHandValue >= 9) btnTruco.textContent = 'VALE DOZE';
@@ -480,18 +450,15 @@ function atualizarBotaoTruco() {
 
 btnTruco.onclick = () => {
   if (!gameActive) return;
-
   if (isMaoDe11Decision) {
     socket.emit('respondMaoDe11', 'play');
     clearTurnTimer();
     return;
   }
-
   if (isRespondingToBet) {
     const canRaise = currentBetLevel === 'truco' || currentBetLevel === 'retruco' || currentBetLevel === 'valenove';
-    if (!canRaise) {
-      socket.emit('respondBet', 'accept');
-    } else {
+    if (!canRaise) socket.emit('respondBet', 'accept');
+    else {
       const aumentar = !window.confirm('OK = Aceitar\nCancelar = Aumentar aposta');
       let raiseTo = 'retruco';
       if (currentBetLevel === 'retruco') raiseTo = 'valenove';
@@ -501,7 +468,6 @@ btnTruco.onclick = () => {
     clearTurnTimer();
     return;
   }
-
   if (!isMyTurn || aguardandoResposta) return;
   let betType = 'truco';
   if (currentHandValue >= 9) betType = 'valedoze';
@@ -513,11 +479,9 @@ btnTruco.onclick = () => {
 
 btnCorrer.onclick = () => {
   if (!gameActive) return;
-  if (isMaoDe11Decision) {
-    socket.emit('respondMaoDe11', 'flee');
-  } else if (isRespondingToBet) {
-    socket.emit('respondBet', 'flee');
-  } else {
+  if (isMaoDe11Decision) socket.emit('respondMaoDe11', 'flee');
+  else if (isRespondingToBet) socket.emit('respondBet', 'flee');
+  else {
     if (!isMyTurn) return;
     socket.emit('fleeHand');
   }
