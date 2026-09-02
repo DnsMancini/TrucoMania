@@ -521,8 +521,8 @@ function buildBotContext(room, playerIndex) {
     playerName: player.name,
     hand: game.hands[playerIndex] || [],
     vira: game.vira,
-    roundCards: game.roundCards,
     currentRound: game.currentRound,
+    roundCards: game.roundCards,
     roundWins: game.roundWins,
     handValue: game.handValue,
     scores: game.scores,
@@ -548,14 +548,15 @@ function checkBotTurn(room, io) {
     if (!room.game || room.status !== 'playing') return;
     if (room.game.turnStage !== 'play' || room.game.currentPlayer !== playerIndex) return;
     const context = buildBotContext(room, playerIndex);
-    const bet = shouldCallBet(context.hand, context.vira, context.handValue, context.maoDe11, context);
+    const viraRank = context.vira?.rank;
+    const bet = shouldCallBet(context.hand, viraRank, context.handValue, context.maoDe11, context);
     if (bet) {
       if (room.game.callBet(playerIndex, bet)) {
         checkBotResponse(room, io);
         return;
       }
     }
-    const card = chooseCard(context.hand, context.vira, context);
+    const card = chooseCard(context.hand, viraRank, context);
     if (!card) return;
     room.game.playCard(playerIndex, card);
     checkBotResponse(room, io);
@@ -572,7 +573,8 @@ function checkBotResponse(room, io) {
     if (!room.game || room.status !== 'playing') return;
     if (room.game.turnStage !== 'respond' || room.game.betState?.responderTeam !== responderTeam) return;
     const context = buildBotContext(room, responderIndex);
-    const action = respondBet(context.hand, context.vira, context.betState.level, context);
+    const viraRank = context.vira?.rank;
+    const action = respondBet(context.hand, viraRank, context.betState.level, context);
     room.game.respondBet(responderIndex, action);
     checkBotTurn(room, io);
     checkBotResponse(room, io);
