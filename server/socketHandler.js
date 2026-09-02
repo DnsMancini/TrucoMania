@@ -466,6 +466,7 @@ function processPendingJoins(room, io) {
     const { socket, playerName, uid } = room.pendingJoin.shift();
     room.players[botIndex] = { id: socket.id, uid, name: playerName, isBot: false, online: true, pendingReplace: false };
     socket.join(room.code);
+    sendCurrentGameState(room, socket, botIndex);
   }
   for (let i = 0; i < room.players.length; i++) {
     const p = room.players[i];
@@ -498,92 +499,53 @@ function buildBotContext(room, playerIndex) {
   return {
     playerIndex,
     currentPlayer: game.currentPlayer,
-    currentRound: game.currentRound,
+    playerName: player.name,
+    hand: game.hands[playerIndex] || [],
+    vira: game.vira,
     roundCards: game.roundCards,
-    roundWins: game.roundWins,
-    roundStarter: game.roundStarter,
-    playersInRound: game.playersInRound,
     handValue: game.handValue,
     scores: game.scores,
     setWins: game.setWins,
-    dealer: game.dealerIndex,
+    maoDe11: game.maoDe11,
+    maoDe11Team: game.maoDe11Team,
+    maoDe11DecisionMade: game.maoDe11DecisionMade,
+    turnStage: game.turnStage,
     betState: game.betState,
-    style: player.style
+    players: room.players.map(p => ({ name: p.name, isBot: p.isBot, online: p.online }))
   };
 }
 
 function checkBotTurn(room, io) {
-  if (!room.game) return;
-
-  if (room.game.turnStage === 'mao11Decision') {
-    room.game.scheduleMaoDe11Decision();
-    return;
-  }
-
-  if (room.game.turnStage === 'play') {
-    const cp = room.game.currentPlayer;
-    const player = room.players[cp];
-
-    if (player && player.isBot) {
-      setTimeout(() => {
-        if (room.game && room.game.currentPlayer === cp && room.game.turnStage === 'play') {
-          const hand = room.game.hands[cp];
-          if (hand && hand.length > 0) {
-            const context = buildBotContext(room, cp);
-            const bet = shouldCallBet(hand, room.game.vira.rank, room.game.handValue, room.game.maoDe11, context);
-            if (bet) {
-              room.game.callBet(cp, bet);
-              checkBotResponse(room, io);
-              return;
-            }
-
-            const card = chooseCard(hand, room.game.vira.rank, context);
-            room.game.playCard(cp, card);
-            checkBotTurn(room, io);
-          }
-        }
-      }, 1000 + Math.random() * 2000);
-    }
-  }
+  if (!room || !room.game) return;
+  const game = room.game;
+  if (game.turnStage !== 'play') return;
+  const playerIndex = game.currentPlayer;
+  const player = room.players[playerIndex];
+  if (!player?.isBot) return;
+  setTimeout(() => {
+    if (!room.game || room.status !== 'playing') return;
+    if (room.game.turnStage !== 'play' || room.game.currentPlayer !== playerIndex) return;
+    const context = buildBotContext(room, playerIndex);
+    const card = chooseCard(context);
+    room.game.playCard(playerIndex, card);
+    checkBotResponse(room, io);
+    checkBotTurn(room, io);
+  }, 700);
 }
 
 function checkBotResponse(room, io) {
-  if (!room.game || room.game.turnStage !== 'respond' || !room.game.betState) return;
-  const respTeam = room.game.betState.responderTeam;
-  const teamPlayers = [respTeam, respTeam + 2];
-
-  if (teamPlayers.every(i => room.players[i] && room.players[i].isBot)) {
-    const botPlayer = teamPlayers
-      .map(i => ({ index: i, player: room.players[i] }))
-      .find(p => p.player && p.player.isBot);
-
-    if (botPlayer) {
-      const playerIndex = botPlayer.index;
-      const hand = room.game.hands[playerIndex];
-      if (hand) {
-        const context = buildBotContext(room, playerIndex);
-        const action = respondBet(hand, room.game.vira.rank, room.game.betState.level, context);
-
-        setTimeout(() => {
-          if (room.game && room.game.betState) {
-            room.game.respondBet(playerIndex, action);
-            checkBotResponse(room, io);
-            checkBotTurn(room, io);
-          }
-        }, 2000 + Math.random() * 2000);
-      }
-    }
-  }
-}
-
-function hasBotPartner(players, playerIndex) {
-  const partnerIndex = (playerIndex + 2) % 4;
-  return Boolean(players[partnerIndex]?.isBot);
-}
-
-function findRoomBySocket(socketId) {
-  for (const [, room] of rooms) if (room.players.some(p => p.id === socketId)) return room;
-  return null;
+  if (!room || !room.game || room.game.turnStage !== 'respond' || !room.game.betState) return;
+  const responderTeam = room.game.betState.responderTeam;
+  const responderIndex = room.players.findIndex(p => p.isBot && p.team === responderTeam);
+  if (responderIndex === -1) return;
+  setTimeout(() => {
+    if (!room.game || room.status !== 'playing') return;
+    if (room.game.turnStage !== 'respond' || room.game.betState?.responderTeam !== responderTeam) return;
+    const action = respondBet(buildBotContext(room, responderIndex));
+    room.game.respondBet(responderIndex, action);
+    checkBotTurn(room, io);
+    checkBotResponse(room, io);
+  }, 700);
 }
 
 module.exports = { handleSocket };
