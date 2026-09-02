@@ -74,7 +74,7 @@ class Game4P {
     this.roundWinners[this.currentRound] = winnerTeam; if (winnerTeam !== -1) this.roundWins[winnerTeam]++; this.emit('roundResult', { round: this.currentRound, winner }, 'all');
     if (this.currentRound === 1) { const first = this.roundWinners[0]; const second = this.roundWinners[1]; if (first === -1 && second !== -1) return this.endHand(second); if (first !== -1 && second === -1) return this.endHand(first); if (first !== -1 && second === first) return this.endHand(first); }
     if (this.roundWins[0] >= 2 || this.roundWins[1] >= 2) return this.endHand(this.roundWins[0] >= 2 ? 0 : 1);
-    if (this.currentRound >= 2) { const first = this.roundWinners[0]; const winningTeam = winnerTeam !== -1 ? winnerTeam : first; return this.endHand(winningTeam); }
+    if (this.currentRound >= 2) { const first = this.roundWinners[0]; const winningTeam = winnerTeam !== -1 ? winnerTeam : (first !== -1 ? first : this.roundStarter % 2); return this.endHand(winningTeam); }
     this.currentRound++; this.playersInRound = 0; this.currentPlayer = winner !== -1 ? winner : this.roundStarter; this.roundStarter = this.currentPlayer; this.emit('turn', { currentPlayer: this.currentPlayer }, 'all'); this.scheduleOfflineTurn();
   }
   checkSetOver(winningTeam) {
