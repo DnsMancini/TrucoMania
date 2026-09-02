@@ -128,7 +128,6 @@ class Game4P {
       }
     }
 
-    this.scheduleOfflineMaoDe11();
     this.scheduleOfflineTurn();
   }
 
