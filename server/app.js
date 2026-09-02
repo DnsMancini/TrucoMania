@@ -107,7 +107,7 @@ app.get('/', (_req, res) => {
     const controls = document.createElement('div');
     controls.className = 'room-creation-controls';
     controls.style.cssText = 'display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;margin-top:10px;align-items:center;';
-    controls.innerHTML = `
+    controls.innerHTML = \`
       <label style="display:flex;align-items:center;gap:8px;font-size:13px;">
         <span>Tipo</span>
         <select id="roomVisibility" class="lobby-input" style="flex:1;min-width:0;">
@@ -119,17 +119,17 @@ app.get('/', (_req, res) => {
         <input id="roomFillBots" type="checkbox" checked />
         <span>Completar com bots</span>
       </label>
-    `;
+    \`;
     entryPanel.appendChild(controls);
 
-    const joinByCode = document.createElement('div');
-    joinByCode.className = 'room-code-entry';
-    joinByCode.style.cssText = 'display:flex;gap:10px;margin-top:10px;';
-    joinByCode.innerHTML = `
+    const joinByCodeContainer = document.createElement('div');
+    joinByCodeContainer.className = 'room-code-entry';
+    joinByCodeContainer.style.cssText = 'display:flex;gap:10px;margin-top:10px;';
+    joinByCodeContainer.innerHTML = \`
       <input id="roomCodeInput" class="lobby-input" placeholder="Código da sala" maxlength="4" autocomplete="off" style="text-transform:uppercase;flex:1;" />
       <button id="joinCodeBtn" class="lobby-button">Entrar por código</button>
-    `;
-    entryPanel.appendChild(joinByCode);
+    \`;
+    entryPanel.appendChild(joinByCodeContainer);
 
     const randomMatchButton = document.createElement('button');
     randomMatchButton.id = 'randomMatchBtn';
@@ -148,7 +148,7 @@ app.get('/', (_req, res) => {
         if (result?.error) return alert(result.error);
         currentGameCode = result.roomCode;
         if (result.isPublic === false) {
-          alert(`Sala privada criada!\nCódigo: ${result.roomCode}\nCompartilhe este código com quem você quiser convidar.`);
+          alert(\`Sala privada criada!\\nCódigo: ${result.roomCode}\\nCompartilhe este código com quem você quiser convidar.\`);
         }
         enterWaitingRoom(result);
       });
