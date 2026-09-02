@@ -5,6 +5,7 @@ const { admin } = require('./firebaseAdmin');
 const rooms = new Map();
 const MAX_ROOMS = 8;
 const OFFLINE_TIMEOUT = 90000; // 90 segundos
+const BOT_WAIT_SECONDS = 15;
 const BET_FUNCTIONS = {
   respond: 'respondBet',
   turn: 'checkBotTurn',
@@ -18,7 +19,9 @@ function generateRoomCode() {
 function broadcastRooms(io) {
   const openRooms = [];
   for (const [code, room] of rooms) {
-    if (room.status === 'waiting' || room.status === 'playing') {
+    // Somente salas públicas aguardando jogadores aparecem no lobby.
+    // Salas privadas e partidas já iniciadas ficam fora da lista pública.
+    if (room.status === 'waiting' && room.isPublic !== false) {
       openRooms.push({ code, players: room.players.length, status: room.status });
     }
   }
@@ -64,13 +67,20 @@ function handleSocket(io) {
 
     socket.on('getRooms', () => broadcastRooms(io));
 
-    socket.on('createRoom', (playerName, callback) => {
+    // Suporta tanto a chamada antiga (playerName, callback) quanto a nova
+    // (playerName, options, callback), mantendo compatibilidade com o cliente atual.
+    socket.on('createRoom', (playerName, optionsOrCallback, maybeCallback) => {
+      const callback = typeof optionsOrCallback === 'function' ? optionsOrCallback : maybeCallback;
+      const options = (optionsOrCallback && typeof optionsOrCallback === 'object') ? optionsOrCallback : {};
+
       if (!requireAuth(socket, callback)) return;
       if (rooms.size >= MAX_ROOMS) {
         return callback({ error: 'Máximo de salas atingido.' });
       }
+
       let code = generateRoomCode();
       while (rooms.has(code)) code = generateRoomCode();
+
       const room = {
         players: [{ id: socket.id, uid: socket.user.uid, name: playerName, isBot: false, online: true, pendingReplace: false }],
         game: null,
@@ -78,30 +88,40 @@ function handleSocket(io) {
         pendingJoin: [],
         offlineTimers: new Map(),
         code,
-        status: 'waiting'
+        status: 'waiting',
+        isPublic: options.visibility !== 'private',
+        fillWithBots: options.fillWithBots !== false
       };
       rooms.set(code, room);
       socket.join(code);
-      callback({ roomCode: code, players: room.players.map(p => ({name:p.name, isBot:false, online:true})) });
+      callback({
+        roomCode: code,
+        isPublic: room.isPublic,
+        fillWithBots: room.fillWithBots,
+        players: room.players.map(p => ({ name: p.name, isBot: false, online: true }))
+      });
       broadcastRooms(io);
 
-      let count = 3;
-      io.to(code).emit('lobbyCountdown', { count });
-      room.countdownInterval = setInterval(() => {
-        count--;
+      if (room.fillWithBots) {
+        let count = BOT_WAIT_SECONDS;
         io.to(code).emit('lobbyCountdown', { count });
-        if (count <= 0) {
-          clearInterval(room.countdownInterval);
-          fillWithBotsAndStart(code, io);
-        }
-      }, 1000);
+        room.countdownInterval = setInterval(() => {
+          count--;
+          io.to(code).emit('lobbyCountdown', { count });
+          if (count <= 0) {
+            clearInterval(room.countdownInterval);
+            room.countdownInterval = null;
+            fillWithBotsAndStart(code, io);
+          }
+        }, 1000);
+      }
     });
 
     socket.on('joinRoom', ({ roomCode, playerName }, callback) => {
       if (!requireAuth(socket, callback)) return;
       const room = rooms.get(roomCode);
       if (!room) return callback({ error: 'Sala não encontrada' });
-      if (room.players.length >= 4 && room.status !== 'playing') {
+      if (room.status === 'waiting' && room.players.length >= 4) {
         return callback({ error: 'Sala cheia' });
       }
 
@@ -187,6 +207,7 @@ function handleSocket(io) {
           }
         }, OFFLINE_TIMEOUT);
         room.offlineTimers.set(socket.id, timer);
+        broadcastRooms(io);
       }
     });
   });
