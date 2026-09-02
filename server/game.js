@@ -68,15 +68,52 @@ class Game4P {
     return true;
   }
   resolveRound() {
-    const round = this.roundCards[this.currentRound] || []; let maxStrength = -Infinity;
+    const round = this.roundCards[this.currentRound] || [];
+    let maxStrength = -Infinity;
     for (const card of round) if (card) maxStrength = Math.max(maxStrength, cardStrength(card, this.vira.rank));
-    const maxPlayers = []; for (let i = 0; i < NUM_PLAYERS; i++) { const card = round[i]; if (card && cardStrength(card, this.vira.rank) === maxStrength) maxPlayers.push(i); }
-    const maxTeams = [...new Set(maxPlayers.map(i => i % 2))]; const winner = maxTeams.length === 1 ? maxPlayers[0] : -1; const winnerTeam = winner === -1 ? -1 : winner % 2;
-    this.roundWinners[this.currentRound] = winnerTeam; if (winnerTeam !== -1) this.roundWins[winnerTeam]++; this.emit('roundResult', { round: this.currentRound, winner }, 'all');
-    if (this.currentRound === 1) { const first = this.roundWinners[0]; const second = this.roundWinners[1]; if (first === -1 && second !== -1) return this.endHand(second); if (first !== -1 && second === -1) return this.endHand(first); if (first !== -1 && second === first) return this.endHand(first); }
+
+    // O vencedor da rodada é SEMPRE o jogador que efetivamente jogou a carta mais forte.
+    // Guardamos o índice do jogador vencedor, e não apenas o time, para que a próxima
+    // rodada comece exatamente com esse jogador.
+    const strongestPlayers = [];
+    for (let i = 0; i < NUM_PLAYERS; i++) {
+      const card = round[i];
+      if (card && cardStrength(card, this.vira.rank) === maxStrength) strongestPlayers.push(i);
+    }
+
+    const strongestTeams = [...new Set(strongestPlayers.map(i => i % 2))];
+    const winnerPlayer = strongestTeams.length === 1 ? strongestPlayers[0] : -1;
+    const winnerTeam = winnerPlayer === -1 ? -1 : winnerPlayer % 2;
+
+    this.roundWinners[this.currentRound] = winnerTeam;
+    if (winnerTeam !== -1) this.roundWins[winnerTeam]++;
+    this.emit('roundResult', { round: this.currentRound, winner: winnerPlayer }, 'all');
+
+    if (this.currentRound === 1) {
+      const first = this.roundWinners[0];
+      const second = this.roundWinners[1];
+      if (first === -1 && second !== -1) return this.endHand(second);
+      if (first !== -1 && second === -1) return this.endHand(first);
+      if (first !== -1 && second === first) return this.endHand(first);
+    }
     if (this.roundWins[0] >= 2 || this.roundWins[1] >= 2) return this.endHand(this.roundWins[0] >= 2 ? 0 : 1);
-    if (this.currentRound >= 2) { const first = this.roundWinners[0]; const winningTeam = winnerTeam !== -1 ? winnerTeam : (first !== -1 ? first : this.roundStarter % 2); return this.endHand(winningTeam); }
-    this.currentRound++; this.playersInRound = 0; this.currentPlayer = winner !== -1 ? winner : this.roundStarter; this.roundStarter = this.currentPlayer; this.emit('turn', { currentPlayer: this.currentPlayer }, 'all'); this.scheduleOfflineTurn();
+    if (this.currentRound >= 2) {
+      const first = this.roundWinners[0];
+      const winningTeam = winnerTeam !== -1 ? winnerTeam : (first !== -1 ? first : this.roundStarter % 2);
+      return this.endHand(winningTeam);
+    }
+
+    this.currentRound++;
+    this.playersInRound = 0;
+
+    // Regra do Truco: quem ganhou a rodada anterior começa a próxima.
+    // Em empate, mantém-se o jogador que iniciou a rodada empatada.
+    const nextRoundStarter = winnerPlayer !== -1 ? winnerPlayer : this.roundStarter;
+    this.roundStarter = nextRoundStarter;
+    this.currentPlayer = nextRoundStarter;
+
+    this.emit('turn', { currentPlayer: this.currentPlayer }, 'all');
+    this.scheduleOfflineTurn();
   }
   checkSetOver(winningTeam) {
     if (winningTeam === -1 || this.scores[winningTeam] < WIN_SCORE) return false;
