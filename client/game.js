@@ -78,6 +78,7 @@ document.addEventListener('user-authenticated', (e) => {
 
 let isRespondingToBet = false;
 let currentBetLevel = null;
+let lastBetTeam = null;
 
 // ========== INDICADOR DE VEZ (seta dinâmica) ==========
 const turnIndicator = document.createElement('div');
@@ -208,6 +209,7 @@ socket.on('handStart', (data) => {
   playerHand = data.hand;
   myPlayerIndex = data.player;
   currentHandValue = data.handValue;
+  lastBetTeam = null;
 
   const rotatedPlayers = rotateArrayForPlayer(data.players, myPlayerIndex);
   for (let i = 0; i < 4; i++) {
@@ -325,6 +327,7 @@ socket.on('handEnd', ({ winnerTeam, points, scores }) => {
   aguardandoResposta = false;
   isRespondingToBet = false;
   currentBetLevel = null;
+  lastBetTeam = null;
   isMyTurn = false;
   clearTurnTimer();
   teamAScoreEl.textContent = scores[0];
@@ -348,6 +351,7 @@ socket.on('matchOver', ({ winnerTeam }) => {
   aguardandoResposta = false;
   isRespondingToBet = false;
   currentBetLevel = null;
+  lastBetTeam = null;
   isMyTurn = false;
   clearTurnTimer();
   contagemEl.classList.add('oculto');
@@ -359,8 +363,9 @@ socket.on('matchOver', ({ winnerTeam }) => {
   esconderSeta();
 });
 
-socket.on('betCalled', ({ level, responderTeam }) => {
+socket.on('betCalled', ({ level, responderTeam, challenger }) => {
   currentBetLevel = level;
+  lastBetTeam = challenger % 2;
   aguardandoResposta = true;
   isRespondingToBet = responderTeam === (myPlayerIndex % 2);
 
@@ -411,6 +416,11 @@ function atualizarBotaoTruco() {
   }
 
   if (aguardandoResposta || !isMyTurn) {
+    btnTruco.classList.add('oculto');
+    return;
+  }
+
+  if (currentHandValue >= 3 && lastBetTeam === (myPlayerIndex % 2)) {
     btnTruco.classList.add('oculto');
     return;
   }
