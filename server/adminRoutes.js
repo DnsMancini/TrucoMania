@@ -4,7 +4,8 @@ const { admin, db } = require('./firebaseAdmin');
 const router = express.Router();
 
 const COLLECTIONS = {
-  users: 'users',
+  authUsers: 'users',
+  players: 'players',
   transactions: 'transactions',
   auditLogs: 'audit_logs',
   matches: 'matches'
@@ -87,7 +88,7 @@ async function requireAdmin(req, res, next) {
     }
 
     const decoded = await admin.auth().verifyIdToken(token);
-    const userDoc = await db.collection(COLLECTIONS.users).doc(decoded.uid).get();
+    const userDoc = await db.collection(COLLECTIONS.authUsers).doc(decoded.uid).get();
     const role = userDoc.exists ? userDoc.data()?.role : null;
 
     if (decoded.admin !== true && role !== 'admin') {
@@ -115,18 +116,18 @@ router.get('/', (_req, res) => {
 
 router.get('/dashboard', async (_req, res) => {
   try {
-    const [usersSnap, txSnap, matchesSnap] = await Promise.all([
-      db.collection(COLLECTIONS.users).get(),
+    const [playersSnap, txSnap, matchesSnap] = await Promise.all([
+      db.collection(COLLECTIONS.players).get(),
       db.collection(COLLECTIONS.transactions).orderBy('createdAt', 'desc').limit(200).get(),
       db.collection(COLLECTIONS.matches).orderBy('createdAt', 'desc').limit(200).get()
     ]);
 
-    const users = usersSnap.docs.map((d) => ({ uid: d.id, ...d.data() }));
+    const players = playersSnap.docs.map((d) => ({ uid: d.id, ...d.data() }));
     const transactions = txSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
     const matches = matchesSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
-    const totalCoins = users.reduce((acc, u) => acc + parseNumber(u.coins), 0);
-    const onlineUsers = users.filter((u) => u.online === true).length;
+    const totalCoins = players.reduce((acc, u) => acc + parseNumber(u.coins), 0);
+    const onlineUsers = players.filter((u) => u.online === true).length;
     const suspiciousAlerts = buildSuspiciousAlerts(transactions, matches);
 
     suspiciousAlerts.slice(0, 20).forEach((alert) => {
@@ -134,7 +135,7 @@ router.get('/dashboard', async (_req, res) => {
     });
 
     res.json({
-      totalUsers: users.length,
+      totalUsers: players.length,
       onlineUsers,
       totalCoins,
       recentMatches: matches.slice(0, 20),
@@ -150,13 +151,13 @@ router.get('/dashboard', async (_req, res) => {
 router.get('/users', async (req, res) => {
   try {
     const q = (req.query.q || '').toString().trim().toLowerCase();
-    const snap = await db.collection(COLLECTIONS.users).limit(500).get();
+    const snap = await db.collection(COLLECTIONS.players).limit(500).get();
     let users = snap.docs.map((doc) => ({ uid: doc.id, ...doc.data() }));
 
     if (q) {
       users = users.filter((user) => {
         const email = (user.email || '').toLowerCase();
-        const name = (user.displayName || user.name || '').toLowerCase();
+        const name = (user.displayName || user.name || user.nickname || '').toLowerCase();
         const uid = (user.uid || '').toLowerCase();
         return email.includes(q) || name.includes(q) || uid.includes(q);
       });
@@ -171,7 +172,7 @@ router.get('/users', async (req, res) => {
 
 router.get('/user/:uid', async (req, res) => {
   try {
-    const doc = await db.collection(COLLECTIONS.users).doc(req.params.uid).get();
+    const doc = await db.collection(COLLECTIONS.players).doc(req.params.uid).get();
     if (!doc.exists) return res.status(404).json({ error: 'Usuário não encontrado.' });
     res.json({ user: { uid: doc.id, ...doc.data() } });
   } catch (error) {
@@ -186,7 +187,7 @@ async function adjustBalance(req, res, signal) {
   if (!uid || delta <= 0) return res.status(400).json({ error: 'uid/amount inválidos.' });
 
   try {
-    const ref = db.collection(COLLECTIONS.users).doc(uid);
+    const ref = db.collection(COLLECTIONS.players).doc(uid);
     const result = await db.runTransaction(async (tx) => {
       const snap = await tx.get(ref);
       if (!snap.exists) throw new Error('user_not_found');
@@ -230,7 +231,7 @@ router.post('/ban-user', async (req, res) => {
   const { uid, banned, reason } = req.body;
   if (!uid || typeof banned !== 'boolean') return res.status(400).json({ error: 'uid/banned inválidos.' });
   try {
-    const ref = db.collection(COLLECTIONS.users).doc(uid);
+    const ref = db.collection(COLLECTIONS.players).doc(uid);
     const snap = await ref.get();
     if (!snap.exists) return res.status(404).json({ error: 'Usuário não encontrado.' });
     const before = snap.data();
