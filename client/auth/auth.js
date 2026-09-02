@@ -27,7 +27,7 @@ let hazeEffect = null;
 let currentUserData = null;
 let isSubmitting = false;
 let authFlowStarted = false;
-let authCheckResolved = false; // controla se já resolvemos o status do auth
+let authCheckResolved = false;
 
 // Elementos DOM
 const splashScreen = document.getElementById('splashScreen');
@@ -73,23 +73,50 @@ function initVisualEffects() {
   }
 }
 
-// Função segura para mostrar a tela de login (fallback)
 function forceShowLoginScreen() {
   try {
     if (splashScreen) splashScreen.style.display = 'none';
-    if (authOverlay) {
-      authOverlay.style.display = 'flex';
-    }
+    if (authOverlay) authOverlay.style.display = 'flex';
     showScreen(AUTH_STATE.LOGIN);
   } catch (e) {
     AuthLog.error('Erro ao forçar login screen:', e.message);
-    // Último recurso: recarregar a página
     location.reload();
   }
 }
 
-// Timeout de segurança - se o Firebase demorar mais que 8s, força tela de login
+// =============================================
+// INICIALIZAÇÃO DA AUTENTICAÇÃO
+// =============================================
+
 let initTimeoutId = null;
+
+function waitForFirebaseAuthState(timeoutMs = 8000) {
+  return new Promise((resolve) => {
+    let settled = false;
+    let unsubscribe = null;
+
+    const finish = (user, reason = 'state') => {
+      if (settled) return;
+      settled = true;
+      if (unsubscribe) unsubscribe();
+      if (timeoutId) clearTimeout(timeoutId);
+      resolve(user);
+      AuthLog.info('Estado do Firebase resolvido:', reason, user ? user.email : 'nenhum usuário');
+    };
+
+    const timeoutId = setTimeout(() => {
+      AuthLog.warn('Firebase demorou mais de 8s para resolver o estado da sessão.');
+      finish(null, 'timeout');
+    }, timeoutMs);
+
+    try {
+      unsubscribe = auth.onAuthStateChanged((user) => finish(user, 'onAuthStateChanged'));
+    } catch (error) {
+      AuthLog.error('Não foi possível observar o estado do Firebase:', error.message);
+      finish(null, 'listener-error');
+    }
+  });
+}
 
 async function initAuthFlow() {
   if (authFlowStarted) return;
@@ -98,46 +125,43 @@ async function initAuthFlow() {
 
   AuthLog.info('Iniciando fluxo de autenticação');
 
-  // Timeout de segurança: se não resolver em 8 segundos, força tela de login
   initTimeoutId = setTimeout(() => {
-    AuthLog.warn('Timeout de inicialização - forçando tela de login');
+    AuthLog.warn('Timeout global de inicialização - forçando tela de login');
     if (!authCheckResolved) {
       authCheckResolved = true;
       forceShowLoginScreen();
     }
-  }, 8000);
+  }, 9000);
 
   try {
-    // Mostrar splash primeiro
     if (splashScreen) splashScreen.style.display = 'flex';
     showScreen(AUTH_STATE.SPLASH);
-
-    // Tentar iniciar efeitos visuais (não crítico)
     initVisualEffects();
 
-    // Animar barra de loading do splash
     const loadingBar = document.getElementById('splashLoadingBar');
     if (loadingBar && typeof AuthTransitions !== 'undefined') {
       AuthTransitions.animateLoading(loadingBar, 2000).catch(() => {});
     } else {
-      // Se não tem a transição, esperar um tempo mínimo
       await new Promise(r => setTimeout(r, 1500));
     }
 
-    // Verificar se Firebase está disponível
     if (typeof firebase === 'undefined' || typeof auth === 'undefined') {
       AuthLog.warn('Firebase não carregou, pulando verificação de sessão');
+      authCheckResolved = true;
+      if (initTimeoutId) clearTimeout(initTimeoutId);
       forceShowLoginScreen();
       return;
     }
 
-    // Verificar sessão existente
-    const user = auth.currentUser;
+    // IMPORTANTE: não usamos auth.currentUser imediatamente.
+    // O Firebase pode ainda estar restaurando a persistência LOCAL.
+    const user = await waitForFirebaseAuthState(8000);
     authCheckResolved = true;
     if (initTimeoutId) clearTimeout(initTimeoutId);
-    
+    initTimeoutId = null;
+
     if (user) {
-      AuthLog.info('Sessão existente encontrada:', user.email);
+      AuthLog.info('Sessão existente restaurada:', user.email);
       try {
         await loadUserProfile(user);
         enterLobby();
@@ -145,26 +169,27 @@ async function initAuthFlow() {
         AuthLog.error('Erro ao carregar perfil:', profileErr.message);
         forceShowLoginScreen();
       }
-    } else {
-      // Transição splash → auth
-      try {
-        if (typeof authTransitions !== 'undefined' && splashScreen && authOverlay) {
-          await authTransitions.splashToAuth(splashScreen, authOverlay);
-        } else {
-          if (splashScreen) splashScreen.style.display = 'none';
-          if (authOverlay) authOverlay.style.display = 'flex';
-        }
-      } catch (transErr) {
-        AuthLog.warn('Erro na transição splash:', transErr.message);
+      return;
+    }
+
+    try {
+      if (typeof authTransitions !== 'undefined' && splashScreen && authOverlay) {
+        await authTransitions.splashToAuth(splashScreen, authOverlay);
+      } else {
         if (splashScreen) splashScreen.style.display = 'none';
         if (authOverlay) authOverlay.style.display = 'flex';
       }
-      setTimeout(() => showScreen(AUTH_STATE.LOGIN), 500);
+    } catch (transErr) {
+      AuthLog.warn('Erro na transição splash:', transErr.message);
+      if (splashScreen) splashScreen.style.display = 'none';
+      if (authOverlay) authOverlay.style.display = 'flex';
     }
+    setTimeout(() => showScreen(AUTH_STATE.LOGIN), 500);
   } catch (err) {
     AuthLog.error('ERRO no initAuthFlow:', err.message);
     authCheckResolved = true;
     if (initTimeoutId) clearTimeout(initTimeoutId);
+    initTimeoutId = null;
     forceShowLoginScreen();
   }
 }
@@ -213,7 +238,6 @@ async function loadUserProfile(user) {
       currentUserData = doc.data();
       AuthLog.info('Perfil encontrado:', currentUserData.nickname);
     } else {
-      // Criar perfil
       AuthLog.info('Criando novo perfil no Firestore');
       const emailNome = user.email ? user.email.split('@')[0] : 'Jogador';
       currentUserData = {
@@ -234,7 +258,6 @@ async function loadUserProfile(user) {
     return currentUserData;
   } catch (error) {
     AuthLog.error('Falha ao acessar Firestore:', error.message);
-    // Fallback
     currentUserData = {
       uid: user.uid,
       email: user.email || '',
@@ -277,42 +300,29 @@ function enterLobby() {
   AuthLog.info('ENTRANDO NO LOBBY:', currentUserData?.nickname || 'desconhecido');
 
   try {
+    currentState = AUTH_STATE.AUTHENTICATED;
     if (typeof authTransitions !== 'undefined') {
       authTransitions.authToLobby(authOverlay, document.getElementById('lobby'));
     } else {
-      // Fallback sem transição
       if (authOverlay) authOverlay.style.display = 'none';
       const lobby = document.getElementById('lobby');
       if (lobby) lobby.style.display = 'block';
     }
 
-    // Atualizar toda a UI do lobby com dados do perfil
     if (typeof window.updateLobbyUI === 'function') {
       window.updateLobbyUI(currentUserData);
     } else {
-      // Fallback caso profile.js não tenha carregado
       const displayName = document.getElementById('playerDisplayName');
-      if (displayName && currentUserData) {
-        displayName.textContent = currentUserData.nickname || 'Truqueiro';
-      }
+      if (displayName && currentUserData) displayName.textContent = currentUserData.nickname || 'Truqueiro';
       const avatarEl = document.getElementById('playerAvatar');
-      if (avatarEl && currentUserData) {
-        avatarEl.textContent = currentUserData.avatar || 
-          (currentUserData.nickname ? currentUserData.nickname.charAt(0).toUpperCase() : 'TM');
-      }
+      if (avatarEl && currentUserData) avatarEl.textContent = currentUserData.avatar || (currentUserData.nickname ? currentUserData.nickname.charAt(0).toUpperCase() : 'TM');
       const coinsEl = document.getElementById('playerCoins');
-      if (coinsEl && currentUserData) {
-        coinsEl.textContent = (currentUserData.coins || 0).toLocaleString('pt-BR');
-      }
+      if (coinsEl && currentUserData) coinsEl.textContent = (currentUserData.coins || 0).toLocaleString('pt-BR');
       const gemsEl = document.getElementById('playerGems');
-      if (gemsEl && currentUserData) {
-        gemsEl.textContent = (currentUserData.gems || 0).toLocaleString('pt-BR');
-      }
+      if (gemsEl && currentUserData) gemsEl.textContent = (currentUserData.gems || 0).toLocaleString('pt-BR');
     }
 
-    document.dispatchEvent(new CustomEvent('user-authenticated', {
-      detail: currentUserData
-    }));
+    document.dispatchEvent(new CustomEvent('user-authenticated', { detail: currentUserData }));
   } catch (err) {
     AuthLog.error('Erro na transição:', err.message);
     const lobby = document.getElementById('lobby');
@@ -330,7 +340,6 @@ function enterLobby() {
 document.addEventListener('DOMContentLoaded', () => {
   AuthLog.info('DOMContentLoaded - registrando handlers');
 
-  // ========== LOGIN ==========
   const loginForm = document.getElementById('loginForm');
   const btnLogin = document.getElementById('btnLogin');
   const btnGoRegister = document.getElementById('btnGoToRegister');
@@ -372,8 +381,7 @@ document.addEventListener('DOMContentLoaded', () => {
         AuthLog.error('ERRO LOGIN:', error.code, error.message);
         let msg = 'Erro ao fazer login';
         switch (error.code) {
-          case 'auth/user-not-found': case 'auth/wrong-password':
-            msg = 'Email ou senha inválidos'; break;
+          case 'auth/user-not-found': case 'auth/wrong-password': msg = 'Email ou senha inválidos'; break;
           case 'auth/invalid-email': msg = 'Formato de email inválido'; break;
           case 'auth/too-many-requests': msg = 'Muitas tentativas. Tente mais tarde'; break;
           case 'auth/user-disabled': msg = 'Conta desativada'; break;
@@ -392,25 +400,19 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Navegação
   if (btnGoRegister) {
     btnGoRegister.addEventListener('click', async () => {
-      if (typeof authTransitions !== 'undefined') {
-        await authTransitions.switchScreen(loginScreen, registerScreen);
-      }
+      if (typeof authTransitions !== 'undefined') await authTransitions.switchScreen(loginScreen, registerScreen);
       showScreen(AUTH_STATE.REGISTER);
     });
   }
   if (btnGoForgot) {
     btnGoForgot.addEventListener('click', async () => {
-      if (typeof authTransitions !== 'undefined') {
-        await authTransitions.switchScreen(loginScreen, forgotScreen);
-      }
+      if (typeof authTransitions !== 'undefined') await authTransitions.switchScreen(loginScreen, forgotScreen);
       showScreen(AUTH_STATE.FORGOT);
     });
   }
 
-  // ========== REGISTRO ==========
   const registerForm = document.getElementById('registerForm');
   const btnRegister = document.getElementById('btnRegister');
   const btnGoToLoginFromRegister = document.getElementById('btnGoToLoginFromRegister');
@@ -420,7 +422,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const regNickname = document.getElementById('regNickname');
   const nicknameFeedback = document.getElementById('nicknameFeedback');
 
-  // Validação nickname em tempo real
   if (regNickname && nicknameFeedback) {
     regNickname.addEventListener('input', () => {
       const nick = regNickname.value.trim();
@@ -432,7 +433,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Confirmação senha
   if (regConfirm && regPassword) {
     regConfirm.addEventListener('input', () => {
       if (regConfirm.value && regConfirm.value !== regPassword.value) regConfirm.setCustomValidity('Senhas não conferem');
@@ -444,7 +444,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // SUBMIT REGISTRO
   if (registerForm) {
     registerForm.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -457,9 +456,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       AuthLog.info('Submit registro:', { email, nickname, pwLen: password?.length });
 
-      if (!email || !nickname || !password || !confirm) {
-        UIEffects.showToast('Preencha todos os campos', 'error'); return;
-      }
+      if (!email || !nickname || !password || !confirm) { UIEffects.showToast('Preencha todos os campos', 'error'); return; }
       if (!validarEmail(email)) { UIEffects.showToast('Email inválido', 'error'); return; }
       if (!validarNickname(nickname)) { UIEffects.showToast('Nickname deve ter 3-15 caracteres', 'error'); return; }
       if (password !== confirm) { UIEffects.showToast('Senhas não conferem', 'error'); return; }
@@ -473,20 +470,13 @@ document.addEventListener('DOMContentLoaded', () => {
         AuthLog.info('Criando usuário:', email);
         const result = await auth.createUserWithEmailAndPassword(email, password);
         AuthLog.info('Usuário criado! UID:', result.user.uid);
+        try { await result.user.updateProfile({ displayName: nickname }); AuthLog.info('displayName atualizado para:', nickname); }
+        catch (upErr) { AuthLog.warn('Falha ao atualizar displayName:', upErr.message); }
 
-        // Atualizar displayName com o nickname
-        try {
-          await result.user.updateProfile({ displayName: nickname });
-          AuthLog.info('displayName atualizado para:', nickname);
-        } catch (upErr) {
-          AuthLog.warn('Falha ao atualizar displayName:', upErr.message);
-        }
-
-        // Salvar perfil
         const playerData = {
           uid: result.user.uid,
-          email: email,
-          nickname: nickname,
+          email,
+          nickname,
           coins: 0, gems: 0,
           rank: 'Iniciante',
           avatar: nickname.charAt(0).toUpperCase(),
@@ -494,18 +484,13 @@ document.addEventListener('DOMContentLoaded', () => {
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         };
 
-        try {
-          await db.collection('players').doc(result.user.uid).set(playerData);
-          AuthLog.info('Perfil salvo!');
-        } catch (fsErr) {
-          AuthLog.warn('Falha ao salvar perfil:', fsErr.message);
-        }
+        try { await db.collection('players').doc(result.user.uid).set(playerData); AuthLog.info('Perfil salvo!'); }
+        catch (fsErr) { AuthLog.warn('Falha ao salvar perfil:', fsErr.message); }
 
         currentUserData = playerData;
         AuthLog.info('REGISTRO COMPLETO!');
         UIEffects.showToast('Conta criada com sucesso!', 'success');
         setTimeout(() => enterLobby(), 500);
-
       } catch (error) {
         AuthLog.error('ERRO REGISTRO:', error.code, error.message);
         let msg = 'Erro ao criar conta';
@@ -531,22 +516,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (btnGoToLoginFromRegister) {
     btnGoToLoginFromRegister.addEventListener('click', async () => {
-      if (typeof authTransitions !== 'undefined') {
-        await authTransitions.switchScreen(registerScreen, loginScreen);
-      }
+      if (typeof authTransitions !== 'undefined') await authTransitions.switchScreen(registerScreen, loginScreen);
       showScreen(AUTH_STATE.LOGIN);
     });
   }
   if (btnCloseRegister) {
     btnCloseRegister.addEventListener('click', async () => {
-      if (typeof authTransitions !== 'undefined') {
-        await authTransitions.switchScreen(registerScreen, loginScreen);
-      }
+      if (typeof authTransitions !== 'undefined') await authTransitions.switchScreen(registerScreen, loginScreen);
       showScreen(AUTH_STATE.LOGIN);
     });
   }
 
-  // ========== RECUPERAÇÃO DE SENHA ==========
   const forgotForm = document.getElementById('forgotForm');
   const btnForgot = document.getElementById('btnForgot');
   const forgotSuccess = document.getElementById('forgotSuccess');
@@ -594,9 +574,7 @@ document.addEventListener('DOMContentLoaded', () => {
     btnBackToLoginFromSuccess.addEventListener('click', async () => {
       forgotForm.style.display = 'block';
       if (forgotSuccess) forgotSuccess.style.display = 'none';
-      if (typeof authTransitions !== 'undefined') {
-        await authTransitions.switchScreen(forgotScreen, loginScreen);
-      }
+      if (typeof authTransitions !== 'undefined') await authTransitions.switchScreen(forgotScreen, loginScreen);
       showScreen(AUTH_STATE.LOGIN);
     });
   }
@@ -604,22 +582,16 @@ document.addEventListener('DOMContentLoaded', () => {
     btnBackToLoginFromForgot.addEventListener('click', async () => {
       forgotForm.style.display = 'block';
       if (forgotSuccess) forgotSuccess.style.display = 'none';
-      if (typeof authTransitions !== 'undefined') {
-        await authTransitions.switchScreen(forgotScreen, loginScreen);
-      }
+      if (typeof authTransitions !== 'undefined') await authTransitions.switchScreen(forgotScreen, loginScreen);
       showScreen(AUTH_STATE.LOGIN);
     });
   }
 
-  // Botão de logout
   const btnLogout = document.getElementById('btnLogout');
   if (btnLogout) {
     btnLogout.addEventListener('click', () => {
-      if (typeof window.logout === 'function') {
-        window.logout();
-      } else {
-        logout();
-      }
+      if (typeof window.logout === 'function') window.logout();
+      else logout();
     });
   }
 });
@@ -627,11 +599,9 @@ document.addEventListener('DOMContentLoaded', () => {
 // =============================================
 // LISTENER DE AUTENTICAÇÃO
 // =============================================
-// Só processa se initAuthFlow já foi chamado e resolvido
+
 auth.onAuthStateChanged(async (user) => {
   if (user) {
-    // Se o fluxo de inicialização já foi concluído e estamos na tela de login
-    // significa que o usuário acabou de fazer login pelo auth state
     if (currentState === AUTH_STATE.LOGIN || currentState === AUTH_STATE.REGISTER) {
       AuthLog.info('[onAuthStateChanged] Usuário detectado na tela de auth');
       try {
@@ -643,7 +613,6 @@ auth.onAuthStateChanged(async (user) => {
         AuthLog.error('[onAuthStateChanged] Erro:', err);
       }
     }
-    // Se ainda está no splash/checking, o initAuthFlow vai lidar
   }
 });
 
@@ -652,9 +621,7 @@ auth.onAuthStateChanged(async (user) => {
 // =============================================
 async function logout() {
   AuthLog.info('Logout');
-  try { await auth.signOut(); } catch (e) {
-    AuthLog.warn('Erro signOut:', e.message);
-  }
+  try { await auth.signOut(); } catch (e) { AuthLog.warn('Erro signOut:', e.message); }
   currentUserData = null;
   currentState = AUTH_STATE.CHECKING;
   authFlowStarted = false;
@@ -667,9 +634,7 @@ async function logout() {
       if (authOverlay) authOverlay.style.display = 'flex';
       showScreen(AUTH_STATE.LOGIN);
     }, 300);
-    if (typeof UIEffects !== 'undefined') {
-      UIEffects.showToast('Desconectado', 'success');
-    }
+    if (typeof UIEffects !== 'undefined') UIEffects.showToast('Desconectado', 'success');
   } catch (err) {
     location.reload();
   }
@@ -685,7 +650,5 @@ window.AuthLog = AuthLog;
 // =============================================
 document.addEventListener('DOMContentLoaded', () => {
   AuthLog.info('DOM pronto. Iniciando fluxo...');
-  // Iniciar imediatamente, sem setTimeout
-  // O timeout de segurança de 8s garante que a tela de login apareça
   initAuthFlow();
 });
