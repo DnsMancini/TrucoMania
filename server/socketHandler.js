@@ -6,11 +6,6 @@ const rooms = new Map();
 const MAX_ROOMS = 8;
 const OFFLINE_TIMEOUT = 90000; // 90 segundos
 const BOT_WAIT_SECONDS = 15;
-const BET_FUNCTIONS = {
-  respond: 'respondBet',
-  turn: 'checkBotTurn',
-  response: 'checkBotResponse'
-};
 
 function generateRoomCode() {
   return Math.random().toString(36).substring(2, 6).toUpperCase();
@@ -46,38 +41,45 @@ function requireAuth(socket, callback) {
   return false;
 }
 
-function restoreAuthenticatedPlayer(socket, uid, io) {
+function findRoomByUid(uid) {
+  if (!uid) return null;
   for (const room of rooms.values()) {
     const playerIndex = room.players.findIndex(player => player.uid === uid && !player.isBot);
-    if (playerIndex === -1) continue;
-
-    const player = room.players[playerIndex];
-    const previousSocketId = player.id;
-
-    if (previousSocketId === socket.id && player.online) return room;
-
-    const previousTimer = room.offlineTimers.get(previousSocketId);
-    if (previousTimer) {
-      clearTimeout(previousTimer);
-      room.offlineTimers.delete(previousSocketId);
-    }
-
-    player.id = socket.id;
-    player.online = true;
-    player.pendingReplace = false;
-    socket.join(room.code);
-
-    emitPlayerStatus(room, io);
-    sendCurrentGameState(room, socket, playerIndex);
-    return room;
+    if (playerIndex !== -1) return { room, playerIndex };
   }
   return null;
+}
+
+function restoreAuthenticatedPlayer(socket, uid, io) {
+  const found = findRoomByUid(uid);
+  if (!found) return null;
+
+  const { room, playerIndex } = found;
+  const player = room.players[playerIndex];
+  const previousSocketId = player.id;
+
+  if (previousSocketId === socket.id && player.online) return room;
+
+  const previousTimer = room.offlineTimers.get(previousSocketId);
+  if (previousTimer) {
+    clearTimeout(previousTimer);
+    room.offlineTimers.delete(previousSocketId);
+  }
+
+  player.id = socket.id;
+  player.online = true;
+  player.pendingReplace = false;
+  socket.join(room.code);
+
+  emitPlayerStatus(room, io);
+  sendCurrentGameState(room, socket, playerIndex);
+  return room;
 }
 
 function sendCurrentGameState(room, socket, playerIndex) {
   if (!room.game) return;
 
-  socket.emit('handStart', {
+  socket.emit('gameStateRestore', {
     player: playerIndex,
     hand: room.game.hands[playerIndex] || [],
     vira: room.game.vira,
@@ -87,6 +89,13 @@ function sendCurrentGameState(room, socket, playerIndex) {
     scores: room.game.scores,
     setWins: room.game.setWins,
     maoDe11: room.game.maoDe11,
+    currentRound: room.game.currentRound,
+    roundCards: room.game.roundCards,
+    roundWins: room.game.roundWins,
+    playersInRound: room.game.playersInRound,
+    roundStarter: room.game.roundStarter,
+    turnStage: room.game.turnStage,
+    betState: room.game.betState,
     players: room.players.map(p => ({ name: p.name, isBot: p.isBot, online: p.online }))
   });
 
@@ -113,9 +122,9 @@ function handleSocket(io) {
       try {
         if (!token) throw new Error('Token ausente');
         const user = await authenticateSocket(socket, token);
-        const restoredRoom = restoreAuthenticatedPlayer(socket, user.uid, io);
-        if (typeof callback === 'function') callback({ ok: true, uid: user.uid });
-        socket.emit('authenticated', { uid: user.uid, reconnected: Boolean(restoredRoom) });
+        const found = findRoomByUid(user.uid);
+        if (typeof callback === 'function') callback({ ok: true, uid: user.uid, reconnectAvailable: Boolean(found) });
+        socket.emit('authenticated', { uid: user.uid, reconnectAvailable: Boolean(found) });
         broadcastRooms(io);
       } catch (error) {
         socket.user = null;
@@ -123,6 +132,16 @@ function handleSocket(io) {
         if (typeof callback === 'function') callback({ error: 'Não autenticado' });
         socket.emit('authError', { message: 'Sessão inválida. Faça login novamente.' });
       }
+    });
+
+    socket.on('reconnectToGame', (callback) => {
+      if (!requireAuth(socket, callback)) return;
+      const room = restoreAuthenticatedPlayer(socket, socket.user.uid, io);
+      if (!room) {
+        return callback?.({ error: 'Não há uma partida sua disponível para retornar.' });
+      }
+      callback?.({ ok: true, roomCode: room.code });
+      broadcastRooms(io);
     });
 
     socket.on('getRooms', () => broadcastRooms(io));
