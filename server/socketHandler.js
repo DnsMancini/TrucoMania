@@ -22,6 +22,14 @@ function broadcastRooms(io) {
 }
 
 async function authenticateSocket(socket, token) {
+  // Uma conexão pode receber mais de uma autenticação (ex.: renovação/troca
+  // de sessão). Garanta que nunca existam dois listeners de banimento ativos
+  // para o mesmo socket.
+  if (typeof socket.banUnsubscribe === 'function') {
+    socket.banUnsubscribe();
+    socket.banUnsubscribe = null;
+  }
+
   const decodedToken = await admin.auth().verifyIdToken(token);
   const playerDoc = await db.collection('players').doc(decodedToken.uid).get();
   const playerData = playerDoc.exists ? playerDoc.data() : null;
