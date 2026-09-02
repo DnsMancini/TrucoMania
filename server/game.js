@@ -1,7 +1,6 @@
 const SUITS = ['paus', 'copas', 'espadas', 'ouros'];
 const RANKS = ['4', '5', '6', '7', 'Q', 'J', 'K', 'A', '2', '3'];
 const { cardStrength } = require('./utils');
-const { createBot: createPlayerBot, respondBet: botRespondBet, chooseCard: botChooseCard } = require('./bot');
 
 const BET_VALUES = { truco: 3, retruco: 6, valenove: 9, valedoze: 12 };
 const CARDS_PER_PLAYER = 3;
@@ -48,6 +47,7 @@ class Game4P {
     this.currentPlayer = 0;
     this.turnStage = 'play';
     this.betState = null;
+    this.lastBetTeam = null;
 
     this.roundCards = [];
     this.roundWins = [0, 0];
@@ -96,6 +96,7 @@ class Game4P {
     this.currentPlayer = (this.dealerIndex + 3) % NUM_PLAYERS;
     this.turnStage = this.maoDe11 ? 'mao11Decision' : 'play';
     this.betState = null;
+    this.lastBetTeam = null;
     this.roundWins = [0, 0];
     this.roundWinners = [];
     this.currentRound = 0;
@@ -340,6 +341,9 @@ class Game4P {
     if (betType === 'valedoze' && this.handValue >= 12) return false;
 
     const challengerTeam = playerIndex % 2;
+
+    if (this.handValue >= 3 && this.lastBetTeam === challengerTeam) return false;
+
     const responderTeam = 1 - challengerTeam;
 
     this.betState = {
@@ -398,6 +402,7 @@ class Game4P {
 
     if (action === 'accept') {
       this.handValue = BET_VALUES[level];
+      this.lastBetTeam = challenger % 2;
       this.betState = null;
       this.turnStage = 'play';
       this.emit('betAccepted', { handValue: this.handValue }, 'all');
@@ -451,7 +456,7 @@ class Game4P {
       const hand = this.hands[playerIndex];
       if (!hand || hand.length === 0) return;
 
-      const card = botChooseCard(hand, this.vira.rank);
+      const card = chooseCard(hand, this.vira.rank);
       this.playCard(playerIndex, card);
     }, 1000 + Math.random() * 1200);
   }
@@ -470,36 +475,13 @@ class Game4P {
     this.offlineActionTimer = setTimeout(() => {
       this.offlineActionTimer = null;
       if (this.turnStage !== 'respond' || !this.betState) return;
-      if (this.betState.responderTeam !== responderTeam) return;
 
       const hand = this.hands[playerIndex];
       if (!hand) return;
 
-      const action = botRespondBet(hand, this.vira.rank, this.betState.level);
+      const action = respondBet(hand, this.vira.rank, this.betState.level);
       this.respondBet(playerIndex, action);
-    }, 1200 + Math.random() * 1200);
-  }
-
-  scheduleOfflineMaoDe11() {
-    if (this.turnStage !== 'mao11Decision' || this.maoDe11Team === null) return;
-
-    const playerIndex = [this.maoDe11Team, this.maoDe11Team + 2]
-      .find(index => this.players[index] && !this.players[index].isBot && this.players[index].online === false);
-
-    if (playerIndex === undefined) return;
-
-    if (this.offlineActionTimer) clearTimeout(this.offlineActionTimer);
-
-    this.offlineActionTimer = setTimeout(() => {
-      this.offlineActionTimer = null;
-      if (this.turnStage !== 'mao11Decision' || !this.maoDe11) return;
-
-      const hand = this.hands[playerIndex];
-      if (!hand) return;
-
-      const action = botRespondBet(hand, this.vira.rank, 'truco') === 'flee' ? 'flee' : 'play';
-      this.respondMaoDe11(playerIndex, action);
-    }, 1200 + Math.random() * 1200);
+    }, 1200 + Math.random() * 1500);
   }
 
   getBetValueBefore(level) {
@@ -509,17 +491,6 @@ class Game4P {
     if (level === 'valedoze') return 9;
     return 1;
   }
-
-  removePlayer(socketId) {
-    const index = this.players.findIndex(p => p.id === socketId);
-    if (index === -1) return false;
-
-    const bot = createPlayerBot(index);
-    bot.online = true;
-    this.players[index] = bot;
-    this.hands[index] = [];
-    return true;
-  }
 }
 
-module.exports = { Game4P }
+module.exports = { Game4P };
