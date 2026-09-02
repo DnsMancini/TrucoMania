@@ -46,6 +46,65 @@ function requireAuth(socket, callback) {
   return false;
 }
 
+function restoreAuthenticatedPlayer(socket, uid, io) {
+  for (const room of rooms.values()) {
+    const playerIndex = room.players.findIndex(player => player.uid === uid && !player.isBot);
+    if (playerIndex === -1) continue;
+
+    const player = room.players[playerIndex];
+    const previousSocketId = player.id;
+
+    if (previousSocketId === socket.id && player.online) return room;
+
+    const previousTimer = room.offlineTimers.get(previousSocketId);
+    if (previousTimer) {
+      clearTimeout(previousTimer);
+      room.offlineTimers.delete(previousSocketId);
+    }
+
+    player.id = socket.id;
+    player.online = true;
+    player.pendingReplace = false;
+    socket.join(room.code);
+
+    emitPlayerStatus(room, io);
+    sendCurrentGameState(room, socket, playerIndex);
+    return room;
+  }
+  return null;
+}
+
+function sendCurrentGameState(room, socket, playerIndex) {
+  if (!room.game) return;
+
+  socket.emit('handStart', {
+    player: playerIndex,
+    hand: room.game.hands[playerIndex] || [],
+    vira: room.game.vira,
+    currentPlayer: room.game.currentPlayer,
+    dealer: room.game.dealerIndex,
+    handValue: room.game.handValue,
+    scores: room.game.scores,
+    setWins: room.game.setWins,
+    maoDe11: room.game.maoDe11,
+    players: room.players.map(p => ({ name: p.name, isBot: p.isBot, online: p.online }))
+  });
+
+  if (room.game.turnStage === 'play') {
+    socket.emit('turn', { currentPlayer: room.game.currentPlayer });
+  } else if (room.game.turnStage === 'respond' && room.game.betState) {
+    const responderTeam = room.game.betState.responderTeam;
+    socket.emit('betCalled', {
+      challenger: room.game.betState.challenger,
+      level: room.game.betState.level,
+      responderTeam
+    });
+    if (playerIndex % 2 === responderTeam) {
+      socket.emit('turnToRespond', { responderTeam });
+    }
+  }
+}
+
 function handleSocket(io) {
   io.on('connection', (socket) => {
     broadcastRooms(io);
@@ -54,8 +113,9 @@ function handleSocket(io) {
       try {
         if (!token) throw new Error('Token ausente');
         const user = await authenticateSocket(socket, token);
+        const restoredRoom = restoreAuthenticatedPlayer(socket, user.uid, io);
         if (typeof callback === 'function') callback({ ok: true, uid: user.uid });
-        socket.emit('authenticated', { uid: user.uid });
+        socket.emit('authenticated', { uid: user.uid, reconnected: Boolean(restoredRoom) });
         broadcastRooms(io);
       } catch (error) {
         socket.user = null;
