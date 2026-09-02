@@ -137,11 +137,58 @@ function handleSocket(io) {
     socket.on('reconnectToGame', (callback) => {
       if (!requireAuth(socket, callback)) return;
       const room = restoreAuthenticatedPlayer(socket, socket.user.uid, io);
-      if (!room) {
-        return callback?.({ error: 'Não há uma partida sua disponível para retornar.' });
-      }
+      if (!room) return callback?.({ error: 'Não há uma partida sua disponível para retornar.' });
       callback?.({ ok: true, roomCode: room.code });
       broadcastRooms(io);
+    });
+
+    socket.on('leaveRoom', (callback) => {
+      if (!requireAuth(socket, callback)) return;
+
+      const room = findRoomBySocket(socket.id);
+      if (!room) return callback?.({ ok: true });
+
+      const playerIndex = room.players.findIndex(p => p.id === socket.id);
+      if (playerIndex === -1) return callback?.({ ok: true });
+      const player = room.players[playerIndex];
+
+      const offlineTimer = room.offlineTimers.get(socket.id);
+      if (offlineTimer) {
+        clearTimeout(offlineTimer);
+        room.offlineTimers.delete(socket.id);
+      }
+
+      if (room.status === 'waiting') {
+        room.players.splice(playerIndex, 1);
+        if (room.countdownInterval && room.players.length === 0) {
+          clearInterval(room.countdownInterval);
+          room.countdownInterval = null;
+          rooms.delete(room.code);
+        }
+        socket.leave(room.code);
+        callback?.({ ok: true, roomCode: room.code, status: 'waiting' });
+        emitPlayerStatus(room, io);
+        broadcastRooms(io);
+        return;
+      }
+
+      if (room.status === 'playing' && room.game) {
+        const bot = createBot(playerIndex);
+        bot.online = true;
+        room.players[playerIndex] = bot;
+        socket.leave(room.code);
+
+        emitPlayerStatus(room, io);
+        callback?.({ ok: true, roomCode: room.code, status: 'playing' });
+        checkBotResponse(room, io);
+        checkBotTurn(room, io);
+        checkAllHumansGone(room, io);
+        broadcastRooms(io);
+        return;
+      }
+
+      socket.leave(room.code);
+      callback?.({ ok: true });
     });
 
     socket.on('getRooms', () => broadcastRooms(io));
@@ -160,9 +207,7 @@ function handleSocket(io) {
           const hasBot = room.players.some(player => player.isBot);
           const thirdSet = room.game && room.game.setWins[0] === 1 && room.game.setWins[1] === 1;
           const hasPendingJoin = room.pendingJoin?.some(join => join.uid === socket.user.uid);
-          if (hasBot && !thirdSet && !hasPendingJoin) {
-            candidatesPlaying.push(room);
-          }
+          if (hasBot && !thirdSet && !hasPendingJoin) candidatesPlaying.push(room);
         } else if (room.status === 'waiting' && room.players.length < 4) {
           candidatesWaiting.push(room);
         }
@@ -200,9 +245,7 @@ function handleSocket(io) {
       const options = (optionsOrCallback && typeof optionsOrCallback === 'object') ? optionsOrCallback : {};
 
       if (!requireAuth(socket, callback)) return;
-      if (rooms.size >= MAX_ROOMS) {
-        return callback({ error: 'Máximo de salas atingido.' });
-      }
+      if (rooms.size >= MAX_ROOMS) return callback({ error: 'Máximo de salas atingido.' });
 
       let code = generateRoomCode();
       while (rooms.has(code)) code = generateRoomCode();
@@ -220,12 +263,7 @@ function handleSocket(io) {
       };
       rooms.set(code, room);
       socket.join(code);
-      callback({
-        roomCode: code,
-        isPublic: room.isPublic,
-        fillWithBots: room.fillWithBots,
-        players: room.players.map(p => ({ name: p.name, isBot: false, online: true }))
-      });
+      callback({ roomCode: code, isPublic: room.isPublic, fillWithBots: room.fillWithBots, players: room.players.map(p => ({ name: p.name, isBot: false, online: true })) });
       broadcastRooms(io);
 
       if (room.fillWithBots) {
@@ -247,14 +285,10 @@ function handleSocket(io) {
       if (!requireAuth(socket, callback)) return;
       const room = rooms.get(roomCode);
       if (!room) return callback({ error: 'Sala não encontrada' });
-      if (room.status === 'waiting' && room.players.length >= 4) {
-        return callback({ error: 'Sala cheia' });
-      }
+      if (room.status === 'waiting' && room.players.length >= 4) return callback({ error: 'Sala cheia' });
 
       if (room.status === 'playing') {
-        if (room.game && room.game.setWins[0] === 1 && room.game.setWins[1] === 1) {
-          return callback({ error: 'Partida no terceiro set, entrada não permitida.' });
-        }
+        if (room.game && room.game.setWins[0] === 1 && room.game.setWins[1] === 1) return callback({ error: 'Partida no terceiro set, entrada não permitida.' });
         room.pendingJoin.push({ socket, playerName, uid: socket.user.uid });
         socket.join(roomCode);
         callback({ roomCode, waiting: true });
@@ -322,13 +356,9 @@ function handleSocket(io) {
       if (player && !player.isBot) {
         player.online = false;
         emitPlayerStatus(room, io);
-        if (room.game && room.game.currentPlayer === room.players.indexOf(player)) {
-          room.game.turnStage = 'play';
-        }
+        if (room.game && room.game.currentPlayer === room.players.indexOf(player)) room.game.turnStage = 'play';
         const timer = setTimeout(() => {
-          if (room.players.includes(player)) {
-            player.pendingReplace = true;
-          }
+          if (room.players.includes(player)) player.pendingReplace = true;
         }, OFFLINE_TIMEOUT);
         room.offlineTimers.set(socket.id, timer);
         broadcastRooms(io);
@@ -367,28 +397,13 @@ function fillWithBotsAndStart(code, io) {
 
 function startGame(room, io) {
   const emit = (event, data, target) => {
-    if (target === 'all') {
-      io.to(room.code).emit(event, data);
-    } else {
-      if (!room.players.find(p => p.id === target)?.isBot)
-        io.to(target).emit(event, data);
-    }
+    if (target === 'all') io.to(room.code).emit(event, data);
+    else if (!room.players.find(p => p.id === target)?.isBot) io.to(target).emit(event, data);
   };
-  room.game = new Game4P(
-    room.code,
-    room.players,
-    emit,
-    () => {
-      rooms.delete(room.code);
-      broadcastRooms(io);
-    },
-    () => processPendingJoins(room, io)
-  );
+  room.game = new Game4P(room.code, room.players, emit, () => { rooms.delete(room.code); broadcastRooms(io); }, () => processPendingJoins(room, io));
   room.game.checkBotTurn = () => checkBotTurn(room, io);
   room.game.startGame();
-  setTimeout(() => {
-    checkBotTurn(room, io);
-  }, 100);
+  setTimeout(() => checkBotTurn(room, io), 100);
   emitPlayerStatus(room, io);
 }
 
@@ -422,11 +437,7 @@ function checkAllHumansGone(room, io) {
 }
 
 function emitPlayerStatus(room, io) {
-  io.to(room.code).emit('playerStatusUpdate', room.players.map(p => ({
-    name: p.name,
-    isBot: p.isBot,
-    online: p.online
-  })));
+  io.to(room.code).emit('playerStatusUpdate', room.players.map(p => ({ name: p.name, isBot: p.isBot, online: p.online })));
 }
 
 function checkBotTurn(room, io) {
@@ -471,11 +482,8 @@ function checkBotResponse(room, io) {
   if (!room.game || room.game.turnStage !== 'respond' || !room.game.betState) return;
   const respTeam = room.game.betState.responderTeam;
   const teamPlayers = [respTeam, respTeam + 2];
-
   if (teamPlayers.every(i => room.players[i] && room.players[i].isBot)) {
-    const botPlayer = teamPlayers
-      .map(i => ({ index: i, player: room.players[i] }))
-      .find(p => p.player && p.player.isBot);
+    const botPlayer = teamPlayers.map(i => ({ index: i, player: room.players[i] })).find(p => p.player && p.player.isBot);
     if (botPlayer) {
       const playerIndex = botPlayer.index;
       const hand = room.game.hands[playerIndex];
@@ -499,8 +507,7 @@ function hasBotPartner(players, playerIndex) {
 }
 
 function findRoomBySocket(socketId) {
-  for (const [, room] of rooms)
-    if (room.players.some(p => p.id === socketId)) return room;
+  for (const [, room] of rooms) if (room.players.some(p => p.id === socketId)) return room;
   return null;
 }
 
