@@ -243,3 +243,78 @@
 
   if (typeof socket !== 'undefined') socket.on('gameStateRestore', restaurarPartida);
 })();
+
+// ========== RITMO VISUAL E SINCRONIZAÇÃO DAS MÃOS ==========
+(() => {
+  if (typeof socket === 'undefined') return;
+
+  const style = document.createElement('style');
+  style.textContent = `
+    .cartaMesa {
+      animation: trucoCartaEntrando .45s cubic-bezier(.22,.8,.28,1) both;
+      will-change: transform, opacity;
+    }
+    @keyframes trucoCartaEntrando {
+      from { opacity: 0; transform: translate(-50%, -50%) scale(.78) translateY(12px); }
+      to { opacity: 1; }
+    }
+    #mao .playerCard { transition: transform .28s cubic-bezier(.22,.8,.28,1), opacity .28s ease; }
+    .botHand .carta { transition: opacity .28s ease, transform .28s cubic-bezier(.22,.8,.28,1); }
+  `;
+  document.head.appendChild(style);
+
+  const handsRemaining = [3, 3, 3, 3];
+
+  const renderOpponentHands = () => {
+    if (typeof myPlayerIndex !== 'number' || typeof HAND_SLOTS === 'undefined' || typeof rotateArrayForPlayer !== 'function') return;
+    const rotated = rotateArrayForPlayer([0, 1, 2, 3], myPlayerIndex);
+    for (let rel = 1; rel <= 3; rel++) {
+      const handEl = HAND_SLOTS[rel];
+      const absolutePlayer = rotated[rel];
+      if (!handEl || absolutePlayer === undefined) continue;
+      const count = Math.max(0, Math.min(3, handsRemaining[absolutePlayer]));
+      if (handEl.children.length === count) continue;
+      handEl.innerHTML = '';
+      for (let i = 0; i < count; i++) {
+        const carta = document.createElement('div');
+        carta.className = 'carta virada';
+        handEl.appendChild(carta);
+      }
+    }
+  };
+
+  socket.on('handStart', (data) => {
+    for (let i = 0; i < 4; i++) handsRemaining[i] = 3;
+    if (Array.isArray(data?.handsRemaining)) data.handsRemaining.forEach((n, i) => { handsRemaining[i] = Number(n); });
+    setTimeout(renderOpponentHands, 0);
+  });
+
+  socket.on('gameStateRestore', (data) => {
+    for (let i = 0; i < 4; i++) handsRemaining[i] = 3;
+    if (Array.isArray(data?.handsRemaining)) data.handsRemaining.forEach((n, i) => { handsRemaining[i] = Number(n); });
+    setTimeout(renderOpponentHands, 0);
+  });
+
+  socket.on('cardPlayed', ({ player }) => {
+    if (Number.isInteger(player) && player >= 0 && player < 4) {
+      handsRemaining[player] = Math.max(0, handsRemaining[player] - 1);
+      setTimeout(renderOpponentHands, 20);
+    }
+  });
+
+  // Mantém a mesa visível por mais tempo quando a rodada termina,
+  // mas não restaura cartas antigas se uma nova carta já foi jogada.
+  let lastCardEvent = 0;
+  socket.on('cardPlayed', () => { lastCardEvent = Date.now(); });
+  socket.on('roundResult', () => {
+    const snapshot = mesaCartas?.innerHTML || '';
+    const eventAt = Date.now();
+    setTimeout(() => {
+      if (!mesaCartas || !snapshot || lastCardEvent > eventAt) return;
+      if (!mesaCartas.innerHTML) mesaCartas.innerHTML = snapshot;
+      setTimeout(() => {
+        if (lastCardEvent <= eventAt && mesaCartas) mesaCartas.innerHTML = '';
+      }, 1000);
+    }, 1300);
+  });
+})();
