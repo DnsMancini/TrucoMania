@@ -126,3 +126,120 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', setup);
   else setup();
 })();
+
+// ========== RESTAURAÇÃO APÓS DESCONEXÃO ==========
+(() => {
+  const restaurarPartida = (data) => {
+    if (!data || typeof socket === 'undefined') return;
+
+    const lobbyDiv = document.getElementById('lobby');
+    const gameWrapper = document.getElementById('gameWrapper');
+    const contagemEl = document.getElementById('contagemRegressiva');
+    const maoDiv = document.getElementById('mao');
+    const mesaCartas = document.getElementById('mesaCartas');
+    const viraEl = document.getElementById('vira');
+    const teamAScoreEl = document.getElementById('teamAScore');
+    const teamBScoreEl = document.getElementById('teamBScore');
+    const infoRodadaEl = document.getElementById('infoRodada');
+    const trucoStatusEl = document.getElementById('trucoStatus');
+    const painelHistorico = document.getElementById('historicoRodadas');
+    const btnTruco = document.getElementById('btnTruco');
+    const btnCorrer = document.getElementById('btnCorrer');
+    const telaFinal = document.getElementById('telaFinal');
+
+    if (!gameWrapper || !maoDiv || !mesaCartas || !viraEl) return;
+
+    currentGameCode = data.roomCode || currentGameCode;
+    myPlayerIndex = data.player;
+    playerHand = Array.isArray(data.hand) ? data.hand : [];
+    currentHandValue = data.handValue || 1;
+    gameActive = true;
+    aguardandoResposta = false;
+    isRespondingToBet = false;
+    currentBetLevel = null;
+    lastBetTeam = null;
+    isMaoDe11Decision = Boolean(data.maoDe11 && data.turnStage === 'mao11Decision' && !data.maoDe11DecisionMade && myPlayerIndex % 2 === data.maoDe11Team);
+
+    lobbyDiv?.classList.add('game-hidden');
+    gameWrapper.classList.remove('game-hidden');
+    contagemEl?.classList.add('oculto');
+    telaFinal?.classList.remove('show');
+
+    const players = Array.isArray(data.players) ? data.players : [];
+    const rotatedPlayers = rotateArrayForPlayer(players, myPlayerIndex);
+    for (let i = 0; i < 4; i++) {
+      const slotEl = nomesSlots[SLOT_ORDER[i]];
+      const player = rotatedPlayers[i];
+      if (slotEl) slotEl.textContent = (player?.name || '') + (player?.isBot ? ' (Bot)' : '');
+    }
+
+    for (let i = 1; i <= 3; i++) {
+      HAND_SLOTS[i].innerHTML = '';
+      const remaining = Number(data.handsRemaining?.[rotatedPlayers[i] ?? -1] ?? 3);
+      for (let j = 0; j < remaining; j++) {
+        const carta = document.createElement('div');
+        carta.className = 'carta virada';
+        HAND_SLOTS[i].appendChild(carta);
+      }
+    }
+
+    renderizarMao(playerHand);
+
+    if (data.scores) {
+      teamAScoreEl.textContent = data.scores[0] ?? 0;
+      teamBScoreEl.textContent = data.scores[1] ?? 0;
+    }
+    infoRodadaEl.textContent = `Rodada ${(data.currentRound ?? 0) + 1} de 3`;
+    trucoStatusEl.textContent = data.maoDe11 ? 'Mão de 11' : (currentHandValue > 1 ? `Truco: ${currentHandValue} pts` : 'Truco: Nenhum');
+
+    if (data.vira) {
+      viraEl.classList.remove('oculto', 'virada');
+      viraEl.innerHTML = createCardHTML(data.vira);
+    }
+
+    mesaCartas.innerHTML = '';
+    const currentRoundCards = Array.isArray(data.roundCards?.[data.currentRound]) ? data.roundCards[data.currentRound] : [];
+    const rotatedIds = rotateArrayForPlayer([0, 1, 2, 3], myPlayerIndex);
+    const posicoes = ['c0', 'c3', 'c2', 'c1'];
+    currentRoundCards.forEach((card, player) => {
+      if (!card) return;
+      const relPos = rotatedIds.indexOf(player);
+      const cartaDiv = document.createElement('div');
+      cartaDiv.className = `cartaMesa ${posicoes[relPos >= 0 ? relPos : player]}`;
+      cartaDiv.innerHTML = createCardHTML(card);
+      mesaCartas.appendChild(cartaDiv);
+    });
+
+    painelHistorico?.querySelectorAll('.bolinha-rodada').forEach((b, index) => {
+      const winner = data.roundWinners?.[index];
+      b.className = 'bolinha-rodada ' + (winner === undefined || winner === null ? 'bolinha-branca' : winner === -1 ? 'bolinha-ouro' : (winner === myPlayerIndex % 2 ? 'bolinha-verde' : 'bolinha-azul'));
+    });
+
+    clearTurnTimer();
+    isMyTurn = data.currentPlayer === myPlayerIndex;
+    posicionarSeta(data.currentPlayer);
+
+    if (isMaoDe11Decision) {
+      mostrarControlesMaoDe11();
+    } else if (data.turnStage === 'respond' && data.betState) {
+      currentBetLevel = data.betState.level;
+      lastBetTeam = data.betState.responderTeam;
+      isRespondingToBet = myPlayerIndex % 2 === data.betState.responderTeam;
+      aguardandoResposta = isRespondingToBet;
+      btnTruco.classList.add('oculto');
+      if (isRespondingToBet) btnCorrer.classList.remove('oculto');
+      else btnCorrer.classList.add('oculto');
+    } else if (isMyTurn) {
+      btnCorrer.classList.remove('oculto');
+      atualizarBotaoTruco();
+      startTurnTimer();
+    } else {
+      btnTruco.classList.add('oculto');
+      btnCorrer.classList.add('oculto');
+    }
+
+    atualizarInfoLive();
+  };
+
+  if (typeof socket !== 'undefined') socket.on('gameStateRestore', restaurarPartida);
+})();
