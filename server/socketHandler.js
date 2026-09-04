@@ -12,7 +12,7 @@ function hiddenRoundCards(roundCards) {
   );
 }
 
-function buildGameState(room) {
+function buildGameState(room, playerIndex = null) {
   const game = room.game;
   const vira = game.maoDeFerro && game.currentRound === 0
     ? { hidden: true }
@@ -20,8 +20,10 @@ function buildGameState(room) {
 
   return {
     roomCode: room.code,
-    player: null,
-    hand: [],
+    player: playerIndex,
+    hand: playerIndex === null
+      ? []
+      : (game.maoDeFerro ? hiddenHand(game.hands[playerIndex]) : (game.hands[playerIndex] || [])),
     handsRemaining: game.hands.map(hand => hand.length),
     vira,
     currentPlayer: game.currentPlayer,
@@ -69,8 +71,11 @@ function handleSocket(io) {
       if (event === 'roundResult' && room?.game?.maoDeFerro && data?.round === 0) {
         setImmediate(() => {
           if (!core.rooms.has(room.code) || !room.game || !room.game.maoDeFerro) return;
-          const state = buildGameState(room);
-          originalTo(room.code).emit('gameStateRestore', state);
+          for (let playerIndex = 0; playerIndex < room.players.length; playerIndex++) {
+            const player = room.players[playerIndex];
+            if (!player || player.isBot || !player.id) continue;
+            originalTo(player.id).emit('gameStateRestore', buildGameState(room, playerIndex));
+          }
         });
       }
 
