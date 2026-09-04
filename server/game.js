@@ -1,5 +1,6 @@
 const { Game4P: BaseGame4P } = require('./game-engine');
 const { cardStrength } = require('./utils');
+const { shouldCallBet } = require('./bot');
 
 const NUM_PLAYERS = 4;
 const ROUND_DISPLAY_MS = 2500;
@@ -12,6 +13,40 @@ class Game4P extends BaseGame4P {
       if (index < 0 || index >= hand.length) return false;
       return super.playCard(playerIndex, hand[index]);
     }
+
+    if (
+      this.players[playerIndex]?.isBot &&
+      this.turnStage === 'play' &&
+      !this.betState &&
+      !this.maoDe11 &&
+      !this.maoDeFerro
+    ) {
+      const context = {
+        hand: this.hands[playerIndex] || [],
+        vira: this.vira,
+        handValue: this.handValue,
+        maoDe11: this.maoDe11,
+        playerIndex,
+        scores: this.scores,
+        setWins: this.setWins,
+        roundWins: this.roundWins,
+        currentRound: this.currentRound,
+        roundCards: this.roundCards,
+        turnStage: this.turnStage,
+        betState: this.betState,
+        style: this.players[playerIndex]?.style
+      };
+      const betType = shouldCallBet(
+        context.hand,
+        this.vira?.rank,
+        this.handValue,
+        false,
+        context
+      );
+
+      if (betType && this.callBet(playerIndex, betType)) return true;
+    }
+
     return super.playCard(playerIndex, card);
   }
 
