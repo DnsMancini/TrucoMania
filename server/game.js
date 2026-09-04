@@ -1,9 +1,10 @@
 const { Game4P: BaseGame4P } = require('./game-engine');
 const { cardStrength } = require('./utils');
-const { shouldCallBet } = require('./bot');
+const { shouldCallBet, respondBet: chooseBotBet } = require('./bot');
 
 const NUM_PLAYERS = 4;
 const ROUND_DISPLAY_MS = 2500;
+const DECISION_TIMEOUT = 25000;
 
 class Game4P extends BaseGame4P {
   playCard(playerIndex, card) {
@@ -57,11 +58,25 @@ class Game4P extends BaseGame4P {
     return super.playCard(playerIndex, card);
   }
 
-  scheduleOfflineTurn() {
-    // Em produção, o Socket.IO já possui um agendador dedicado para bots.
-    // Mantemos o fallback do engine quando ele estiver sendo usado isoladamente.
-    if (this.checkBotTurn && this.players[this.currentPlayer]?.isBot) return;
-    return super.scheduleOfflineTurn();
+  scheduleMaoDe11Decision() {
+    if (this.turnStage !== 'mao11Decision' || !this.maoDe11 || this.maoDe11DecisionMade) return;
+    const team = this.maoDe11Team;
+    const teamPlayers = [team, team + 2];
+    if (teamPlayers.every(index => this.players[index]?.isBot)) {
+      return this.respondMaoDe11(teamPlayers[0], 'play');
+    }
+
+    const humanPlayers = teamPlayers.filter(index => this.players[index] && !this.players[index].isBot);
+    const decisionPlayer = humanPlayers[0];
+    if (decisionPlayer === undefined) return;
+
+    if (this.offlineActionTimer) clearTimeout(this.offlineActionTimer);
+    this.offlineActionTimer = setTimeout(() => {
+      this.offlineActionTimer = null;
+      if (this.turnStage !== 'mao11Decision' || !this.maoDe11 || this.maoDe11DecisionMade) return;
+      if (!this.players[decisionPlayer] || this.players[decisionPlayer].isBot) return;
+      this.respondMaoDe11(decisionPlayer, 'play');
+    }, DECISION_TIMEOUT);
   }
 
   scheduleOfflineResponse() {
@@ -72,7 +87,46 @@ class Game4P extends BaseGame4P {
       const hasBotResponder = [team, team + 2].some(index => this.players[index]?.isBot);
       if (hasBotResponder) return;
     }
-    return super.scheduleOfflineResponse();
+
+    if (this.turnStage !== 'respond' || !this.betState) return;
+    if (this.offlineActionTimer) clearTimeout(this.offlineActionTimer);
+
+    const team = this.betState.responderTeam;
+    const teamPlayers = [team, team + 2];
+    const humanPlayers = teamPlayers.filter(index => this.players[index] && !this.players[index].isBot);
+    if (humanPlayers.length === 0) return;
+
+    const responsePlayer = humanPlayers[0];
+    this.offlineActionTimer = setTimeout(() => {
+      this.offlineActionTimer = null;
+      if (this.turnStage !== 'respond' || !this.betState) return;
+      const p = this.players[responsePlayer];
+      if (!p || p.isBot) return;
+      const context = {
+        hand: this.hands[responsePlayer] || [],
+        vira: this.vira,
+        handValue: this.handValue,
+        maoDe11: this.maoDe11,
+        betState: this.betState,
+        playerIndex: responsePlayer,
+        scores: this.scores,
+        setWins: this.setWins,
+        roundWins: this.roundWins,
+        currentRound: this.currentRound,
+        roundCards: this.roundCards,
+        turnStage: this.turnStage,
+        style: p.style
+      };
+      const action = chooseBotBet(context.hand, this.vira?.rank, this.betState.level, context);
+      if (action) this.respondBet(responsePlayer, action);
+    }, DECISION_TIMEOUT);
+  }
+
+  scheduleOfflineTurn() {
+    // Em produção, o Socket.IO já possui um agendador dedicado para bots.
+    // Mantemos o fallback do engine quando ele estiver sendo usado isoladamente.
+    if (this.checkBotTurn && this.players[this.currentPlayer]?.isBot) return;
+    return super.scheduleOfflineTurn();
   }
 
   advanceToNextHand() {
