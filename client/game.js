@@ -325,6 +325,13 @@ socket.on('handStart', (data) => {
   atualizarInfoLive();
 });
 
+let canonicalGameStateRestoreRegistered = false;
+const originalSocketOn = socket.on.bind(socket);
+socket.on = function (eventName, ...args) {
+  if (eventName === 'gameStateRestore' && canonicalGameStateRestoreRegistered) return this;
+  return originalSocketOn(eventName, ...args);
+};
+
 socket.on('gameStateRestore', (data) => {
   if (!data || myPlayerIndex === null || data.player !== myPlayerIndex) myPlayerIndex = data?.player ?? myPlayerIndex;
   if (myPlayerIndex === null || !Array.isArray(data?.players)) return;
@@ -377,6 +384,7 @@ socket.on('gameStateRestore', (data) => {
   }
   atualizarInfoLive();
 });
+canonicalGameStateRestoreRegistered = true;
 
 socket.on('playerStatus', (players) => updatePlayerNames(players));
 
