@@ -57,6 +57,24 @@ class Game4P extends BaseGame4P {
     return super.playCard(playerIndex, card);
   }
 
+  scheduleOfflineTurn() {
+    // Em produção, o Socket.IO já possui um agendador dedicado para bots.
+    // Mantemos o fallback do engine quando ele estiver sendo usado isoladamente.
+    if (this.checkBotTurn && this.players[this.currentPlayer]?.isBot) return;
+    return super.scheduleOfflineTurn();
+  }
+
+  scheduleOfflineResponse() {
+    // Quando há bot como respondente, o Socket.IO já agenda a resposta.
+    // Evita dois callbacks concorrentes decidindo a mesma aposta.
+    if (this.checkBotTurn && this.betState) {
+      const team = this.betState.responderTeam;
+      const hasBotResponder = [team, team + 2].some(index => this.players[index]?.isBot);
+      if (hasBotResponder) return;
+    }
+    return super.scheduleOfflineResponse();
+  }
+
   advanceToNextHand() {
     this.turnStage = 'handTransition';
     return super.advanceToNextHand();
