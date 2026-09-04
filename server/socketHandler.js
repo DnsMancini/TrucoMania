@@ -81,6 +81,15 @@ function handleSocket(io) {
   };
 
   io.on('connection', (socket) => {
+    const originalSocketEmit = socket.emit.bind(socket);
+    socket.emit = function patchedSocketEmit(event, data, ...args) {
+      let safeData = data;
+      if (event === 'gameStateRestore' && data?.maoDeFerro && data.currentRound === 0) {
+        safeData = { ...data, vira: { hidden: true } };
+      }
+      return originalSocketEmit(event, safeData, ...args);
+    };
+
     socket.use((packet, next) => {
       if (packet[0] === 'authenticate' && socket.user) {
         socket.emit('authError', { message: 'Socket já autenticado. Reconecte para trocar de conta.' });
