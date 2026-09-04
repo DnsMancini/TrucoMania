@@ -252,7 +252,7 @@ function updatePlayerNames(players) {
 }
 
 function addTableCard(player, card, round, hidden = false) {
-  if (!card || player === undefined || player === null) return;
+  if (player === undefined || player === null) return;
   const existing = mesaCartas.querySelector(`[data-card-player="${player}"][data-card-round="${round}"]`);
   if (existing) return;
 
@@ -273,7 +273,7 @@ function renderCurrentRound(roundCards, round) {
   const current = roundCards?.[round] || [];
   for (let player = 0; player < 4; player++) {
     const card = current[player];
-    if (card) addTableCard(player, card, round, isMaoDeFerro);
+    if (card) addTableCard(player, card, round, isMaoDeFerro || card.hidden === true);
   }
 }
 
@@ -282,10 +282,12 @@ socket.on('handStart', (data) => {
   renderGeneration++;
   renderedRound = 0;
   gameActive = true;
-  playerHand = Array.isArray(data.hand) ? data.hand.slice() : [];
   myPlayerIndex = data.player;
-  currentHandValue = data.handValue;
   isMaoDeFerro = Boolean(data.maoDeFerro);
+  playerHand = isMaoDeFerro
+    ? Array.from({ length: Array.isArray(data.hand) ? data.hand.length : 3 }, () => ({ hidden: true }))
+    : (Array.isArray(data.hand) ? data.hand.slice() : []);
+  currentHandValue = data.handValue;
   lastBetTeam = null;
   currentBetLevel = null;
   aguardandoResposta = false;
@@ -330,9 +332,11 @@ socket.on('gameStateRestore', (data) => {
   renderGeneration++;
   gameActive = true;
   currentGameCode = data.roomCode || currentGameCode;
-  playerHand = Array.isArray(data.hand) ? data.hand.slice() : [];
-  currentHandValue = data.handValue ?? 1;
   isMaoDeFerro = Boolean(data.maoDeFerro);
+  playerHand = isMaoDeFerro
+    ? Array.from({ length: Number.isInteger(data.handsRemaining?.[myPlayerIndex]) ? data.handsRemaining[myPlayerIndex] : 3 }, () => ({ hidden: true }))
+    : (Array.isArray(data.hand) ? data.hand.slice() : []);
+  currentHandValue = data.handValue ?? 1;
   isMaoDe11Decision = Boolean(data.maoDe11 && data.turnStage === 'mao11Decision' && !data.maoDe11DecisionMade && myPlayerIndex % 2 === data.maoDe11Team);
   aguardandoResposta = data.turnStage === 'respond';
   isRespondingToBet = Boolean(data.betState && myPlayerIndex % 2 === data.betState.responderTeam);
@@ -429,12 +433,17 @@ socket.on('turn', ({ currentPlayer }) => {
   atualizarInfoLive();
 });
 
-socket.on('cardPlayed', ({ player, card, round }) => {
+socket.on('cardPlayed', ({ player, card, round, hidden }) => {
   if (player === myPlayerIndex) {
-    const idx = playerHand.findIndex(c => c.suit === card.suit && c.rank === card.rank);
-    if (idx !== -1) {
-      playerHand.splice(idx, 1);
-      renderizarMao(playerHand, !isMaoDeFerro);
+    if (hidden) {
+      if (playerHand.length) playerHand.shift();
+      renderizarMao(playerHand, false);
+    } else if (card) {
+      const idx = playerHand.findIndex(c => c.suit === card.suit && c.rank === card.rank);
+      if (idx !== -1) {
+        playerHand.splice(idx, 1);
+        renderizarMao(playerHand, !isMaoDeFerro);
+      }
     }
     clearTurnTimer();
   } else {
@@ -451,7 +460,7 @@ socket.on('cardPlayed', ({ player, card, round }) => {
     mesaCartas.innerHTML = '';
     renderedRound = effectiveRound;
   }
-  addTableCard(player, card, effectiveRound, isMaoDeFerro);
+  addTableCard(player, card, effectiveRound, Boolean(hidden) || isMaoDeFerro);
   audioCarta?.play().catch(() => {});
 });
 
@@ -673,15 +682,15 @@ function atualizarInfoLive() {
 
 function renderizarMao(hand, faceUp = true) {
   maoDiv.innerHTML = '';
-  hand.forEach((c) => {
+  hand.forEach((c, index) => {
     const carta = document.createElement('div');
     carta.className = faceUp ? 'carta playerCard' : 'carta playerCard virada';
     if (faceUp) carta.innerHTML = createCardHTML(c);
     carta.style.pointerEvents = 'auto';
-    carta.dataset.cardKey = `${c.suit}:${c.rank}`;
+    carta.dataset.cardKey = faceUp ? `${c.suit}:${c.rank}` : `blind:${index}`;
     carta.addEventListener('click', () => {
       if (!isMyTurn || !gameActive || isMaoDe11Decision) return;
-      socket.emit('playCard', c);
+      socket.emit('playCard', faceUp ? c : { blindIndex: index });
       clearTurnTimer();
     });
     maoDiv.appendChild(carta);
@@ -714,7 +723,7 @@ function clearTurnTimer() {
 function autoPlayRandomCard() {
   if (!gameActive || !isMyTurn || isMaoDe11Decision || playerHand.length === 0) return;
   const idx = Math.floor(Math.random() * playerHand.length);
-  socket.emit('playCard', playerHand[idx]);
+  socket.emit('playCard', isMaoDeFerro ? { blindIndex: idx } : playerHand[idx]);
 }
 
 function mostrarMensagem(texto) {
