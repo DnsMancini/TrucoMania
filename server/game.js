@@ -5,11 +5,13 @@ const { cardStrength } = require('./utils');
 const { chooseCard, respondBet: chooseBotBet } = require('./bot');
 
 const BET_VALUES = { truco: 3, retruco: 6, valenove: 9, valedoze: 12 };
+const NEXT_BET = { 1: 'truco', 3: 'retruco', 6: 'valenove', 9: 'valedoze' };
 const CARDS_PER_PLAYER = 3;
 const NUM_PLAYERS = 4;
 const WIN_SCORE = 12;
 const MAO_DE_11_TRIGGER = 11;
 const DECISION_TIMEOUT = 25000;
+const ROUND_DISPLAY_MS = 2500;
 
 function buildDeck() {
   const deck = [];
@@ -87,6 +89,7 @@ class Game4P {
 
     this.checkBotTurn = null;
     this.offlineActionTimer = null;
+    this.roundTransitionTimer = null;
   }
 
   startGame() {
@@ -97,6 +100,10 @@ class Game4P {
     if (this.offlineActionTimer) {
       clearTimeout(this.offlineActionTimer);
       this.offlineActionTimer = null;
+    }
+    if (this.roundTransitionTimer) {
+      clearTimeout(this.roundTransitionTimer);
+      this.roundTransitionTimer = null;
     }
 
     this.deck = buildDeck();
@@ -182,6 +189,9 @@ class Game4P {
     const cardIndex = hand.findIndex(c => c.suit === card.suit && c.rank === card.rank);
     if (cardIndex === -1) return false;
 
+    if (!this.roundCards[this.currentRound]) this.roundCards[this.currentRound] = new Array(NUM_PLAYERS).fill(null);
+    if (this.roundCards[this.currentRound][playerIndex]) return false;
+
     const played = hand.splice(cardIndex, 1)[0];
 
     if (this.offlineActionTimer) {
@@ -190,9 +200,6 @@ class Game4P {
     }
 
     if (this.playersInRound === 0) this.roundStarter = playerIndex;
-    if (!this.roundCards[this.currentRound]) this.roundCards[this.currentRound] = new Array(NUM_PLAYERS).fill(null);
-    if (this.roundCards[this.currentRound][playerIndex]) return false;
-
     this.roundCards[this.currentRound][playerIndex] = played;
     this.playersInRound++;
 
@@ -232,10 +239,6 @@ class Game4P {
 
     this.emit('roundResult', { round: this.currentRound, winner: winnerPlayer }, 'all');
 
-    // Após a segunda rodada, a situação já é suficiente para decidir a mão:
-    // - primeira e segunda com vencedores diferentes -> terceira decide;
-    // - uma das duas empatou -> a outra equipe leva a mão;
-    // - mesma equipe venceu as duas -> encerra imediatamente.
     if (this.currentRound === 1) {
       const first = this.roundWinners[0];
       const second = this.roundWinners[1];
@@ -249,25 +252,33 @@ class Game4P {
       return this.endHand(this.roundWins[0] >= 2 ? 0 : 1);
     }
 
-    // Terceira rodada: se houve empate, vale a equipe que venceu a primeira.
-    // Se as três empataram, ninguém pontua e uma nova mão começa.
     if (this.currentRound >= 2) {
-      const first = this.roundWinners[0];
-      const winningTeam = winnerTeam !== -1 ? winnerTeam : first;
-      return this.endHand(winningTeam === undefined ? -1 : winningTeam);
+      const previousWinner = [...this.roundWinners].reverse().find(team => team !== -1);
+      const winningTeam = winnerTeam !== -1 ? winnerTeam : (previousWinner ?? -1);
+      return this.endHand(winningTeam);
     }
 
     this.currentRound++;
     this.playersInRound = 0;
 
-    // Quem venceu começa a próxima rodada. Em empate, mantém-se o jogador
-    // que abriu a rodada empatada.
     const nextRoundStarter = winnerPlayer !== -1 ? winnerPlayer : this.roundStarter;
     this.roundStarter = nextRoundStarter;
     this.currentPlayer = nextRoundStarter;
 
-    this.emit('turn', { currentPlayer: this.currentPlayer }, 'all');
-    this.scheduleOfflineTurn();
+    if (this.offlineActionTimer) {
+      clearTimeout(this.offlineActionTimer);
+      this.offlineActionTimer = null;
+    }
+    if (this.roundTransitionTimer) clearTimeout(this.roundTransitionTimer);
+
+    this.turnStage = 'roundTransition';
+    this.roundTransitionTimer = setTimeout(() => {
+      this.roundTransitionTimer = null;
+      if (this.currentRound < 1 || this.turnStage !== 'roundTransition') return;
+      this.turnStage = 'play';
+      this.emit('turn', { currentPlayer: this.currentPlayer }, 'all');
+      this.scheduleOfflineTurn();
+    }, ROUND_DISPLAY_MS);
   }
 
   checkSetOver(winningTeam) {
@@ -292,6 +303,10 @@ class Game4P {
     if (this.offlineActionTimer) {
       clearTimeout(this.offlineActionTimer);
       this.offlineActionTimer = null;
+    }
+    if (this.roundTransitionTimer) {
+      clearTimeout(this.roundTransitionTimer);
+      this.roundTransitionTimer = null;
     }
 
     this.dealerIndex = (this.dealerIndex + 1) % NUM_PLAYERS;
@@ -402,10 +417,8 @@ class Game4P {
   callBet(playerIndex, betType) {
     if (!isValidPlayerIndex(playerIndex) || !isValidBetType(betType) || this.maoDe11 || this.maoDeFerro || this.turnStage !== 'play' || playerIndex !== this.currentPlayer || this.betState) return false;
 
-    if (betType === 'truco' && this.handValue >= 3) return false;
-    if (betType === 'retruco' && this.handValue >= 6) return false;
-    if (betType === 'valenove' && this.handValue >= 9) return false;
-    if (betType === 'valedoze' && this.handValue >= 12) return false;
+    const expectedBet = NEXT_BET[this.handValue];
+    if (expectedBet !== betType) return false;
 
     const challengerTeam = playerIndex % 2;
     if (this.handValue >= 3 && this.lastBetTeam === challengerTeam) return false;
@@ -465,8 +478,6 @@ class Game4P {
     if (action === 'valedoze' && level === 'valenove') nextLevel = 'valedoze';
     if (!nextLevel) return false;
 
-    // Enquanto a elevação estiver aguardando resposta, o valor aceito da mão
-    // permanece inalterado. Isso evita estados intermediários incorretos.
     this.betState = {
       challenger: playerIndex,
       level: nextLevel,
