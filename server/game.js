@@ -7,6 +7,13 @@ const ROUND_DISPLAY_MS = 2500;
 
 class Game4P extends BaseGame4P {
   playCard(playerIndex, card) {
+    if (this.maoDeFerro && this.players[playerIndex]?.isBot) {
+      const hand = this.hands[playerIndex] || [];
+      if (!hand.length) return false;
+      const randomIndex = Math.floor(Math.random() * hand.length);
+      return super.playCard(playerIndex, hand[randomIndex]);
+    }
+
     if (this.maoDeFerro && card && Number.isInteger(card.blindIndex)) {
       const hand = this.hands[playerIndex] || [];
       const index = card.blindIndex;
