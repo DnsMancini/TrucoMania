@@ -69,12 +69,14 @@ class Game4P extends BaseGame4P {
     const humanPlayers = teamPlayers.filter(index => this.players[index] && !this.players[index].isBot);
     const decisionPlayer = humanPlayers[0];
     if (decisionPlayer === undefined) return;
+    const decisionPlayerId = this.players[decisionPlayer]?.id;
 
     if (this.offlineActionTimer) clearTimeout(this.offlineActionTimer);
     this.offlineActionTimer = setTimeout(() => {
       this.offlineActionTimer = null;
       if (this.turnStage !== 'mao11Decision' || !this.maoDe11 || this.maoDe11DecisionMade) return;
-      if (!this.players[decisionPlayer] || this.players[decisionPlayer].isBot) return;
+      const player = this.players[decisionPlayer];
+      if (!player || player.isBot || player.id !== decisionPlayerId) return;
       this.respondMaoDe11(decisionPlayer, 'play');
     }, DECISION_TIMEOUT);
   }
@@ -97,11 +99,12 @@ class Game4P extends BaseGame4P {
     if (humanPlayers.length === 0) return;
 
     const responsePlayer = humanPlayers[0];
+    const responsePlayerId = this.players[responsePlayer]?.id;
     this.offlineActionTimer = setTimeout(() => {
       this.offlineActionTimer = null;
       if (this.turnStage !== 'respond' || !this.betState) return;
       const p = this.players[responsePlayer];
-      if (!p || p.isBot) return;
+      if (!p || p.isBot || p.id !== responsePlayerId) return;
       const context = {
         hand: this.hands[responsePlayer] || [],
         vira: this.vira,
