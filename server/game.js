@@ -15,6 +15,11 @@ class Game4P extends BaseGame4P {
     return super.playCard(playerIndex, card);
   }
 
+  advanceToNextHand() {
+    this.turnStage = 'handTransition';
+    return super.advanceToNextHand();
+  }
+
   resolveRound() {
     const round = this.roundCards[this.currentRound] || [];
     let maxStrength = -Infinity;
