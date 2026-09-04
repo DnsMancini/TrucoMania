@@ -14,12 +14,16 @@ function hiddenRoundCards(roundCards) {
 
 function buildGameState(room) {
   const game = room.game;
+  const vira = game.maoDeFerro && game.currentRound === 0
+    ? { hidden: true }
+    : game.vira;
+
   return {
     roomCode: room.code,
     player: null,
     hand: [],
     handsRemaining: game.hands.map(hand => hand.length),
-    vira: game.vira,
+    vira,
     currentPlayer: game.currentPlayer,
     dealer: game.dealerIndex,
     handValue: game.handValue,
@@ -56,7 +60,7 @@ function handleSocket(io) {
         safeData = {
           ...data,
           hand: hiddenHand(data.hand),
-          vira: { rank: '', suit: '' }
+          vira: { hidden: true }
         };
       }
 
