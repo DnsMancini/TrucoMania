@@ -165,7 +165,7 @@ style.textContent = `
 document.head.appendChild(style);
 
 // ===== MATCHMAKING / LOADING =====
-// Usa o mesmo elemento do game.js, mas o coloca diretamente no body para garantir cobertura integral.
+// Reaproveita o elemento do game.js e o coloca diretamente no body para escapar do layout da mesa.
 (function initMatchmakingLoading() {
   const boot = () => {
     const overlay = document.getElementById('contagemRegressiva');
@@ -174,34 +174,64 @@ document.head.appendChild(style);
 
     if (overlay.parentElement !== document.body) document.body.appendChild(overlay);
 
-    const shell = document.createElement('div');
+    const shell = document.createElement('section');
     shell.className = 'matchmaking-loading-shell';
+    shell.setAttribute('role', 'status');
+    shell.setAttribute('aria-live', 'polite');
     shell.innerHTML = `
-      <div class="matchmaking-brand">
-        <span class="matchmaking-brand-mark">🃏</span>
-        <span class="matchmaking-brand-name">TRUCO MANIA</span>
+      <div class="matchmaking-loading-head">
+        <span class="matchmaking-brand-mark" aria-hidden="true">🃏</span>
+        <div class="matchmaking-brand-copy">
+          <span class="matchmaking-brand-name">TRUCO MANIA</span>
+          <span class="matchmaking-brand-kicker">MATCHMAKING</span>
+        </div>
       </div>
-      <div class="matchmaking-loading-title">Preparando sua partida</div>
-      <div class="matchmaking-loading-subtitle">Aguardando jogadores e preparando a mesa</div>
-      <div class="matchmaking-loader" aria-hidden="true">
-        <span class="matchmaking-loader-core"></span>
+
+      <div class="matchmaking-loading-main">
+        <div class="matchmaking-loader" aria-hidden="true">
+          <span class="matchmaking-loader-core"></span>
+        </div>
+        <div class="matchmaking-loading-copy">
+          <h2>Preparando sua partida</h2>
+          <p>Aguardando jogadores para completar a mesa.</p>
+          <div class="matchmaking-loading-status">
+            <i aria-hidden="true"></i>
+            <span>Conectando aos jogadores</span>
+            <b aria-hidden="true">•••</b>
+          </div>
+        </div>
       </div>
-      <div class="matchmaking-loading-progress"><span></span></div>
-      <div class="matchmaking-loading-status"><i></i><span>Conectando aos jogadores</span><b>•••</b></div>
+
+      <div class="matchmaking-loading-progress" aria-hidden="true"><span></span></div>
       <span class="matchmaking-hidden-number" aria-hidden="true"></span>
     `;
 
-    const hiddenNumber = shell.querySelector('.matchmaking-hidden-number');
-    hiddenNumber.appendChild(number);
+    shell.querySelector('.matchmaking-hidden-number').appendChild(number);
     overlay.replaceChildren(shell);
 
     Object.assign(overlay.style, {
-      position: 'fixed', inset: '0', width: '100vw', height: '100dvh',
-      minWidth: '100vw', minHeight: '100vh', margin: '0', padding: '0',
-      boxSizing: 'border-box', display: 'none', placeItems: 'center',
-      overflow: 'hidden', background: '#030406', color: '#fff', border: '0',
-      borderRadius: '0', transform: 'none', filter: 'none', opacity: '1',
-      zIndex: '2147483647', fontFamily: 'inherit', isolation: 'isolate'
+      position: 'fixed',
+      inset: '0',
+      width: '100vw',
+      height: '100dvh',
+      minWidth: '100vw',
+      minHeight: '100vh',
+      margin: '0',
+      padding: '0',
+      boxSizing: 'border-box',
+      display: 'none',
+      placeItems: 'center',
+      overflow: 'hidden',
+      background: '#020305',
+      color: '#fff',
+      border: '0',
+      borderRadius: '0',
+      transform: 'none',
+      filter: 'none',
+      opacity: '1',
+      zIndex: '2147483647',
+      fontFamily: 'inherit',
+      isolation: 'isolate'
     });
 
     const styleId = 'matchmaking-loading-styles';
@@ -209,90 +239,313 @@ document.head.appendChild(style);
       const loadingStyle = document.createElement('style');
       loadingStyle.id = styleId;
       loadingStyle.textContent = `
-        #contagemRegressiva.matchmaking-active { display:grid !important; }
+        #contagemRegressiva.matchmaking-active {
+          display:grid !important;
+        }
+
         #contagemRegressiva.matchmaking-active::before,
         #contagemRegressiva.matchmaking-active::after {
-          content:''; position:absolute; inset:0; pointer-events:none;
+          content:'';
+          position:absolute;
+          inset:0;
+          pointer-events:none;
         }
+
         #contagemRegressiva.matchmaking-active::before {
           background:
-            radial-gradient(ellipse at 50% 38%, rgba(214,177,71,.10), transparent 34%),
-            radial-gradient(ellipse at 50% 100%, rgba(82,102,137,.06), transparent 48%),
-            linear-gradient(180deg,#07090d 0%,#030406 58%,#010203 100%);
+            radial-gradient(circle at 50% 46%, rgba(215,180,84,.09), transparent 25%),
+            radial-gradient(circle at 50% 0%, rgba(53,67,92,.08), transparent 38%),
+            linear-gradient(180deg,#06080c 0%,#020305 100%);
         }
+
         #contagemRegressiva.matchmaking-active::after {
-          background:linear-gradient(90deg,transparent 0,rgba(255,255,255,.018) 50%,transparent 100%);
+          box-shadow: inset 0 0 140px rgba(0,0,0,.62);
         }
+
         #contagemRegressiva .matchmaking-loading-shell {
-          position:relative; z-index:2; width:min(390px,calc(100vw - 40px));
-          box-sizing:border-box; padding:34px 36px 28px; display:flex;
-          flex-direction:column; align-items:center; text-align:center;
-          border:1px solid rgba(214,177,71,.20); border-radius:18px;
-          background:linear-gradient(160deg,rgba(14,17,23,.99),rgba(5,7,10,.995));
-          box-shadow:0 22px 70px rgba(0,0,0,.58), inset 0 1px 0 rgba(255,255,255,.035);
+          position:relative;
+          z-index:2;
+          width:min(500px,calc(100vw - 36px));
+          box-sizing:border-box;
+          padding:24px 28px 20px;
+          border:1px solid rgba(214,177,71,.20);
+          border-radius:16px;
+          background:linear-gradient(145deg,rgba(13,16,22,.995),rgba(6,8,12,.995));
+          box-shadow:0 24px 80px rgba(0,0,0,.58), inset 0 1px 0 rgba(255,255,255,.035);
         }
-        #contagemRegressiva .matchmaking-brand { display:flex; align-items:center; gap:10px; }
+
+        #contagemRegressiva .matchmaking-loading-head {
+          display:flex;
+          align-items:center;
+          gap:11px;
+          padding-bottom:18px;
+          border-bottom:1px solid rgba(255,255,255,.055);
+        }
+
         #contagemRegressiva .matchmaking-brand-mark {
-          width:34px; height:34px; display:grid; place-items:center; border-radius:10px;
-          background:rgba(214,177,71,.10); border:1px solid rgba(214,177,71,.22); font-size:17px;
+          display:grid !important;
+          place-items:center;
+          flex:0 0 36px;
+          width:36px !important;
+          height:36px !important;
+          padding:0 !important;
+          margin:0 !important;
+          border-radius:10px;
+          background:rgba(214,177,71,.10);
+          border:1px solid rgba(214,177,71,.20);
+          color:#f1d57d !important;
+          font-size:17px !important;
+          line-height:1 !important;
+          box-shadow:0 0 24px rgba(214,177,71,.06);
         }
+
+        #contagemRegressiva .matchmaking-brand-copy {
+          display:flex;
+          flex-direction:column;
+          gap:3px;
+          min-width:0;
+        }
+
         #contagemRegressiva .matchmaking-brand-name {
-          color:#d9b85e; font-size:10px; font-weight:900; letter-spacing:.28em;
+          display:block !important;
+          margin:0 !important;
+          padding:0 !important;
+          color:#dbc06d !important;
+          font-size:10px !important;
+          line-height:1 !important;
+          font-weight:900 !important;
+          letter-spacing:.28em !important;
         }
-        #contagemRegressiva .matchmaking-loading-title {
-          margin-top:22px; color:#f7f7f5; font-size:25px; line-height:1.15;
-          font-weight:800; letter-spacing:-.025em;
+
+        #contagemRegressiva .matchmaking-brand-kicker {
+          display:block !important;
+          margin:0 !important;
+          padding:0 !important;
+          color:rgba(255,255,255,.30) !important;
+          font-size:9px !important;
+          line-height:1 !important;
+          font-weight:700 !important;
+          letter-spacing:.16em !important;
         }
-        #contagemRegressiva .matchmaking-loading-subtitle {
-          max-width:290px; margin-top:9px; color:rgba(255,255,255,.46); font-size:13px; line-height:1.5;
+
+        #contagemRegressiva .matchmaking-loading-main {
+          display:flex;
+          align-items:center;
+          gap:20px;
+          padding:22px 2px 20px;
         }
+
         #contagemRegressiva .matchmaking-loader {
-          width:72px; height:72px; margin:28px 0 22px; position:relative; border-radius:50%;
-          border:1px solid rgba(214,177,71,.18); display:grid; place-items:center;
-          background:radial-gradient(circle,rgba(214,177,71,.08),rgba(8,10,14,.98) 65%);
+          position:relative;
+          flex:0 0 66px;
+          width:66px !important;
+          height:66px !important;
+          margin:0 !important;
+          padding:0 !important;
+          border-radius:50%;
+          border:1px solid rgba(214,177,71,.18) !important;
+          display:grid !important;
+          place-items:center;
+          background:radial-gradient(circle,rgba(214,177,71,.08),rgba(8,10,14,.99) 67%) !important;
+          box-shadow:inset 0 0 22px rgba(214,177,71,.05),0 0 24px rgba(0,0,0,.32);
         }
+
         #contagemRegressiva .matchmaking-loader::before {
-          content:''; position:absolute; inset:7px; border-radius:50%;
-          border:2px solid transparent; border-top-color:#d9b85e; border-right-color:rgba(217,184,94,.32);
-          animation:matchmakingSpin 1.15s linear infinite;
+          content:'';
+          position:absolute;
+          inset:6px;
+          border-radius:50%;
+          border:2px solid transparent;
+          border-top-color:#e0c16a;
+          border-right-color:rgba(224,193,106,.24);
+          animation:matchmakingSpin 1.1s linear infinite;
         }
+
         #contagemRegressiva .matchmaking-loader::after {
-          content:''; position:absolute; inset:18px; border-radius:50%;
-          border:1px solid rgba(255,255,255,.06);
+          content:'';
+          position:absolute;
+          inset:17px;
+          border-radius:50%;
+          border:1px solid rgba(255,255,255,.055);
         }
+
         #contagemRegressiva .matchmaking-loader-core {
-          width:7px; height:7px; border-radius:50%; background:#f0d47f;
-          box-shadow:0 0 18px rgba(240,212,127,.55); animation:matchmakingPulse 1.5s ease-in-out infinite;
+          display:block !important;
+          width:7px !important;
+          height:7px !important;
+          padding:0 !important;
+          margin:0 !important;
+          border:0 !important;
+          border-radius:50%;
+          background:#f2d781 !important;
+          box-shadow:0 0 17px rgba(242,215,129,.58);
+          animation:matchmakingPulse 1.5s ease-in-out infinite;
         }
-        #contagemRegressiva .matchmaking-loading-progress {
-          width:100%; height:4px; overflow:hidden; border-radius:999px;
-          background:rgba(255,255,255,.065);
+
+        #contagemRegressiva .matchmaking-loading-copy {
+          min-width:0;
+          text-align:left;
         }
-        #contagemRegressiva .matchmaking-loading-progress > span {
-          display:block; width:34%; height:100%; border-radius:inherit;
-          background:linear-gradient(90deg,transparent,#dfbf67,transparent);
-          animation:matchmakingProgress 1.65s ease-in-out infinite;
+
+        #contagemRegressiva .matchmaking-loading-copy h2 {
+          margin:0 !important;
+          padding:0 !important;
+          color:#f5f5f2 !important;
+          font-size:24px !important;
+          line-height:1.15 !important;
+          font-weight:800 !important;
+          letter-spacing:-.025em !important;
         }
+
+        #contagemRegressiva .matchmaking-loading-copy p {
+          margin:7px 0 0 !important;
+          padding:0 !important;
+          color:rgba(255,255,255,.43) !important;
+          font-size:12px !important;
+          line-height:1.45 !important;
+          font-weight:400 !important;
+        }
+
         #contagemRegressiva .matchmaking-loading-status {
-          margin-top:13px; width:100%; display:flex; align-items:center; justify-content:center;
-          gap:7px; color:rgba(255,255,255,.34); font-size:10px; letter-spacing:.02em;
+          display:flex !important;
+          align-items:center;
+          gap:7px;
+          width:auto !important;
+          margin:13px 0 0 !important;
+          padding:0 !important;
+          color:rgba(255,255,255,.32) !important;
+          font-size:10px !important;
+          line-height:1 !important;
+          letter-spacing:.01em !important;
+          font-weight:500 !important;
+          background:transparent !important;
+          border:0 !important;
+          box-shadow:none !important;
         }
+
+        #contagemRegressiva .matchmaking-loading-status > span {
+          display:inline !important;
+          width:auto !important;
+          height:auto !important;
+          margin:0 !important;
+          padding:0 !important;
+          color:rgba(255,255,255,.32) !important;
+          font-size:10px !important;
+          line-height:1 !important;
+          font-weight:500 !important;
+        }
+
         #contagemRegressiva .matchmaking-loading-status i {
-          width:6px; height:6px; border-radius:50%; background:#76d36b;
-          box-shadow:0 0 9px rgba(118,211,107,.5); animation:matchmakingBlink 1.2s ease-in-out infinite;
+          display:block !important;
+          flex:0 0 6px;
+          width:6px !important;
+          height:6px !important;
+          margin:0 !important;
+          padding:0 !important;
+          border:0 !important;
+          border-radius:50%;
+          background:#70cf68 !important;
+          box-shadow:0 0 9px rgba(112,207,104,.45);
+          animation:matchmakingBlink 1.2s ease-in-out infinite;
         }
-        #contagemRegressiva .matchmaking-loading-status b { font-weight:800; letter-spacing:2px; color:rgba(255,255,255,.25); animation:matchmakingDots 1.2s steps(4,end) infinite; }
-        #contagemRegressiva .matchmaking-hidden-number { display:none !important; }
-        #contagemRegressiva #contagemNumero { display:none !important; }
-        @keyframes matchmakingSpin { to { transform:rotate(360deg); } }
-        @keyframes matchmakingPulse { 0%,100% { transform:scale(.75); opacity:.55; } 50% { transform:scale(1); opacity:1; } }
-        @keyframes matchmakingProgress { 0% { transform:translateX(-180%); } 100% { transform:translateX(390%); } }
-        @keyframes matchmakingBlink { 0%,100% { opacity:.45; } 50% { opacity:1; } }
-        @keyframes matchmakingDots { 0% { opacity:.2; } 70% { opacity:1; } 100% { opacity:.2; } }
+
+        #contagemRegressiva .matchmaking-loading-status b {
+          display:inline !important;
+          margin:0 !important;
+          padding:0 !important;
+          color:rgba(255,255,255,.20) !important;
+          font-size:9px !important;
+          line-height:1 !important;
+          font-weight:800 !important;
+          letter-spacing:2px !important;
+          animation:matchmakingDots 1.2s steps(4,end) infinite;
+        }
+
+        #contagemRegressiva .matchmaking-loading-progress {
+          width:100% !important;
+          height:3px !important;
+          margin:0 !important;
+          padding:0 !important;
+          overflow:hidden;
+          border:0 !important;
+          border-radius:999px;
+          background:rgba(255,255,255,.055) !important;
+          box-shadow:none !important;
+        }
+
+        #contagemRegressiva .matchmaking-loading-progress > span {
+          display:block !important;
+          width:32% !important;
+          height:100% !important;
+          margin:0 !important;
+          padding:0 !important;
+          border:0 !important;
+          border-radius:inherit;
+          background:linear-gradient(90deg,transparent,#ddbd64,transparent) !important;
+          box-shadow:0 0 12px rgba(221,189,100,.18);
+          animation:matchmakingProgress 1.55s ease-in-out infinite;
+        }
+
+        #contagemRegressiva .matchmaking-hidden-number,
+        #contagemRegressiva #contagemNumero {
+          display:none !important;
+          width:0 !important;
+          height:0 !important;
+          margin:0 !important;
+          padding:0 !important;
+          overflow:hidden !important;
+        }
+
+        @keyframes matchmakingSpin {
+          to { transform:rotate(360deg); }
+        }
+
+        @keyframes matchmakingPulse {
+          0%,100% { transform:scale(.75); opacity:.55; }
+          50% { transform:scale(1); opacity:1; }
+        }
+
+        @keyframes matchmakingProgress {
+          0% { transform:translateX(-210%); }
+          100% { transform:translateX(420%); }
+        }
+
+        @keyframes matchmakingBlink {
+          0%,100% { opacity:.4; }
+          50% { opacity:1; }
+        }
+
+        @keyframes matchmakingDots {
+          0% { opacity:.2; }
+          70% { opacity:1; }
+          100% { opacity:.2; }
+        }
+
         @media (max-width:560px) {
-          #contagemRegressiva .matchmaking-loading-shell { width:min(350px,calc(100vw - 28px)); padding:28px 24px 24px; }
-          #contagemRegressiva .matchmaking-loading-title { font-size:22px; }
-          #contagemRegressiva .matchmaking-loader { width:64px; height:64px; margin:24px 0 19px; }
+          #contagemRegressiva .matchmaking-loading-shell {
+            width:min(360px,calc(100vw - 28px));
+            padding:20px 20px 17px;
+            border-radius:14px;
+          }
+          #contagemRegressiva .matchmaking-loading-main {
+            gap:15px;
+            padding:18px 0 16px;
+          }
+          #contagemRegressiva .matchmaking-loader {
+            flex-basis:54px;
+            width:54px !important;
+            height:54px !important;
+          }
+          #contagemRegressiva .matchmaking-loading-copy h2 {
+            font-size:20px !important;
+          }
+          #contagemRegressiva .matchmaking-loading-copy p {
+            font-size:11px !important;
+          }
+          #contagemRegressiva .matchmaking-loading-status,
+          #contagemRegressiva .matchmaking-loading-status > span {
+            font-size:9px !important;
+          }
         }
       `;
       document.head.appendChild(loadingStyle);
@@ -300,8 +553,7 @@ document.head.appendChild(style);
 
     const sync = () => {
       const hidden = overlay.classList.contains('oculto');
-      const text = number.textContent.trim();
-      const value = Number.parseInt(text, 10);
+      const value = Number.parseInt(number.textContent.trim(), 10);
       const active = !hidden && Number.isFinite(value) && value > 0;
       overlay.classList.toggle('matchmaking-active', active);
     };
