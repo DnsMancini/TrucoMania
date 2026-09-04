@@ -243,6 +243,7 @@ class Game4P {
   }
 
   advanceToNextHand() {
+    this.turnStage = 'handTransition';
     if (this.offlineActionTimer) { clearTimeout(this.offlineActionTimer); this.offlineActionTimer = null; }
     if (this.roundTransitionTimer) { clearTimeout(this.roundTransitionTimer); this.roundTransitionTimer = null; }
     this.dealerIndex = (this.dealerIndex + 1) % NUM_PLAYERS;
@@ -291,7 +292,7 @@ class Game4P {
     if (decisionPlayer === undefined) return;
     this.offlineActionTimer = setTimeout(() => {
       this.offlineActionTimer = null;
-      if (this.turnStage !== 'mao11Decision' || !this.maoDe11 || this.maoDe11DecisionMade) return;
+      if (this.turnStage !== 'mao11Decision' || !this.maoDe11 || this.maoDe11DecisionMade || this.players[decisionPlayer]?.online !== false) return;
       this.respondMaoDe11(decisionPlayer, 'play');
     }, DECISION_TIMEOUT);
   }
@@ -380,7 +381,7 @@ class Game4P {
       if (botIndex !== undefined) {
         this.offlineActionTimer = setTimeout(() => {
           this.offlineActionTimer = null;
-          if (this.turnStage !== 'respond' || !this.betState) return;
+          if (this.turnStage !== 'respond' || !this.betState || !this.players[botIndex]?.isBot) return;
           const context = { hand: this.hands[botIndex], vira: this.vira, handValue: this.handValue, maoDe11: this.maoDe11, betState: this.betState };
           const action = chooseBotBet(this.hands[botIndex], this.vira.rank, this.betState.level, context);
           this.respondBet(botIndex, action);
@@ -394,7 +395,7 @@ class Game4P {
       this.offlineActionTimer = null;
       if (this.turnStage !== 'respond' || !this.betState) return;
       const p = this.players[responsePlayer];
-      if (!p || p.isBot) return;
+      if (!p || p.isBot || p.online === true) return;
       const context = { hand: this.hands[responsePlayer], vira: this.vira, handValue: this.handValue, maoDe11: this.maoDe11, betState: this.betState };
       const action = chooseBotBet(this.hands[responsePlayer], this.vira.rank, this.betState.level, context);
       this.respondBet(responsePlayer, action);
@@ -410,7 +411,7 @@ class Game4P {
       const playerIndex = this.currentPlayer;
       this.offlineActionTimer = setTimeout(() => {
         this.offlineActionTimer = null;
-        if (this.turnStage !== 'play' || this.currentPlayer !== playerIndex) return;
+        if (this.turnStage !== 'play' || this.currentPlayer !== playerIndex || !this.players[playerIndex]?.isBot) return;
         const context = { hand: this.hands[playerIndex], vira: this.vira, handValue: this.handValue, maoDe11: this.maoDe11, betState: this.betState, players: this.players, playerIndex };
         const action = chooseCard(context.hand, context.vira.rank, context);
         if (action) this.playCard(playerIndex, action);
@@ -421,7 +422,7 @@ class Game4P {
       const playerIndex = this.currentPlayer;
       this.offlineActionTimer = setTimeout(() => {
         this.offlineActionTimer = null;
-        if (this.turnStage !== 'play' || this.currentPlayer !== playerIndex) return;
+        if (this.turnStage !== 'play' || this.currentPlayer !== playerIndex || this.players[playerIndex]?.online !== false) return;
         const context = { hand: this.hands[playerIndex], vira: this.vira, handValue: this.handValue, maoDe11: this.maoDe11, betState: this.betState, players: this.players, playerIndex };
         const action = chooseCard(context.hand, context.vira.rank, context);
         if (action) this.playCard(playerIndex, action);
