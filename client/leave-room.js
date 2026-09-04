@@ -183,6 +183,32 @@
   else setup();
 })();
 
+// Ajuste responsivo do painel de compartilhamento da sala.
+(() => {
+  const style = document.createElement('style');
+  style.textContent = `
+    #roomSharePanel { max-width: calc(100vw - 24px); }
+    @media (max-width: 700px) {
+      #roomSharePanel {
+        top: 58px !important;
+        right: 8px !important;
+        left: 8px !important;
+        transform: none !important;
+        justify-content: center;
+        gap: 6px !important;
+        padding: 5px 7px !important;
+        font-size: 11px !important;
+        z-index: 20 !important;
+      }
+      #roomSharePanel button {
+        padding: 5px 7px !important;
+        font-size: 12px !important;
+      }
+    }
+  `;
+  document.head.appendChild(style);
+})();
+
 // ========== RESTAURAÇÃO APÓS DESCONEXÃO ==========
 (() => {
   const restaurarPartida = (data) => {
