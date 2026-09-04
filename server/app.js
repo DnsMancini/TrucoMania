@@ -144,83 +144,10 @@ app.get('/', (_req, res) => {
       else hideReconnectButton();
     });
 
-    socket.on('gameStateRestore', (data) => {
+    // A reconstrução completa da partida pertence ao client/game.js.
+    // Este script apenas esconde o botão de reconexão quando o estado chega.
+    socket.on('gameStateRestore', () => {
       hideReconnectButton();
-      if (typeof gameWrapper === 'undefined' || typeof lobbyDiv === 'undefined') return;
-
-      currentGameCode = data.roomCode || currentGameCode;
-      gameWrapper.classList.remove('game-hidden');
-      lobbyDiv.classList.add('game-hidden');
-      contagemEl.classList.add('oculto');
-      telaFinal.classList.remove('show');
-
-      gameActive = true;
-      playerHand = Array.isArray(data.hand) ? data.hand : [];
-      myPlayerIndex = data.player;
-      currentHandValue = data.handValue;
-      isMyTurn = data.currentPlayer === myPlayerIndex;
-      aguardandoResposta = data.turnStage === 'respond';
-      isRespondingToBet = aguardandoResposta && data.betState && (myPlayerIndex % 2 === data.betState.responderTeam);
-      currentBetLevel = data.betState?.level || null;
-
-      const rotatedPlayers = rotateArrayForPlayer(data.players || [], myPlayerIndex);
-      for (let i = 0; i < 4; i++) {
-        const slotEl = nomesSlots[SLOT_ORDER[i]];
-        const player = rotatedPlayers[i];
-        if (slotEl) slotEl.textContent = (player?.name || '') + (player?.isBot ? ' (Bot)' : '');
-      }
-
-      for (let i = 1; i <= 3; i++) {
-        HAND_SLOTS[i].innerHTML = '';
-        const opIndex = rotateArrayForPlayer([0, 1, 2, 3], myPlayerIndex)[i];
-        const remaining = Number.isInteger(data.handsRemaining?.[opIndex]) ? data.handsRemaining[opIndex] : 3;
-        for (let j = 0; j < remaining; j++) {
-          const carta = document.createElement('div');
-          carta.className = 'carta virada';
-          HAND_SLOTS[i].appendChild(carta);
-        }
-      }
-
-      renderizarMao(playerHand);
-      teamAScoreEl.textContent = data.scores?.[0] ?? 0;
-      teamBScoreEl.textContent = data.scores?.[1] ?? 0;
-      currentHandValue = data.handValue ?? 1;
-      infoRodadaEl.textContent = 'Rodada ' + ((data.currentRound ?? 0) + 1) + ' de 3';
-      trucoStatusEl.textContent = currentHandValue > 1 ? 'Truco: ' + currentHandValue + ' pts' : 'Truco: Nenhum';
-
-      viraEl.classList.remove('oculto', 'virada');
-      viraEl.innerHTML = createCardHTML(data.vira);
-      mesaCartas.innerHTML = '';
-
-      const currentRoundCards = Array.isArray(data.roundCards?.[data.currentRound]) ? data.roundCards[data.currentRound] : [];
-      const rotatedIndexes = rotateArrayForPlayer([0, 1, 2, 3], myPlayerIndex);
-      const posicoes = ['c0', 'c3', 'c2', 'c1'];
-      currentRoundCards.forEach((card, player) => {
-        if (!card) return;
-        const relPos = rotatedIndexes.indexOf(Number(player));
-        const cartaDiv = document.createElement('div');
-        cartaDiv.className = 'cartaMesa ' + posicoes[relPos >= 0 ? relPos : Number(player)];
-        cartaDiv.innerHTML = createCardHTML(card);
-        mesaCartas.appendChild(cartaDiv);
-      });
-
-      painelHistorico.querySelectorAll('.bolinha-rodada').forEach((bolinha, index) => {
-        bolinha.className = index < (data.currentRound ?? 0) ? 'bolinha-rodada bolinha-ouro' : 'bolinha-rodada bolinha-branca';
-      });
-
-      posicionarSeta(data.currentPlayer);
-      atualizarInfoLive();
-
-      if (data.turnStage === 'respond' && data.betState) {
-        atualizarBotaoTruco();
-        btnCorrer.classList.toggle('oculto', !isRespondingToBet);
-      } else {
-        btnCorrer.classList.toggle('oculto', !isMyTurn);
-        atualizarBotaoTruco();
-      }
-
-      clearTurnTimer();
-      if (isMyTurn && data.turnStage === 'play') startTurnTimer();
     });
   };
 
@@ -235,7 +162,7 @@ app.get('/', (_req, res) => {
     const controls = document.createElement('div');
     controls.className = 'room-creation-controls';
     controls.style.cssText = 'display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;margin-top:10px;align-items:center;';
-    controls.innerHTML = \`
+    controls.innerHTML = `
       <label style="display:flex;align-items:center;gap:8px;font-size:13px;">
         <span>Tipo</span>
         <select id="roomVisibility" class="lobby-input" style="flex:1;min-width:0;">
@@ -247,16 +174,16 @@ app.get('/', (_req, res) => {
         <input id="roomFillBots" type="checkbox" checked />
         <span>Completar com bots</span>
       </label>
-    \`;
+    `;
     entryPanel.appendChild(controls);
 
     const joinByCodeContainer = document.createElement('div');
     joinByCodeContainer.className = 'room-code-entry';
     joinByCodeContainer.style.cssText = 'display:flex;gap:10px;margin-top:10px;';
-    joinByCodeContainer.innerHTML = \`
+    joinByCodeContainer.innerHTML = `
       <input id="roomCodeInput" class="lobby-input" placeholder="Código da sala" maxlength="4" autocomplete="off" style="text-transform:uppercase;flex:1;" />
       <button id="joinCodeBtn" class="lobby-button">Entrar por código</button>
-    \`;
+    `;
     entryPanel.appendChild(joinByCodeContainer);
 
     const randomMatchButton = document.createElement('button');
@@ -277,7 +204,7 @@ app.get('/', (_req, res) => {
         currentGameCode = result.roomCode;
         hideReconnectButton();
         if (result.isPublic === false) {
-          alert('Sala privada criada!\\nCódigo: ' + result.roomCode + '\\nCompartilhe este código com quem você quiser convidar.');
+          alert('Sala privada criada!\nCódigo: ' + result.roomCode + '\nCompartilhe este código com quem você quiser convidar.');
         }
         enterWaitingRoom(result);
       });
