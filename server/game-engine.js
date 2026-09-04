@@ -96,6 +96,10 @@ class Game4P {
     this.checkBotTurn = null;
     this.offlineActionTimer = null;
     this.roundTransitionTimer = null;
+    this.handTransitionTimer = null;
+    this.botTurnTimer = null;
+    this.botResponseTimer = null;
+    this.botDecisionTimer = null;
   }
 
   startGame() {
@@ -105,6 +109,7 @@ class Game4P {
   startNewHand() {
     if (this.offlineActionTimer) { clearTimeout(this.offlineActionTimer); this.offlineActionTimer = null; }
     if (this.roundTransitionTimer) { clearTimeout(this.roundTransitionTimer); this.roundTransitionTimer = null; }
+    if (this.handTransitionTimer) { clearTimeout(this.handTransitionTimer); this.handTransitionTimer = null; }
     this.deck = buildDeck();
     shuffle(this.deck);
     this.hands = [[], [], [], []];
@@ -246,10 +251,26 @@ class Game4P {
     this.turnStage = 'handTransition';
     if (this.offlineActionTimer) { clearTimeout(this.offlineActionTimer); this.offlineActionTimer = null; }
     if (this.roundTransitionTimer) { clearTimeout(this.roundTransitionTimer); this.roundTransitionTimer = null; }
+    if (this.handTransitionTimer) { clearTimeout(this.handTransitionTimer); this.handTransitionTimer = null; }
     this.dealerIndex = (this.dealerIndex + 1) % NUM_PLAYERS;
     if (this.onBeforeNewHand) this.onBeforeNewHand();
     const checkBot = this.checkBotTurn;
-    setTimeout(() => { this.startNewHand(); if (checkBot) checkBot(); }, 1500);
+    const transitionTimer = setTimeout(() => {
+      if (this.handTransitionTimer !== transitionTimer) return;
+      this.handTransitionTimer = null;
+      this.startNewHand();
+      if (checkBot) checkBot();
+    }, 1500);
+    this.handTransitionTimer = transitionTimer;
+  }
+
+  cancelTimers() {
+    if (this.offlineActionTimer) { clearTimeout(this.offlineActionTimer); this.offlineActionTimer = null; }
+    if (this.roundTransitionTimer) { clearTimeout(this.roundTransitionTimer); this.roundTransitionTimer = null; }
+    if (this.handTransitionTimer) { clearTimeout(this.handTransitionTimer); this.handTransitionTimer = null; }
+    if (this.botTurnTimer) { clearTimeout(this.botTurnTimer); this.botTurnTimer = null; }
+    if (this.botResponseTimer) { clearTimeout(this.botResponseTimer); this.botResponseTimer = null; }
+    if (this.botDecisionTimer) { clearTimeout(this.botDecisionTimer); this.botDecisionTimer = null; }
   }
 
   endHand(winningTeam) {
