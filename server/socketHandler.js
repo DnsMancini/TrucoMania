@@ -1,6 +1,81 @@
 const core = require('./socketHandler-core');
 
+function hiddenHand(hand) {
+  return Array.from({ length: Array.isArray(hand) ? hand.length : 0 }, () => ({ hidden: true }));
+}
+
+function hiddenRoundCards(roundCards) {
+  if (!Array.isArray(roundCards)) return [];
+  return roundCards.map(round => Array.isArray(round)
+    ? round.map(card => card ? { hidden: true } : null)
+    : round
+  );
+}
+
+function buildGameState(room) {
+  const game = room.game;
+  return {
+    roomCode: room.code,
+    player: null,
+    hand: [],
+    handsRemaining: game.hands.map(hand => hand.length),
+    vira: game.vira,
+    currentPlayer: game.currentPlayer,
+    dealer: game.dealerIndex,
+    handValue: game.handValue,
+    scores: game.scores,
+    setWins: game.setWins,
+    maoDe11: game.maoDe11,
+    maoDe11Team: game.maoDe11Team,
+    maoDe11DecisionMade: game.maoDe11DecisionMade,
+    maoDeFerro: game.maoDeFerro,
+    currentRound: game.currentRound,
+    roundCards: game.maoDeFerro ? hiddenRoundCards(game.roundCards) : game.roundCards,
+    playersInRound: game.playersInRound,
+    roundStarter: game.roundStarter,
+    turnStage: game.turnStage,
+    betState: game.betState,
+    players: room.players.map(p => ({ name: p.name, isBot: p.isBot, online: p.online }))
+  };
+}
+
 function handleSocket(io) {
+  const originalTo = io.to.bind(io);
+
+  io.to = function patchedTo(target) {
+    const operator = originalTo(target);
+    const originalEmit = operator.emit.bind(operator);
+
+    operator.emit = function patchedEmit(event, data, ...args) {
+      let safeData = data;
+      const room = typeof target === 'string' && target.length === 4
+        ? core.rooms.get(target)
+        : null;
+
+      if (event === 'handStart' && data?.maoDeFerro) {
+        safeData = {
+          ...data,
+          hand: hiddenHand(data.hand),
+          vira: { rank: '', suit: '' }
+        };
+      }
+
+      const result = originalEmit(event, safeData, ...args);
+
+      if (event === 'roundResult' && room?.game?.maoDeFerro && data?.round === 0) {
+        setImmediate(() => {
+          if (!core.rooms.has(room.code) || !room.game || !room.game.maoDeFerro) return;
+          const state = buildGameState(room);
+          originalTo(room.code).emit('gameStateRestore', state);
+        });
+      }
+
+      return result;
+    };
+
+    return operator;
+  };
+
   io.on('connection', (socket) => {
     socket.use((packet, next) => {
       if (packet[0] === 'authenticate' && socket.user) {
