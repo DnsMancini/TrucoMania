@@ -6,7 +6,6 @@ class UIEffects {
     this.initValidationEffects();
   }
 
-  // Glassmorphism input com glow animado
   initInputEffects() {
     document.querySelectorAll('.auth-input').forEach(input => {
       const wrapper = input.closest('.input-wrapper') || input;
@@ -25,7 +24,6 @@ class UIEffects {
     else { el.style.opacity = '0'; el.style.transform = 'scale(1)'; }
   }
 
-  // Botões com efeito light sweep
   initButtonEffects() {
     document.querySelectorAll('.auth-btn, .auth-btn-secondary').forEach(btn => {
       const sweep = document.createElement('div');
@@ -60,7 +58,6 @@ class UIEffects {
     setTimeout(() => ripple.remove(), 600);
   }
 
-  // Validação visual em tempo real
   initValidationEffects() {
     document.querySelectorAll('[data-validate]').forEach(input => {
       const field = input.closest('.auth-field');
@@ -85,7 +82,6 @@ class UIEffects {
     }
   }
 
-  // Efeito de loading spinner premium
   static showLoading(btn) {
     if (!btn) return;
     btn.classList.add('btn-loading');
@@ -102,7 +98,6 @@ class UIEffects {
     if (btn.dataset.originalText) btn.innerHTML = btn.dataset.originalText;
   }
 
-  // Toast notification premium
   static showToast(message, type = 'success') {
     const existing = document.querySelector('.auth-toast');
     if (existing) existing.remove();
@@ -114,7 +109,6 @@ class UIEffects {
     setTimeout(() => { toast.classList.remove('auth-toast-visible'); setTimeout(() => toast.remove(), 300); }, 3000);
   }
 
-  // Password strength meter
   static updatePasswordStrength(password) {
     const meter = document.querySelector('.password-strength-meter');
     const bar = document.querySelector('.strength-bar');
@@ -145,20 +139,19 @@ class UIEffects {
 
 document.addEventListener('DOMContentLoaded', () => {
   window.uiEffects = new UIEffects();
-});
 
-// ========== CORREÇÃO DE VEZ E MESA ==========
-// Mantém um estado local de segurança alinhado aos eventos autoritativos do servidor.
-// Isso impede clique durante a janela entre cardPlayed e turn e evita que o timeout
-// antigo de roundResult apague cartas já pertencentes à rodada seguinte.
-(() => {
+  // ========== CORREÇÃO DE VEZ, MESA E DESTAQUE DA CARTA VENCEDORA ==========
+  // Este código precisa rodar depois de game.js, por isso fica dentro do DOMContentLoaded.
   if (typeof socket === 'undefined') return;
 
   let authoritativeTurn = null;
   let turnLocked = true;
   let roundCards = [];
-
+  let winnerHighlightTimer = null;
+  let winnerOverlay = null;
+  const HIGHLIGHT_MS = 2500;
   const posicoes = ['c0', 'c3', 'c2', 'c1'];
+
   const getRotatedIds = () => {
     if (typeof myPlayerIndex !== 'number') return [0, 1, 2, 3];
     return rotateArrayForPlayer([0, 1, 2, 3], myPlayerIndex);
@@ -180,18 +173,64 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   };
 
+  const clearWinnerHighlight = () => {
+    if (winnerHighlightTimer) {
+      clearTimeout(winnerHighlightTimer);
+      winnerHighlightTimer = null;
+    }
+    if (winnerOverlay) {
+      winnerOverlay.remove();
+      winnerOverlay = null;
+    }
+    const mesa = document.getElementById('mesaCartas');
+    if (mesa) mesa.style.visibility = 'visible';
+  };
+
+  const highlightWinner = (winner) => {
+    const mesa = document.getElementById('mesaCartas');
+    if (!mesa || !Number.isInteger(winner) || winner < 0) return;
+    const relPos = getRotatedIds().indexOf(winner);
+    if (relPos < 0) return;
+    const original = mesa.querySelector(`.cartaMesa.${posicoes[relPos]}`);
+    if (!original) return;
+
+    clearWinnerHighlight();
+    const rect = original.getBoundingClientRect();
+    winnerOverlay = original.cloneNode(true);
+    winnerOverlay.classList.add('cartaVencedoraOverlay');
+    winnerOverlay.style.left = `${rect.left}px`;
+    winnerOverlay.style.top = `${rect.top}px`;
+    winnerOverlay.style.width = `${rect.width}px`;
+    winnerOverlay.style.height = `${rect.height}px`;
+    document.body.appendChild(winnerOverlay);
+
+    // As cartas da próxima rodada podem ser recebidas pelo cliente durante o destaque,
+    // mas ficam invisíveis até o tempo terminar. Assim a carta vencedora continua em foco.
+    mesa.style.visibility = 'hidden';
+    winnerHighlightTimer = setTimeout(() => {
+      winnerHighlightTimer = null;
+      if (winnerOverlay) {
+        winnerOverlay.remove();
+        winnerOverlay = null;
+      }
+      mesa.style.visibility = 'visible';
+    }, HIGHLIGHT_MS);
+  };
+
   const setTurn = (player) => {
     authoritativeTurn = Number.isInteger(player) ? player : null;
     turnLocked = false;
   };
 
   socket.on('handStart', (data) => {
+    clearWinnerHighlight();
     roundCards = [];
     authoritativeTurn = Number.isInteger(data?.currentPlayer) ? data.currentPlayer : null;
     turnLocked = false;
   });
 
   socket.on('gameStateRestore', (data) => {
+    clearWinnerHighlight();
     roundCards = [];
     const current = Array.isArray(data?.roundCards?.[data?.currentRound]) ? data.roundCards[data.currentRound] : [];
     current.forEach((card, player) => { if (card) roundCards.push({ player, card }); });
@@ -203,8 +242,6 @@ document.addEventListener('DOMContentLoaded', () => {
   socket.on('turn', ({ currentPlayer }) => setTurn(currentPlayer));
 
   socket.on('cardPlayed', ({ player, card }) => {
-    // Depois que qualquer carta é aceita pelo servidor, ninguém pode clicar novamente
-    // até chegar o próximo evento turn.
     turnLocked = true;
     if (Number.isInteger(player) && card) {
       const existing = roundCards.findIndex(item => item.player === player);
@@ -213,14 +250,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  socket.on('roundResult', () => {
-    // A rodada terminou; o servidor enviará turn para o jogador que começa a próxima.
-    // O estado visual da nova rodada começa vazio, então o timeout antigo não tem
-    // autorização para apagar cartas novas.
+  socket.on('roundResult', ({ winner }) => {
+    // O game.js original ainda limpa a mesa depois de 1,2s. O destaque é um clone
+    // independente e permanece visível por 2,5s, sem ser apagado por esse timeout.
+    highlightWinner(winner);
     roundCards = [];
   });
 
   socket.on('handEnd', () => {
+    clearWinnerHighlight();
     turnLocked = true;
     authoritativeTurn = null;
     roundCards = [];
@@ -244,4 +282,24 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     observer.observe(mesa, { childList: true });
   }
-})();
+
+  const style = document.createElement('style');
+  style.textContent = `
+    .cartaVencedoraOverlay {
+      position: fixed !important;
+      z-index: 10050 !important;
+      pointer-events: none !important;
+      margin: 0 !important;
+      transform: none !important;
+      box-sizing: border-box;
+      border: 2px solid #f1c40f !important;
+      box-shadow: 0 0 8px 2px rgba(241,196,15,.9), 0 0 22px 8px rgba(241,196,15,.55), inset 0 0 12px rgba(241,196,15,.25) !important;
+      animation: cartaVencedoraBrilho 1s ease-in-out infinite alternate;
+    }
+    @keyframes cartaVencedoraBrilho {
+      from { filter: brightness(1.05); box-shadow: 0 0 8px 2px rgba(241,196,15,.9), 0 0 22px 8px rgba(241,196,15,.55), inset 0 0 12px rgba(241,196,15,.25) !important; }
+      to { filter: brightness(1.28); box-shadow: 0 0 14px 4px rgba(255,230,80,1), 0 0 34px 12px rgba(241,196,15,.8), inset 0 0 18px rgba(241,196,15,.4) !important; }
+    }
+  `;
+  document.head.appendChild(style);
+});
