@@ -121,6 +121,62 @@
         });
       };
     }
+
+    const updateRoomShareUI = () => {
+      const code = typeof currentGameCode !== 'undefined' ? String(currentGameCode || '').trim().toUpperCase() : '';
+      let panel = document.getElementById('roomSharePanel');
+      if (!panel) {
+        panel = document.createElement('div');
+        panel.id = 'roomSharePanel';
+        panel.style.cssText = 'position:fixed;top:12px;right:12px;z-index:10000;display:none;align-items:center;gap:8px;padding:8px 10px;border:1px solid rgba(255,255,255,.22);border-radius:12px;background:rgba(0,0,0,.5);color:#fff;backdrop-filter:blur(8px);box-shadow:0 8px 25px rgba(0,0,0,.2);font-size:13px;';
+        panel.innerHTML = '<span style="font-weight:700;white-space:nowrap;">SALA: <b id="roomShareCode">----</b></span><button id="roomCopyBtn" type="button" style="padding:7px 9px;border:0;border-radius:8px;cursor:pointer;background:rgba(255,255,255,.14);color:#fff;font-weight:700;">📋</button><button id="roomShareBtn" type="button" style="padding:7px 9px;border:0;border-radius:8px;cursor:pointer;background:rgba(255,255,255,.14);color:#fff;font-weight:700;">📤</button>';
+        document.body.appendChild(panel);
+
+        document.getElementById('roomCopyBtn').addEventListener('click', async () => {
+          const currentCode = typeof currentGameCode !== 'undefined' ? String(currentGameCode || '').trim().toUpperCase() : '';
+          if (!currentCode) return;
+          try {
+            await navigator.clipboard.writeText(currentCode);
+            const btn = document.getElementById('roomCopyBtn');
+            btn.textContent = '✅';
+            setTimeout(() => { btn.textContent = '📋'; }, 1200);
+          } catch {
+            alert(`Código da sala: ${currentCode}`);
+          }
+        });
+
+        document.getElementById('roomShareBtn').addEventListener('click', async () => {
+          const currentCode = typeof currentGameCode !== 'undefined' ? String(currentGameCode || '').trim().toUpperCase() : '';
+          if (!currentCode) return;
+          const url = `${window.location.origin}/?room=${encodeURIComponent(currentCode)}`;
+          const text = `🃏 Vem jogar Truco comigo!\nCódigo da sala: ${currentCode}`;
+          try {
+            if (navigator.share) {
+              await navigator.share({ title: 'TrucoMania', text, url });
+            } else {
+              await navigator.clipboard.writeText(`${text}\n${url}`);
+              alert('Convite copiado! Agora é só enviar para seu amigo.');
+            }
+          } catch (e) {
+            if (e?.name === 'AbortError') return;
+            try {
+              await navigator.clipboard.writeText(`${text}\n${url}`);
+              alert('Convite copiado! Agora é só enviar para seu amigo.');
+            } catch {
+              alert(`${text}\n${url}`);
+            }
+          }
+        });
+      }
+      panel.style.display = code && !gameWrapper.classList.contains('game-hidden') ? 'flex' : 'none';
+      const codeEl = document.getElementById('roomShareCode');
+      if (codeEl) codeEl.textContent = code || '----';
+    };
+
+    const roomObserver = new MutationObserver(updateRoomShareUI);
+    roomObserver.observe(gameWrapper, { attributes: true, attributeFilter: ['class'] });
+    setInterval(updateRoomShareUI, 500);
+    updateRoomShareUI();
   };
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', setup);
@@ -302,8 +358,6 @@
     }
   });
 
-  // Mantém a mesa visível por mais tempo quando a rodada termina,
-  // mas não restaura cartas antigas se uma nova carta já foi jogada.
   let lastCardEvent = 0;
   socket.on('cardPlayed', () => { lastCardEvent = Date.now(); });
   socket.on('roundResult', () => {
