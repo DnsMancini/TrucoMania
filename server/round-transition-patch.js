@@ -23,6 +23,7 @@ Module._load = function patchedModuleLoad(request, parent, isMain) {
         this.emit = (event, ...eventArgs) => {
           if (event === 'roundResult') {
             this._roundDisplayUntil = Date.now() + ROUND_DISPLAY_MS;
+            this.turnStage = 'roundTransition';
             return originalEmit(event, ...eventArgs);
           }
 
@@ -31,7 +32,8 @@ Module._load = function patchedModuleLoad(request, parent, isMain) {
             if (remaining > 0) {
               const targetPlayer = this.currentPlayer;
               setTimeout(() => {
-                if (this.turnStage !== 'play' || this.currentPlayer !== targetPlayer) return;
+                if (this.currentPlayer !== targetPlayer || this.turnStage !== 'roundTransition') return;
+                this.turnStage = 'play';
                 originalEmit('turn', ...eventArgs);
               }, remaining);
               return;
@@ -44,12 +46,12 @@ Module._load = function patchedModuleLoad(request, parent, isMain) {
 
       scheduleOfflineTurn() {
         const remaining = (this._roundDisplayUntil || 0) - Date.now();
-        if (remaining > 0) {
+        if (remaining > 0 && this.turnStage === 'roundTransition') {
           if (this.offlineActionTimer) clearTimeout(this.offlineActionTimer);
           const targetPlayer = this.currentPlayer;
           this.offlineActionTimer = setTimeout(() => {
             this.offlineActionTimer = null;
-            if (this.turnStage !== 'play' || this.currentPlayer !== targetPlayer) return;
+            if (this.currentPlayer !== targetPlayer || this.turnStage !== 'play') return;
             originalScheduleOfflineTurn.call(this);
           }, remaining);
           return;
