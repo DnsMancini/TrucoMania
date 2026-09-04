@@ -1,4 +1,3 @@
-const { Server } = require('socket.io');
 const core = require('./socketHandler-core');
 
 function handleSocket(io) {
