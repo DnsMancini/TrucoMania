@@ -1,0 +1,35 @@
+name: fix-loading-overlay
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fix loading overlay handStart
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('client/game.js')
+          s = p.read_text()
+          old = "socket.on('handStart', (data) => {\n  renderGeneration++;"
+          new = "socket.on('handStart', (data) => {\n  const loadingOverlay = document.getElementById('contagemRegressiva');\n  loadingOverlay?.classList.add('oculto');\n  loadingOverlay?.classList.remove('matchmaking-active');\n  if (loadingOverlay) loadingOverlay.style.display = 'none';\n  renderGeneration++;"
+          if old not in s:
+              raise SystemExit('handStart anchor not found')
+          s = s.replace(old, new, 1)
+          p.write_text(s)
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add client/game.js
+          git commit -m 'fix: hide matchmaking loading when hand starts'
+          git push
+      - name: Remove temporary workflow
+        if: always()
+        run: |
+          rm -f .github/workflows/fix-loading-overlay.yml
+          git add .github/workflows/fix-loading-overlay.yml
+          git commit -m 'chore: remove temporary loading fix workflow' || true
+          git push || true
