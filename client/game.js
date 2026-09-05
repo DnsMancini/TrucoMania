@@ -603,6 +603,7 @@ socket.on('betAccepted', ({ handValue }) => {
 
 // ========== BOTÕES ==========
 function mostrarControlesMaoDe11() {
+  btnTruco.disabled = false;
   btnTruco.classList.remove('oculto');
   btnTruco.textContent = 'JOGAR MÃO DE 11';
   btnCorrer.classList.remove('oculto');
