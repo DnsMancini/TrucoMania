@@ -53,11 +53,11 @@ function rescheduleAfterReconnect(socket) {
       const playerIndex = room.players.findIndex(player => player.uid === uid && !player.isBot);
       if (playerIndex < 0 || !room.game) continue;
       const game = room.game;
-      if (game.turnStage === 'play' && game.currentPlayer === playerIndex) {
+      if (game.turnStage === 'play') {
         game.scheduleOfflineTurn();
-      } else if (game.turnStage === 'respond' && game.betState && playerIndex % 2 === game.betState.responderTeam) {
+      } else if (game.turnStage === 'respond' && game.betState) {
         game.scheduleOfflineResponse();
-      } else if (game.turnStage === 'mao11Decision' && game.maoDe11 && playerIndex % 2 === game.maoDe11Team && !game.maoDe11DecisionMade) {
+      } else if (game.turnStage === 'mao11Decision' && game.maoDe11 && !game.maoDe11DecisionMade) {
         game.scheduleMaoDe11Decision();
       }
       return;
