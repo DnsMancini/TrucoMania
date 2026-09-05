@@ -65,6 +65,7 @@ let currentGameCode = null;
 let currentHandValue = 1;
 let myNickname = '';
 let isMaoDe11Decision = false;
+let isMaoDe11Hand = false;
 let isMaoDeFerro = false;
 let currentBetLevel = null;
 let lastBetTeam = null;
@@ -284,6 +285,7 @@ socket.on('handStart', (data) => {
   gameActive = true;
   myPlayerIndex = data.player;
   isMaoDeFerro = Boolean(data.maoDeFerro);
+  isMaoDe11Hand = Boolean(data.maoDe11);
   playerHand = isMaoDeFerro
     ? Array.from({ length: Array.isArray(data.hand) ? data.hand.length : 3 }, () => ({ hidden: true }))
     : (Array.isArray(data.hand) ? data.hand.slice() : []);
@@ -404,6 +406,7 @@ socket.on('maoDe11Decision', ({ team }) => {
 
 socket.on('maoDe11Started', ({ handValue, currentPlayer }) => {
   isMaoDe11Decision = false;
+  isMaoDe11Hand = true;
   currentHandValue = handValue;
   trucoStatusEl.textContent = `Truco: ${handValue} pts`;
   posicionarSeta(currentPlayer);
@@ -490,6 +493,7 @@ socket.on('roundResult', ({ round, winner }) => {
 
 socket.on('handEnd', ({ winnerTeam, points, scores }) => {
   gameActive = false;
+  isMaoDe11Hand = false;
   isMaoDe11Decision = false;
   isMaoDeFerro = false;
   aguardandoResposta = false;
@@ -528,6 +532,7 @@ socket.on('setStart', ({ scores, setWins }) => {
 
 socket.on('matchOver', ({ winnerTeam, reason }) => {
   gameActive = false;
+  isMaoDe11Hand = false;
   isMaoDe11Decision = false;
   isMaoDeFerro = false;
   aguardandoResposta = false;
@@ -605,6 +610,11 @@ function mostrarControlesMaoDe11() {
 }
 
 function atualizarBotaoTruco() {
+  if (isMaoDe11Hand && !isMaoDe11Decision) {
+    btnTruco.classList.add('oculto');
+    btnTruco.disabled = true;
+    return;
+  }
   if (!gameActive || isMaoDe11Decision || isMaoDeFerro) {
     if (isMaoDe11Decision) mostrarControlesMaoDe11();
     else btnTruco.classList.add('oculto');
@@ -629,6 +639,7 @@ function atualizarBotaoTruco() {
   }
 
   btnTruco.classList.remove('oculto');
+  btnTruco.disabled = false;
   if (currentHandValue >= 12) btnTruco.classList.add('oculto');
   else if (currentHandValue >= 9) btnTruco.textContent = 'VALE DOZE';
   else if (currentHandValue >= 6) btnTruco.textContent = 'VALE NOVE';
@@ -643,6 +654,7 @@ btnTruco.onclick = () => {
     clearTurnTimer();
     return;
   }
+  if (isMaoDe11Hand) return;
   if (isRespondingToBet) {
     const canRaise = currentBetLevel === 'truco' || currentBetLevel === 'retruco' || currentBetLevel === 'valenove';
     if (!canRaise) socket.emit('respondBet', 'accept');
