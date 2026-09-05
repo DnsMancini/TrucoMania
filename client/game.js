@@ -280,6 +280,10 @@ function renderCurrentRound(roundCards, round) {
 
 // ========== GAME EVENTS ==========
 socket.on('handStart', (data) => {
+  const loadingOverlay = document.getElementById('contagemRegressiva');
+  loadingOverlay?.classList.add('oculto');
+  loadingOverlay?.classList.remove('matchmaking-active');
+  if (loadingOverlay) loadingOverlay.style.display = 'none';
   renderGeneration++;
   renderedRound = 0;
   gameActive = true;
