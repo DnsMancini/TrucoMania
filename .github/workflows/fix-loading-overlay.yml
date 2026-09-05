@@ -1,5 +1,8 @@
 name: fix-loading-overlay
 on:
+  push:
+    paths:
+      - '.github/workflows/fix-loading-overlay.yml'
   workflow_dispatch:
 permissions:
   contents: write
