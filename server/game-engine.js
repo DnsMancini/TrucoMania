@@ -127,6 +127,7 @@ class Game4P {
     this.maoDe11DecisionMade = false;
     this.currentPlayer = (this.dealerIndex + 3) % NUM_PLAYERS;
     this.turnStage = this.maoDe11 ? 'mao11Decision' : 'play';
+    if (this.turnStage === 'mao11Decision') this.currentPlayer = null;
     this.betState = null;
     this.lastBetTeam = null;
     this.roundWins = [0, 0];
@@ -134,7 +135,7 @@ class Game4P {
     this.currentRound = 0;
     this.roundCards = [];
     this.playersInRound = 0;
-    this.roundStarter = this.currentPlayer;
+    this.roundStarter = (this.dealerIndex + 3) % NUM_PLAYERS;
     for (let i = 0; i < NUM_PLAYERS; i++) {
       if (this.players[i]?.isBot) continue;
       this.emit('handStart', {
@@ -295,6 +296,7 @@ class Game4P {
     }
     this.turnStage = 'play';
     this.handValue = 3;
+    this.currentPlayer = this.roundStarter;
     this.emit('maoDe11Started', { team: this.maoDe11Team, handValue: 3, currentPlayer: this.currentPlayer }, 'all');
     this.emit('turn', { currentPlayer: this.currentPlayer }, 'all');
     this.scheduleOfflineTurn();
