@@ -45,6 +45,26 @@ function buildGameState(room, playerIndex = null) {
   };
 }
 
+function rescheduleAfterReconnect(socket) {
+  setImmediate(() => {
+    const uid = socket.user?.uid;
+    if (!uid) return;
+    for (const room of core.rooms.values()) {
+      const playerIndex = room.players.findIndex(player => player.uid === uid && !player.isBot);
+      if (playerIndex < 0 || !room.game) continue;
+      const game = room.game;
+      if (game.turnStage === 'play' && game.currentPlayer === playerIndex) {
+        game.scheduleOfflineTurn();
+      } else if (game.turnStage === 'respond' && game.betState && playerIndex % 2 === game.betState.responderTeam) {
+        game.scheduleOfflineResponse();
+      } else if (game.turnStage === 'mao11Decision' && game.maoDe11 && playerIndex % 2 === game.maoDe11Team && !game.maoDe11DecisionMade) {
+        game.scheduleMaoDe11Decision();
+      }
+      return;
+    }
+  });
+}
+
 function handleSocket(io) {
   const originalTo = io.to.bind(io);
 
@@ -94,6 +114,9 @@ function handleSocket(io) {
       }
       return originalSocketEmit(event, safeData, ...args);
     };
+
+    socket.on('authenticate', () => rescheduleAfterReconnect(socket));
+    socket.on('reconnectToGame', () => rescheduleAfterReconnect(socket));
 
     socket.use((packet, next) => {
       if (packet[0] === 'authenticate' && socket.user) {
