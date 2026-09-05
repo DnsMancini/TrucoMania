@@ -1,0 +1,46 @@
+name: Fix Mao de 11 Truco Button
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: "!contains(github.event.head_commit.message, 'fix: disable truco during mao de 11')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Apply fix
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('client/game.js')
+          s = p.read_text()
+          replacements = [
+            ("let isMaoDe11Decision = false;\nlet isMaoDeFerro = false;", "let isMaoDe11Decision = false;\nlet isMaoDe11Hand = false;\nlet isMaoDeFerro = false;"),
+            ("isMaoDeFerro = Boolean(data.maoDeFerro);\n  playerHand = isMaoDeFerro", "isMaoDeFerro = Boolean(data.maoDeFerro);\n  isMaoDe11Hand = Boolean(data.maoDe11);\n  playerHand = isMaoDeFerro"),
+            ("socket.on('maoDe11Started', ({ handValue, currentPlayer }) => {\n  isMaoDe11Decision = false;", "socket.on('maoDe11Started', ({ handValue, currentPlayer }) => {\n  isMaoDe11Decision = false;\n  isMaoDe11Hand = true;"),
+            ("function atualizarBotaoTruco() {\n  if (!gameActive || isMaoDe11Decision || isMaoDeFerro) {", "function atualizarBotaoTruco() {\n  if (isMaoDe11Hand && !isMaoDe11Decision) {\n    btnTruco.classList.add('oculto');\n    btnTruco.disabled = true;\n    return;\n  }\n  if (!gameActive || isMaoDe11Decision || isMaoDeFerro) {"),
+            ("  btnTruco.classList.remove('oculto');\n  if (currentHandValue >= 12) btnTruco.classList.add('oculto');", "  btnTruco.classList.remove('oculto');\n  btnTruco.disabled = false;\n  if (currentHandValue >= 12) btnTruco.classList.add('oculto');"),
+            ("    return;\n  }\n  if (isRespondingToBet) {", "    return;\n  }\n  if (isMaoDe11Hand) return;\n  if (isRespondingToBet) {"),
+            ("socket.on('handEnd', ({ winnerTeam, points, scores }) => {\n  gameActive = false;", "socket.on('handEnd', ({ winnerTeam, points, scores }) => {\n  gameActive = false;\n  isMaoDe11Hand = false;"),
+            ("socket.on('matchOver', ({ winnerTeam, reason }) => {\n  gameActive = false;", "socket.on('matchOver', ({ winnerTeam, reason }) => {\n  gameActive = false;\n  isMaoDe11Hand = false;"),
+          ]
+          for old, new in replacements:
+              if old not in s:
+                  raise SystemExit(f'pattern not found: {old[:80]!r}')
+              s = s.replace(old, new, 1)
+          p.write_text(s)
+          PY
+      - name: Commit fix and remove temporary workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add client/game.js
+          git commit -m "fix: disable truco during mao de 11"
+          git rm .github/workflows/fix-mao11-truco.yml
+          git commit -m "chore: remove temporary fix workflow"
+          git push
