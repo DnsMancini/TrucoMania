@@ -22,8 +22,12 @@ class Game4P extends BaseGame4P {
       return super.playCard(playerIndex, hand[index]);
     }
 
+    const partnerIndex = (playerIndex + 2) % 4;
+    const partnerIsBot = this.players[partnerIndex]?.isBot === true;
+
     if (
       this.players[playerIndex]?.isBot &&
+      partnerIsBot &&
       this.turnStage === 'play' &&
       !this.betState &&
       !this.maoDe11 &&
@@ -82,8 +86,8 @@ class Game4P extends BaseGame4P {
   }
 
   scheduleOfflineResponse() {
-    // Quando há bot como respondente, o Socket.IO já agenda a resposta.
-    // Evita dois callbacks concorrentes decidindo a mesma aposta.
+    // Quando há bot como respondente, o Socket.IO agenda a resposta apenas
+    // se os dois jogadores da dupla forem bots. Se houver humano, a decisão é dele.
     if (this.checkBotTurn && this.betState) {
       const team = this.betState.responderTeam;
       const hasBotResponder = [team, team + 2].some(index => this.players[index]?.isBot);
