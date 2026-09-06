@@ -5,3 +5,48 @@
 @import url("/btn-sair-sala.css?v=1");
 @import url("/game-events.css?v=1");
 @import url("/avatar-card-position.css?v=1");
+
+/* Botões de ação da partida: menores e sem ocupar espaço desnecessário. */
+.game-button {
+  min-width: 108px;
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 9px;
+  font-size: 12px;
+  letter-spacing: 0.4px;
+  transform: none;
+}
+.game-button:hover { transform: translateY(-1px); }
+.game-button:active { transform: translateY(1px); }
+.game-button-truco,
+.game-button-correr {
+  bottom: calc(126px + var(--safe-bottom));
+}
+
+@media (max-width: 768px) {
+  .game-button {
+    min-width: 88px;
+    height: 34px;
+    padding: 0 9px;
+    border-radius: 8px;
+    font-size: 10px;
+    letter-spacing: 0.25px;
+  }
+  .game-button-truco,
+  .game-button-correr {
+    bottom: calc(92px + var(--safe-bottom));
+  }
+}
+
+@media (max-width: 380px) {
+  .game-button {
+    min-width: 82px;
+    height: 32px;
+    padding: 0 8px;
+    font-size: 9px;
+  }
+  .game-button-truco,
+  .game-button-correr {
+    bottom: calc(88px + var(--safe-bottom));
+  }
+}
