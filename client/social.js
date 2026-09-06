@@ -189,4 +189,23 @@
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', setup);
   else setup();
+
+  // O painel de eventos da partida é carregado uma única vez e fica independente do Hub.
+  const loadGameEvents = () => {
+    if (document.getElementById('gameEventsStyles')) return;
+    const link = document.createElement('link');
+    link.id = 'gameEventsStyles';
+    link.rel = 'stylesheet';
+    link.href = 'game-events.css?v=1';
+    document.head.appendChild(link);
+
+    if (!document.getElementById('gameEventsScript')) {
+      const script = document.createElement('script');
+      script.id = 'gameEventsScript';
+      script.src = 'game-events.js?v=1';
+      script.defer = true;
+      document.head.appendChild(script);
+    }
+  };
+  loadGameEvents();
 })();
