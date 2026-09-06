@@ -431,19 +431,22 @@ socket.on('maoDe11Started', ({ handValue, currentPlayer }) => {
 });
 
 socket.on('turn', ({ currentPlayer }) => {
+  // "turn" é a fonte de verdade do servidor para iniciar/retomar uma jogada.
+  // Nunca deixar um estado antigo de resposta ao Truco bloquear a nova vez.
   if (isMaoDe11Decision) return;
+  aguardandoResposta = false;
+  isRespondingToBet = false;
+  currentBetLevel = null;
   isMyTurn = currentPlayer === myPlayerIndex;
   posicionarSeta(currentPlayer);
-  if (!aguardandoResposta) {
-    if (isMyTurn) {
-      btnCorrer.classList.remove('oculto');
-      atualizarBotaoTruco();
-      startTurnTimer();
-    } else {
-      btnTruco.classList.add('oculto');
-      btnCorrer.classList.add('oculto');
-      clearTurnTimer();
-    }
+  if (isMyTurn) {
+    btnCorrer.classList.remove('oculto');
+    atualizarBotaoTruco();
+    startTurnTimer();
+  } else {
+    btnTruco.classList.add('oculto');
+    btnCorrer.classList.add('oculto');
+    clearTurnTimer();
   }
   atualizarInfoLive();
 });
