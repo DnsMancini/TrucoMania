@@ -1,5 +1,13 @@
 /* TrucoMania — Hub mobile compacto
    Reduz altura ocupada e reorganiza os controles para aproveitar largura. */
+
+/* O jogador já está autenticado e seu nickname é carregado do perfil.
+   Mantemos o input no DOM por compatibilidade com o fluxo legado, mas ele
+   não é mais uma informação que o usuário precisa preencher. */
+#nameInput {
+  display: none !important;
+}
+
 @media (max-width: 600px) {
   .lobby { padding: 6px 7px calc(6px + var(--safe-bottom)); }
   .lobby-shell { gap: 6px; }
@@ -31,11 +39,12 @@
   .lobby-menu {
     grid-column: 1 / -1;
     display: grid !important;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr);
     gap: 5px;
   }
   .lobby-input { padding: 8px 10px; min-height: 38px; border-radius: 9px; font-size: 14px; }
   .lobby-button { min-height: 38px; padding: 8px 10px; border-radius: 9px; font-size: 10px; letter-spacing: .35px; }
+  #createBtn { width: 100%; }
 
   /* Tipo e bots continuam lado a lado, sem uma coluna vazia. */
   #roomControls {
