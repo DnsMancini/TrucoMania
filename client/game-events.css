@@ -1,0 +1,68 @@
+/* Painel compacto de acontecimentos da partida */
+#painelEventosPartida {
+  position: fixed;
+  top: calc(var(--safe-top) + 68px);
+  left: calc(var(--safe-left) + 8px);
+  width: min(270px, 30vw);
+  padding: 7px 8px;
+  box-sizing: border-box;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 10px;
+  background: rgba(7,10,12,.76);
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+  box-shadow: 0 8px 24px rgba(0,0,0,.28);
+  z-index: 2150;
+  pointer-events: none;
+  opacity: .94;
+}
+
+.eventos-partida-titulo {
+  margin-bottom: 4px;
+  color: rgba(255,255,255,.62);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .8px;
+  text-transform: uppercase;
+}
+
+#listaEventosPartida {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.evento-partida {
+  min-height: 15px;
+  overflow: hidden;
+  color: rgba(255,255,255,.88);
+  font-size: 10px;
+  line-height: 1.35;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.evento-partida.bet { color: #f4d35e; font-weight: 700; }
+.evento-partida.result { color: #9ff0bd; font-weight: 700; }
+.evento-partida.system { color: rgba(255,255,255,.64); }
+
+@media (max-width: 768px) {
+  #painelEventosPartida {
+    top: calc(var(--safe-top) + 62px);
+    left: calc(var(--safe-left) + 6px);
+    width: min(225px, 38vw);
+    padding: 5px 6px;
+    border-radius: 8px;
+  }
+  .eventos-partida-titulo { margin-bottom: 2px; font-size: 8px; }
+  .evento-partida { min-height: 13px; font-size: 8px; }
+  #listaEventosPartida { gap: 1px; }
+}
+
+@media (max-width: 480px) {
+  #painelEventosPartida {
+    top: calc(var(--safe-top) + 58px);
+    width: min(205px, 42vw);
+  }
+  .evento-partida { font-size: 7.5px; }
+}
