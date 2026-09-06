@@ -1,4 +1,5 @@
 const core = require('./socketHandler-core');
+const { attachSocialHandlers } = require('./social');
 
 function hiddenHand(hand) {
   return Array.from({ length: Array.isArray(hand) ? hand.length : 0 }, () => ({ hidden: true }));
@@ -131,6 +132,7 @@ function handleSocket(io) {
     });
   });
 
+  attachSocialHandlers(io);
   core.handleSocket(io);
 }
 
