@@ -50,7 +50,7 @@ class Game4P extends BaseGame4P {
       };
       const betType = shouldCallBet(
         context.hand,
-        this.vira?.rank,
+        context.vira?.rank,
         this.handValue,
         false,
         context
@@ -86,12 +86,16 @@ class Game4P extends BaseGame4P {
   }
 
   scheduleOfflineResponse() {
-    // Quando há bot como respondente, o Socket.IO agenda a resposta apenas
-    // se os dois jogadores da dupla forem bots. Se houver humano, a decisão é dele.
+    // Se existir um bot respondente, o Socket.IO cuida dele quando os dois
+    // jogadores da dupla são bots. Porém, se a dupla tiver um humano offline
+    // e um bot, o humano offline precisa continuar tendo um fallback; caso
+    // contrário a partida pode ficar presa em turnStage='respond'.
     if (this.checkBotTurn && this.betState) {
       const team = this.betState.responderTeam;
-      const hasBotResponder = [team, team + 2].some(index => this.players[index]?.isBot);
-      if (hasBotResponder) return;
+      const teamPlayers = [team, team + 2];
+      const hasBotResponder = teamPlayers.some(index => this.players[index]?.isBot);
+      const hasOnlineHumanResponder = teamPlayers.some(index => this.players[index] && !this.players[index].isBot && this.players[index].online !== false);
+      if (hasBotResponder && hasOnlineHumanResponder) return;
     }
 
     if (this.turnStage !== 'respond' || !this.betState) return;
@@ -102,13 +106,14 @@ class Game4P extends BaseGame4P {
     const humanPlayers = teamPlayers.filter(index => this.players[index] && !this.players[index].isBot);
     if (humanPlayers.length === 0) return;
 
-    const responsePlayer = humanPlayers[0];
+    const responsePlayer = humanPlayers.find(index => this.players[index].online === false);
+    if (responsePlayer === undefined) return;
     const responsePlayerId = this.players[responsePlayer]?.id;
     this.offlineActionTimer = setTimeout(() => {
       this.offlineActionTimer = null;
       if (this.turnStage !== 'respond' || !this.betState) return;
       const p = this.players[responsePlayer];
-      if (!p || p.isBot || p.id !== responsePlayerId) return;
+      if (!p || p.isBot || p.id !== responsePlayerId || p.online !== false) return;
       const context = {
         hand: this.hands[responsePlayer] || [],
         vira: this.vira,
@@ -131,8 +136,13 @@ class Game4P extends BaseGame4P {
 
   scheduleOfflineTurn() {
     // Em produção, o Socket.IO já possui um agendador dedicado para bots.
-    // Mantemos o fallback do engine quando ele estiver sendo usado isoladamente.
-    if (this.checkBotTurn && this.players[this.currentPlayer]?.isBot) return;
+    // Quando chamado pelo próprio fluxo do engine, delegamos explicitamente
+    // para ele; isso também garante que a nova rodada não fique presa caso
+    // o vencedor que inicia a rodada seja um bot.
+    if (this.checkBotTurn && this.players[this.currentPlayer]?.isBot) {
+      this.checkBotTurn();
+      return;
+    }
     return super.scheduleOfflineTurn();
   }
 
@@ -178,8 +188,6 @@ class Game4P extends BaseGame4P {
     }
 
     if (this.currentRound >= 2) {
-      // No Truco Paulista, empate na 3ª rodada leva a mão ao vencedor da 1ª.
-      // Se a 1ª também empatou, vale o vencedor da 2ª. Se todas empataram, ninguém pontua.
       const winningTeam = winnerTeam !== -1
         ? winnerTeam
         : (this.roundWinners[0] !== -1 ? this.roundWinners[0] : this.roundWinners[1]);
