@@ -15,181 +15,68 @@
     --audit-opponent-card-h: clamp(62px, 19vw, 78px);
   }
 
-  /* ===== CARTAS: numeração e naipes sempre com a cor correta ===== */
   .carta .naipe-vermelho,
   .cartaMesa .naipe-vermelho,
-  #vira .naipe-vermelho {
-    color: #c1121f !important;
-    -webkit-text-fill-color: #c1121f;
-  }
-
+  #vira .naipe-vermelho { color: #c1121f !important; -webkit-text-fill-color: #c1121f; }
   .carta .naipe-preto,
   .cartaMesa .naipe-preto,
-  #vira .naipe-preto {
-    color: #111 !important;
-    -webkit-text-fill-color: #111;
-  }
+  #vira .naipe-preto { color: #111 !important; -webkit-text-fill-color: #111; }
+  .carta-corner, .carta-center { z-index: 2; }
+  .carta-corner.top-left, .carta-corner.bottom-right { font-weight: 900; }
 
-  .carta-corner,
-  .carta-center {
-    z-index: 2;
-  }
+  #hand1, #hand2, #hand3 { z-index: 2020; box-sizing: border-box; max-width: none; overflow: visible; pointer-events: none; }
+  #hand1 { left: calc(var(--audit-table-left) - 5px) !important; right: auto !important; top: 46% !important; transform: translate(-100%, -50%) !important; }
+  #hand3 { left: calc(var(--audit-table-right) + 5px) !important; right: auto !important; top: 46% !important; transform: translateY(-50%) !important; }
+  #hand2 { left: 50% !important; top: calc(var(--audit-table-top) - 5px) !important; transform: translate(-50%, -100%) !important; }
+  #hand1 .carta, #hand2 .carta, #hand3 .carta { width: var(--audit-opponent-card-w); height: var(--audit-opponent-card-h); box-sizing: border-box; flex: 0 0 auto; }
 
-  /* Evita que a transformação da carta apague a leitura da numeração. */
-  .carta-corner.top-left,
-  .carta-corner.bottom-right {
-    font-weight: 900;
-  }
+  #p1, #p3 { z-index: 2150; }
+  #p2 { z-index: 2150; top: max(4px, var(--safe-top)) !important; }
+  #mao { z-index: 2600 !important; pointer-events: none; }
+  #mao .playerCard { pointer-events: auto; }
 
-  /* ===== MESA: uma única referência geométrica para todas as mãos ===== */
-  #hand1,
-  #hand2,
-  #hand3 {
-    z-index: 2020;
-    box-sizing: border-box;
-  }
+  .game-button-truco, .game-button-correr { z-index: 2700 !important; bottom: calc(155px + var(--safe-bottom)) !important; width: calc(46vw - 6px); min-width: 0; max-width: calc(46vw - 6px); height: 44px; padding: 0 7px; font-size: clamp(9px, 2.7vw, 12px); white-space: nowrap; overflow: hidden; text-overflow: clip; }
+  .game-button-truco { left: max(7px, var(--safe-left)); }
+  .game-button-correr { right: max(7px, var(--safe-right)); }
 
-  #hand1 {
-    left: calc(var(--audit-table-left) - 5px) !important;
-    right: auto !important;
-    top: 46% !important;
-    transform: translate(-100%, -50%) !important;
-  }
+  #infoLive, #placar { z-index: 2800 !important; }
+  #infoLive { top: max(5px, calc(var(--safe-top) + 2px)); left: max(5px, calc(var(--safe-left) + 2px)); max-width: 40vw; overflow: hidden; }
+  #infoRodada, #trucoStatus { overflow-wrap: anywhere; }
 
-  #hand3 {
-    left: calc(var(--audit-table-right) + 5px) !important;
-    right: auto !important;
-    top: 46% !important;
-    transform: translateY(-50%) !important;
-  }
+  #placar { top: max(3px, var(--safe-top)); right: max(3px, var(--safe-right)); }
+  .placar-time { width: clamp(52px, 16vw, 66px); }
+  .placar-time-pontos { font-size: clamp(16px, 5vw, 21px); }
+  .placar-time-nome { font-size: clamp(6px, 1.8vw, 8px); }
+  .placar-status { font-size: 6px; }
 
-  #hand2 {
-    left: 50% !important;
-    top: calc(var(--audit-table-top) - 5px) !important;
-    transform: translate(-50%, -100%) !important;
-  }
+  /* Cartas da mesa: o .carta interno não pode manter o tamanho da mão. */
+  #mesaCartas { overflow: visible; z-index: 1200 !important; }
+  .cartaMesa { width: clamp(42px, 10vw, 48px) !important; height: clamp(60px, 14vw, 70px) !important; z-index: 1; box-sizing: border-box; overflow: hidden; }
+  .cartaMesa > .carta { width: 100% !important; height: 100% !important; min-width: 0 !important; min-height: 0 !important; margin: 0 !important; border-radius: inherit; box-sizing: border-box; }
+  .cartaMesa > .carta .carta-center { font-size: clamp(14px, 4.2vw, 19px); }
+  .cartaMesa > .carta .carta-corner { font-size: clamp(7px, 2vw, 9px); }
 
-  #hand1 .carta,
-  #hand3 .carta {
-    width: var(--audit-opponent-card-w);
-    height: var(--audit-opponent-card-h);
-  }
+  #vira { left: 50% !important; top: 50% !important; z-index: 1250 !important; pointer-events: none; }
+  #painelHistorico { z-index: 2200; bottom: calc(205px + var(--safe-bottom)) !important; }
+  #cronometro { z-index: 2500 !important; }
+  #toast { z-index: 4000 !important; }
+  .telaFinal, .telaFinal.show { z-index: 5000 !important; }
 
-  #hand2 .carta {
-    width: var(--audit-opponent-card-w);
-    height: var(--audit-opponent-card-h);
-  }
-
-  /* Não permitir que uma mão lateral seja empurrada pela largura da tela. */
-  #hand1,
-  #hand2,
-  #hand3 {
-    max-width: none;
-    overflow: visible;
-    pointer-events: none;
-  }
-
-  /* ===== JOGADORES: separados das cartas e sem cruzar os elementos do topo ===== */
-  #p1,
-  #p3 {
-    z-index: 2150;
-  }
-
-  #p2 {
-    z-index: 2150;
-    top: max(4px, var(--safe-top)) !important;
-  }
-
-  /* ===== MÃO DO JOGADOR: reserva espaço para não bater nos botões ===== */
-  #mao {
-    z-index: 2600 !important;
-    pointer-events: none;
-  }
-
-  #mao .playerCard {
-    pointer-events: auto;
-  }
-
-  /* ===== BOTÕES: nunca ficam por cima das cartas do jogador ===== */
-  .game-button-truco,
-  .game-button-correr {
-    z-index: 2700 !important;
-    bottom: calc(112px + var(--safe-bottom)) !important;
-  }
-
-  /* ===== PLACAR / INFO: camadas próprias, sem atravessar cartas ===== */
-  #infoLive,
-  #placar {
-    z-index: 2800 !important;
-  }
-
-  #infoLive {
-    max-width: 36vw;
-    overflow: hidden;
-  }
-
-  #infoRodada,
-  #trucoStatus {
-    overflow-wrap: anywhere;
-  }
-
-  /* ===== VIRA: fica no centro da mesa e não cria uma segunda referência ===== */
-  #vira {
-    left: 50% !important;
-    top: 50% !important;
-    z-index: 1250 !important;
-    pointer-events: none;
-  }
-
-  /* ===== CARTAS DA MESA: não podem escapar do container central ===== */
-  #mesaCartas {
-    overflow: visible;
-    z-index: 1200 !important;
-  }
-
-  .cartaMesa {
-    z-index: 1;
-  }
-
-  /* ===== HISTÓRICO: não invadir a mão inferior ===== */
-  #painelHistorico {
-    z-index: 2200;
-    bottom: calc(132px + var(--safe-bottom)) !important;
-  }
-
-  /* ===== TIMER: sobre a mesa, mas abaixo dos controles e sem cobrir cartas do jogador ===== */
-  #cronometro {
-    z-index: 2500 !important;
-  }
-
-  /* ===== TOAST / MODAIS: sempre acima de tudo ===== */
-  #toast {
-    z-index: 4000 !important;
-  }
-
-  .telaFinal,
-  .telaFinal.show {
-    z-index: 5000 !important;
-  }
+  /* Mão inferior: fica abaixo dos botões e sem ocupar a largura inteira. */
+  #mao { bottom: max(3px, var(--safe-bottom)); width: min(88vw, 330px); max-width: 88vw; }
+  #mao .playerCard { width: clamp(58px, 17vw, 68px) !important; height: clamp(84px, 24vw, 100px) !important; margin-left: clamp(-20px, -5vw, -14px) !important; box-sizing: border-box; }
+  #mao .playerCard:first-child { margin-left: 0 !important; }
 }
 
-/* Telas muito estreitas: mantém as mãos dentro da área visual. */
 @media (max-width: 380px) {
-  :root {
-    --audit-opponent-card-w: 40px;
-    --audit-opponent-card-h: 60px;
-  }
-
+  :root { --audit-opponent-card-w: 40px; --audit-opponent-card-h: 60px; }
   #hand1 { left: calc(50% - (var(--audit-table-size) / 2) - 3px) !important; }
   #hand3 { left: calc(50% + (var(--audit-table-size) / 2) + 3px) !important; }
+  #mao .playerCard { width: 56px !important; height: 82px !important; }
+  .game-button-truco, .game-button-correr { height: 42px; font-size: 8px; }
+}
 
-  #mao .playerCard {
-    width: 56px;
-    height: 82px;
-  }
-
-  .game-button {
-    min-width: 68px;
-    font-size: 8px;
-  }
+@media (max-width: 900px) and (max-height: 700px) {
+  .game-button-truco, .game-button-correr { bottom: calc(145px + var(--safe-bottom)) !important; }
+  #painelHistorico { bottom: calc(190px + var(--safe-bottom)) !important; }
 }
