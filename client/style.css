@@ -1,3 +1,4 @@
 @import url("/style-base.css");
 @import url("/style-mobile-current.css");
 @import url("/mobile-audit-fixes.css");
+@import url("/mobile-card-render-fixes.css");
