@@ -1,0 +1,54 @@
+/* Avatares junto à 3ª carta de cada jogador, seguindo o sentido horário. */
+.player {
+  width: max-content;
+  height: max-content;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Jogador de baixo: 3ª carta é a da direita; sentido horário leva o avatar para a esquerda dela. */
+#p0 {
+  left: calc(50% - 150px);
+  bottom: 14px;
+  transform: translateX(-50%);
+}
+
+/* Jogador da esquerda: 3ª carta é a inferior; sentido horário leva o avatar para baixo dela. */
+#p1 {
+  left: 4px;
+  top: calc(50% + 112px);
+  transform: none;
+}
+
+/* Jogador de cima: 3ª carta é a da direita; sentido horário leva o avatar para a direita dela. */
+#p2 {
+  top: 6px;
+  left: calc(50% + 150px);
+  transform: translateX(-50%);
+}
+
+/* Jogador da direita: 3ª carta é a inferior; sentido horário leva o avatar para cima dela. */
+#p3 {
+  right: 4px;
+  top: calc(50% - 170px);
+  transform: none;
+}
+
+@media (min-width: 769px) {
+  #p0 { left: calc(50% - 150px); bottom: max(8px, var(--safe-bottom)); }
+  #p1 { left: 8px; top: calc(50% + 112px); }
+  #p2 { top: 8px; left: calc(50% + 150px); }
+  #p3 { right: 8px; top: calc(50% - 170px); }
+}
+
+@media (max-width: 768px) {
+  #p0 { left: calc(50% - 122px); bottom: max(8px, var(--safe-bottom)); }
+  #p1 { left: 4px; top: calc(50% + 94px); }
+  #p2 { top: 4px; left: calc(50% + 122px); }
+  #p3 { right: 4px; top: calc(50% - 145px); }
+}
+
+/* Nome acompanha o avatar, sem voltar para a frente das cartas. */
+#p0 .name, #p2 .name { margin-top: 4px; }
+#p1 .name, #p3 .name { margin-top: 4px; }
