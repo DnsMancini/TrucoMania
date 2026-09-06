@@ -2,6 +2,10 @@
   'use strict';
 
   const setup = () => {
+    // O módulo pode ser carregado por mais de um caminho durante a autenticação.
+    // Torna a inicialização idempotente para nunca duplicar a interface.
+    if (document.getElementById('friendsSocialInitialized')) return;
+
     const socket = window.trucoSocket;
     if (!socket) return;
 
@@ -12,6 +16,11 @@
     const list = card.querySelector('ul');
     const inviteButton = card.querySelector('button.lobby-button');
     if (!list) return;
+
+    const initMarker = document.createElement('span');
+    initMarker.id = 'friendsSocialInitialized';
+    initMarker.hidden = true;
+    card.appendChild(initMarker);
 
     const search = document.createElement('input');
     search.id = 'friendSearchInput';
