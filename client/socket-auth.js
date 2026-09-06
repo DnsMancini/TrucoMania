@@ -1,6 +1,4 @@
 // TrucoMania - Autenticação do Socket.IO com Firebase Auth
-// Mantém o servidor protegido: o socket recebe o Firebase ID token antes
-// das operações protegidas do lobby/jogo.
 (function () {
   'use strict';
 
@@ -13,6 +11,7 @@
   let currentSocket = null;
   let authListenerRegistered = false;
   let tokenVersion = 0;
+  const protectedEvents = new Set(['createRoom', 'joinRoom', 'randomMatch', 'reconnectToGame', 'leaveRoom', 'playCard', 'callBet', 'respondBet', 'respondMaoDe11', 'fleeHand']);
 
   async function authenticateSocket(socket, reason) {
     if (!socket || !socket.connected) return false;
@@ -40,7 +39,7 @@
           resolve(ok);
         };
 
-        socket.emit('authenticate', token, (response) => {
+        socket.__trucoOriginalEmit('authenticate', token, (response) => {
           if (response && response.ok) {
             console.info('[SOCKET-AUTH] Socket autenticado:', reason || 'ok');
             finish(true);
@@ -58,6 +57,22 @@
     }
   }
 
+  function flushQueue(socket, ok) {
+    const queue = socket.__trucoAuthQueue || [];
+    socket.__trucoAuthQueue = [];
+    if (!queue.length) return;
+
+    if (!ok) {
+      queue.forEach(({ args }) => {
+        const callback = typeof args[args.length - 1] === 'function' ? args[args.length - 1] : null;
+        callback?.({ error: 'Sessão não autenticada. Faça login novamente.' });
+      });
+      return;
+    }
+
+    queue.forEach(({ args }) => socket.__trucoOriginalEmit(...args));
+  }
+
   function installAuthListener() {
     if (authListenerRegistered || typeof firebase === 'undefined' || !firebase.auth) return;
     authListenerRegistered = true;
@@ -66,37 +81,59 @@
       if (!currentSocket || !currentSocket.connected) return;
       if (!user) {
         tokenVersion++;
+        currentSocket.__trucoManiaAuthenticated = false;
         return;
       }
-      await authenticateSocket(currentSocket, 'token atualizado');
+      const ok = await authenticateSocket(currentSocket, 'token atualizado');
+      currentSocket.__trucoManiaAuthenticated = ok;
+      if (ok) flushQueue(currentSocket, true);
     });
   }
 
-  // O game.js continua usando const socket = io(...), mas recebe um socket
-  // automaticamente autenticado sem precisar alterar a lógica do lobby.
+  // O game.js continua usando const socket = io(...). Este wrapper autentica
+  // automaticamente o socket e segura eventos protegidos até a autenticação.
   window.io = function (...args) {
     const socket = originalIo(...args);
     currentSocket = socket;
 
     socket.__trucoManiaAuthenticated = false;
+    socket.__trucoAuthQueue = [];
+    socket.__trucoOriginalEmit = socket.emit.bind(socket);
+
+    socket.emit = function (eventName, ...eventArgs) {
+      if (protectedEvents.has(eventName) && !socket.__trucoManiaAuthenticated) {
+        socket.__trucoAuthQueue.push({ eventName, args: [eventName, ...eventArgs] });
+        console.warn('[SOCKET-AUTH] Evento protegido aguardando autenticação:', eventName);
+        authenticateSocket(socket, 'evento protegido').then((ok) => {
+          socket.__trucoManiaAuthenticated = ok;
+          if (ok) flushQueue(socket, true);
+          else if (!socket.connected) flushQueue(socket, false);
+        });
+        return socket;
+      }
+      return socket.__trucoOriginalEmit(eventName, ...eventArgs);
+    };
 
     socket.on('connect', async () => {
       socket.__trucoManiaAuthenticated = await authenticateSocket(socket, 'conexão');
       if (socket.__trucoManiaAuthenticated) {
-        // Depois de autenticar, atualiza a lista de salas. O game.js também
-        // pode emitir getRooms no connect; o servidor permite essa operação
-        // mesmo antes da autenticação.
-        socket.emit('getRooms');
+        flushQueue(socket, true);
+        socket.__trucoOriginalEmit('getRooms');
       }
     });
 
     socket.on('authenticated', () => {
       socket.__trucoManiaAuthenticated = true;
+      flushQueue(socket, true);
     });
 
     socket.on('authError', (data) => {
       socket.__trucoManiaAuthenticated = false;
       console.error('[SOCKET-AUTH] Servidor recusou a sessão:', data?.message || 'Sessão inválida');
+    });
+
+    socket.on('disconnect', () => {
+      socket.__trucoManiaAuthenticated = false;
     });
 
     installAuthListener();
