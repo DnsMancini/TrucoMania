@@ -91,10 +91,16 @@ function notifyUser(io, uid, event, payload) {
 
 function attachSocialHandlers(io) {
   io.on('connection', socket => {
-    socket.on('authenticated', async data => {
+    const refreshPresence = async () => {
       if (!socket.user?.uid) return;
       markOnline(socket.user.uid);
       try { await emitFriendList(socket); } catch (error) { console.error('[social] friends list:', error.message); }
+    };
+
+    // O core autentica o token no mesmo evento. O pequeno atraso permite que
+    // socket.user seja preenchido antes de registrarmos a presença.
+    socket.on('authenticate', () => {
+      setTimeout(refreshPresence, 100);
     });
 
     socket.on('getFriends', async (callback) => {
@@ -117,10 +123,9 @@ function attachSocialHandlers(io) {
         const snap = await db.collection('players').where('nickname', '==', nickname).limit(10).get();
         const players = [];
         snap.forEach(doc => {
-          if (doc.id !== socket.user.uid) players.push({
-            ...publicPlayer(doc.id, doc.data()),
-            online: isOnline(doc.id)
-          });
+          if (doc.id !== socket.user.uid) {
+            players.push({ ...publicPlayer(doc.id, doc.data()), online: isOnline(doc.id) });
+          }
         });
         callback?.({ ok: true, players });
       } catch (error) {
@@ -155,10 +160,8 @@ function attachSocialHandlers(io) {
           createdAt: new Date().toISOString()
         });
 
-        notifyUser(io, targetUid, 'friendRequest', {
-          requestId: id,
-          player: publicPlayer(uid, await getPlayer(uid))
-        });
+        const requester = await getPlayer(uid);
+        notifyUser(io, targetUid, 'friendRequest', { requestId: id, player: publicPlayer(uid, requester) });
         await emitFriendList(socket);
         callback?.({ ok: true });
       } catch (error) {
