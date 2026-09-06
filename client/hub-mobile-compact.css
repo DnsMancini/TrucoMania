@@ -1,0 +1,118 @@
+/* TrucoMania — Hub mobile compacto
+   Reduz altura ocupada e reorganiza os controles para aproveitar largura. */
+@media (max-width: 600px) {
+  .lobby { padding: 6px 7px calc(6px + var(--safe-bottom)); }
+  .lobby-shell { gap: 6px; }
+  .topbar-premium { min-height: 48px; padding: 5px 7px; border-radius: 12px; }
+  .player-chip { gap: 7px; }
+  .player-avatar { width: 38px; height: 38px; border-width: 1px; }
+  .chip-kicker { font-size: 9px; letter-spacing: .6px; }
+  #playerDisplayName { font-size: 13px; }
+  .topbar-actions { gap: 3px; }
+  .icon-btn { width: 34px; height: 34px; min-width: 34px; min-height: 34px; border-radius: 9px; padding: 0; }
+
+  .lobby-grid { padding: 4px 0 0; }
+  .main-hub { gap: 6px; }
+  .tournament-hero { padding: 9px 10px; border-radius: 12px; }
+  .lobby-kicker { margin-bottom: 3px; font-size: 9px; }
+  .lobby-title { font-size: 21px; line-height: 1; }
+  .lobby-subtitle { margin-top: 4px; font-size: 10px; line-height: 1.2; }
+  .hero-cta { margin-top: 6px; min-height: 34px; padding: 7px 10px; font-size: 10px; }
+
+  /* A entrada usa a largura antes da altura. O nickname já vem do perfil. */
+  .entry-panel {
+    padding: 7px;
+    border-radius: 12px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(118px, auto);
+    gap: 5px;
+    align-items: center;
+  }
+  .lobby-menu {
+    grid-column: 1 / -1;
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 5px;
+  }
+  #nameInput { display: none !important; }
+  .lobby-input { padding: 8px 10px; min-height: 38px; border-radius: 9px; font-size: 14px; }
+  .lobby-button { min-height: 38px; padding: 8px 10px; border-radius: 9px; font-size: 10px; letter-spacing: .35px; }
+
+  /* Tipo e bots continuam lado a lado, sem uma coluna vazia. */
+  #roomControls {
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+    gap: 5px !important;
+    margin-top: 0 !important;
+  }
+  #roomControls label { gap: 5px !important; font-size: 10px !important; min-width: 0; }
+  #roomControls label .lobby-input { min-height: 34px; padding: 6px 7px; font-size: 11px; }
+  #roomFillBots { margin: 0; }
+
+  /* Código tem poucos caracteres: recebe uma largura pequena. */
+  #roomCodeEntry {
+    grid-column: 1;
+    display: grid !important;
+    grid-template-columns: 88px minmax(0, 1fr);
+    gap: 5px !important;
+    margin-top: 0 !important;
+    min-width: 0;
+  }
+  #roomCodeInput {
+    width: 88px !important;
+    min-width: 88px !important;
+    max-width: 88px !important;
+    min-height: 38px;
+    box-sizing: border-box;
+    text-align: center;
+    padding-left: 6px;
+    padding-right: 6px;
+    letter-spacing: 1px;
+  }
+  #joinCodeBtn { min-height: 38px; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #randomMatchBtn {
+    grid-column: 2;
+    width: 100% !important;
+    min-width: 118px;
+    min-height: 38px;
+    margin-top: 0 !important;
+    padding-left: 7px;
+    padding-right: 7px;
+  }
+
+  .rooms-headline-row { margin-top: 0; }
+  .rooms-headline { font-size: 16px; }
+  .rooms-headline-row .lobby-button { min-height: 32px; padding: 6px 9px; }
+  .rooms-list { padding: 6px; gap: 5px; max-height: 32vh; border-radius: 12px; }
+  .room-item { gap: 6px; padding: 7px; border-radius: 9px; }
+  .room-tier { font-size: 8px; }
+  .room-code { font-size: 15px; }
+  .room-meta { font-size: 11px; gap: 5px; }
+  .room-item button { padding: 7px 9px; border-radius: 8px; font-size: 10px; }
+
+  .social-card { padding: 8px; border-radius: 12px; }
+  .social-card h3 { margin-bottom: 5px; font-size: 12px; }
+  .social-card ul { margin-bottom: 5px; gap: 5px; }
+  .social-card li { font-size: 11px; }
+  .social-card li small { font-size: 9px; }
+  #friendSearchInput { margin: 4px 0 !important; min-height: 34px; padding: 6px 8px; font-size: 12px; }
+  .social-card .lobby-button { min-height: 34px; padding: 6px 8px; }
+
+  .bottom-nav { gap: 3px; min-height: 46px; border-radius: 12px; }
+  .bottom-nav button { min-height: 42px; padding: 5px 3px; border-radius: 9px; font-size: 9px; }
+}
+
+@media (max-width: 380px) {
+  .lobby { padding-left: 5px; padding-right: 5px; }
+  .tournament-hero { padding: 8px; }
+  .lobby-title { font-size: 19px; }
+  .lobby-subtitle { font-size: 9px; }
+  .entry-panel { padding: 6px; grid-template-columns: minmax(0, 1fr); }
+  .lobby-input, .lobby-button, #roomCodeInput, #joinCodeBtn, #createBtn, #randomMatchBtn { min-height: 36px; }
+  #roomCodeEntry { grid-column: 1; grid-template-columns: 82px minmax(0, 1fr); }
+  #roomCodeInput { width: 82px !important; min-width: 82px !important; max-width: 82px !important; }
+  #randomMatchBtn { grid-column: 1; min-width: 0; }
+  .rooms-headline { font-size: 14px; }
+  .bottom-nav { min-height: 44px; }
+  .bottom-nav button { min-height: 40px; font-size: 8px; }
+}

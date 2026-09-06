@@ -25,9 +25,6 @@
       return false;
     }
 
-    // Apenas uma autenticação por socket pode ficar em andamento.
-    // Isso evita duas chamadas simultâneas quando o socket conecta e, ao
-    // mesmo tempo, o primeiro evento protegido é emitido.
     if (socket.__trucoAuthPromise) return socket.__trucoAuthPromise;
 
     socket.__trucoAuthPromise = (async () => {
@@ -48,10 +45,10 @@
               socket.__trucoAuthUid = user.uid;
               console.info('[SOCKET-AUTH] Socket autenticado:', reason || 'ok');
               finish(true);
-            } else {
-              console.error('[SOCKET-AUTH] Falha na autenticação:', response?.error || 'resposta inválida');
-              finish(false);
+              return;
             }
+            console.error('[SOCKET-AUTH] Falha na autenticação:', response?.error || 'resposta inválida');
+            finish(false);
           });
 
           setTimeout(() => finish(false), 10000);
@@ -97,11 +94,6 @@
         return;
       }
 
-      // O Firebase renova o ID token periodicamente. Não reconectamos o
-      // Socket.IO aqui: uma reconexão no meio da partida pode trocar o estado
-      // online/offline e criar uma janela desnecessária para travamentos.
-      // O servidor aceita reautenticação no mesmo socket e substitui o listener
-      // anterior de banimento antes de instalar o novo.
       if (socket.connected && socket.__trucoManiaAuthenticated && socket.__trucoAuthUid === user.uid) {
         socket.__trucoManiaAuthenticated = false;
         const ok = await authenticateSocket(socket, 'renovação do token');
@@ -111,8 +103,17 @@
     });
   }
 
-  // O game.js continua usando const socket = io(...). Este wrapper autentica
-  // automaticamente o socket e segura eventos protegidos até a autenticação.
+  function loadSocialModule() {
+    if (document.getElementById('trucomania-social-script')) return;
+    const script = document.createElement('script');
+    script.id = 'trucomania-social-script';
+    script.src = '/social.js?v=1';
+    script.async = true;
+    script.onload = () => console.info('[SOCIAL] Módulo de amigos carregado.');
+    script.onerror = () => console.error('[SOCIAL] Não foi possível carregar o módulo de amigos.');
+    document.body.appendChild(script);
+  }
+
   window.io = function (...args) {
     const socket = originalIo(...args);
     currentSocket = socket;
@@ -164,5 +165,6 @@
   };
 
   installAuthListener();
+  window.addEventListener('load', loadSocialModule, { once: true });
   console.info('[SOCKET-AUTH] Ponte Firebase → Socket.IO instalada.');
 })();
