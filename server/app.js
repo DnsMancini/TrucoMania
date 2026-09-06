@@ -8,7 +8,35 @@ const adminRoutes = require('./adminRoutes');
 require('dotenv').config();
 
 const app = express();
+app.disable('x-powered-by');
 app.use(express.json({ limit: '50kb' }));
+
+// Security headers. CSP keeps inline legacy scripts working while restricting
+// executable/resource origins to the services actually used by the game.
+app.use((_req, res, next) => {
+  res.setHeader('Content-Security-Policy', [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "object-src 'none'",
+    "frame-ancestors 'self'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com https://www.googleapis.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://unpkg.com",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' data: https://fonts.gstatic.com",
+    "img-src 'self' data: blob: https:",
+    "media-src 'self' blob:",
+    "connect-src 'self' https://*.firebaseapp.com https://*.firebaseio.com https://*.googleapis.com https://securetoken.googleapis.com wss: ws:",
+    "frame-src 'self' https://*.firebaseapp.com https://*.google.com",
+    "form-action 'self'",
+    "upgrade-insecure-requests"
+  ].join('; '));
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  next();
+});
+
 const server = http.createServer(app);
 
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:3000';
@@ -39,9 +67,21 @@ app.get('/config.js', (_req, res) => {
 
 app.use('/admin', adminRoutes);
 
+app.get('/robots.txt', (_req, res) => {
+  res.type('text/plain').send('User-agent: *\nAllow: /\nSitemap: https://trucomania.onrender.com/sitemap.xml\n');
+});
+
+app.get('/sitemap.xml', (_req, res) => {
+  res.type('application/xml').send('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://trucomania.onrender.com/</loc></url></urlset>');
+});
+
 app.get('/', (_req, res) => {
   const indexPath = path.join(__dirname, '..', 'client', 'index.html');
   let html = fs.readFileSync(indexPath, 'utf8');
+
+  // SEO metadata is injected server-side so the SPA keeps its existing markup
+  // while crawlers receive a meaningful document head.
+  html = html.replace('<title>Truco Mania</title>', '<title>TrucoMania — Jogue Truco Paulista Online</title>\n  <meta name="description" content="Jogue Truco Paulista online no TrucoMania. Crie ou entre em salas e dispute partidas multiplayer em tempo real.">\n  <meta name="robots" content="index,follow">\n  <meta property="og:type" content="website">\n  <meta property="og:title" content="TrucoMania — Jogue Truco Paulista Online">\n  <meta property="og:description" content="Jogue Truco Paulista online com partidas multiplayer em tempo real.">\n  <meta property="og:url" content="https://trucomania.onrender.com/">\n  <meta name="twitter:card" content="summary">');
 
   const socketAuthScript = `
 <script>
@@ -144,8 +184,6 @@ app.get('/', (_req, res) => {
       else hideReconnectButton();
     });
 
-    // A reconstrução completa da partida pertence ao client/game.js.
-    // Este script apenas esconde o botão de reconexão quando o estado chega.
     socket.on('gameStateRestore', () => {
       hideReconnectButton();
     });
@@ -162,7 +200,7 @@ app.get('/', (_req, res) => {
     const controls = document.createElement('div');
     controls.className = 'room-creation-controls';
     controls.style.cssText = 'display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;margin-top:10px;align-items:center;';
-    controls.innerHTML = \`
+    controls.innerHTML = `
       <label style="display:flex;align-items:center;gap:8px;font-size:13px;">
         <span>Tipo</span>
         <select id="roomVisibility" class="lobby-input" style="flex:1;min-width:0;">
@@ -174,16 +212,16 @@ app.get('/', (_req, res) => {
         <input id="roomFillBots" type="checkbox" checked />
         <span>Completar com bots</span>
       </label>
-    \`;
+    `;
     entryPanel.appendChild(controls);
 
     const joinByCodeContainer = document.createElement('div');
     joinByCodeContainer.className = 'room-code-entry';
     joinByCodeContainer.style.cssText = 'display:flex;gap:10px;margin-top:10px;';
-    joinByCodeContainer.innerHTML = \`
+    joinByCodeContainer.innerHTML = `
       <input id="roomCodeInput" class="lobby-input" placeholder="Código da sala" maxlength="4" autocomplete="off" style="text-transform:uppercase;flex:1;" />
       <button id="joinCodeBtn" class="lobby-button">Entrar por código</button>
-    \`;
+    `;
     entryPanel.appendChild(joinByCodeContainer);
 
     const randomMatchButton = document.createElement('button');
@@ -193,7 +231,6 @@ app.get('/', (_req, res) => {
     randomMatchButton.style.cssText = 'width:100%;margin-top:10px;';
     entryPanel.appendChild(randomMatchButton);
 
-    const originalCreateOnClick = createButton.onclick;
     createButton.onclick = () => {
       const name = nameInput.value.trim() || 'Jogador';
       const visibility = document.getElementById('roomVisibility')?.value || 'public';
@@ -204,13 +241,11 @@ app.get('/', (_req, res) => {
         currentGameCode = result.roomCode;
         hideReconnectButton();
         if (result.isPublic === false) {
-          alert('Sala privada criada!\\nCódigo: ' + result.roomCode + '\\nCompartilhe este código com quem você quiser convidar.');
+          alert('Sala privada criada!\nCódigo: ' + result.roomCode + '\nCompartilhe este código com quem você quiser convidar.');
         }
         enterWaitingRoom(result);
       });
     };
-
-    createButton.dataset.originalCreateHandler = originalCreateOnClick ? 'preserved' : 'none';
 
     const joinCodeButton = document.getElementById('joinCodeBtn');
     const roomCodeInput = document.getElementById('roomCodeInput');
@@ -332,7 +367,13 @@ app.get('/', (_req, res) => {
   res.type('html').send(html);
 });
 
-app.use(express.static(path.join(__dirname, '..', 'client')));
+app.use(express.static(path.join(__dirname, '..', 'client'), {
+  setHeaders: (res, filePath) => {
+    if (/\.(?:js|css|png|jpg|jpeg|webp|gif|svg|mp3|wav|ico)$/i.test(filePath)) {
+      res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+    }
+  }
+}));
 
 handleSocket(io);
 
