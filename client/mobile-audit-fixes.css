@@ -1,0 +1,195 @@
+/* =========================================================
+   TRUCOMANIA — MOBILE AUDIT FIXES
+   Correções finais de geometria, sobreposição e legibilidade.
+   Não altera a lógica do jogo.
+   ========================================================= */
+
+@media (max-width: 900px) {
+  :root {
+    --audit-table-size: var(--table-size);
+    --audit-table-left: calc(50% - (var(--audit-table-size) / 2));
+    --audit-table-right: calc(50% + (var(--audit-table-size) / 2));
+    --audit-table-top: calc(46% - (var(--audit-table-size) / 2));
+    --audit-table-bottom: calc(46% + (var(--audit-table-size) / 2));
+    --audit-opponent-card-w: clamp(42px, 13vw, 54px);
+    --audit-opponent-card-h: clamp(62px, 19vw, 78px);
+  }
+
+  /* ===== CARTAS: numeração e naipes sempre com a cor correta ===== */
+  .carta .naipe-vermelho,
+  .cartaMesa .naipe-vermelho,
+  #vira .naipe-vermelho {
+    color: #c1121f !important;
+    -webkit-text-fill-color: #c1121f;
+  }
+
+  .carta .naipe-preto,
+  .cartaMesa .naipe-preto,
+  #vira .naipe-preto {
+    color: #111 !important;
+    -webkit-text-fill-color: #111;
+  }
+
+  .carta-corner,
+  .carta-center {
+    z-index: 2;
+  }
+
+  /* Evita que a transformação da carta apague a leitura da numeração. */
+  .carta-corner.top-left,
+  .carta-corner.bottom-right {
+    font-weight: 900;
+  }
+
+  /* ===== MESA: uma única referência geométrica para todas as mãos ===== */
+  #hand1,
+  #hand2,
+  #hand3 {
+    z-index: 2020;
+    box-sizing: border-box;
+  }
+
+  #hand1 {
+    left: calc(var(--audit-table-left) - 5px) !important;
+    right: auto !important;
+    top: 46% !important;
+    transform: translate(-100%, -50%) !important;
+  }
+
+  #hand3 {
+    left: calc(var(--audit-table-right) + 5px) !important;
+    right: auto !important;
+    top: 46% !important;
+    transform: translateY(-50%) !important;
+  }
+
+  #hand2 {
+    left: 50% !important;
+    top: calc(var(--audit-table-top) - 5px) !important;
+    transform: translate(-50%, -100%) !important;
+  }
+
+  #hand1 .carta,
+  #hand3 .carta {
+    width: var(--audit-opponent-card-w);
+    height: var(--audit-opponent-card-h);
+  }
+
+  #hand2 .carta {
+    width: var(--audit-opponent-card-w);
+    height: var(--audit-opponent-card-h);
+  }
+
+  /* Não permitir que uma mão lateral seja empurrada pela largura da tela. */
+  #hand1,
+  #hand2,
+  #hand3 {
+    max-width: none;
+    overflow: visible;
+    pointer-events: none;
+  }
+
+  /* ===== JOGADORES: separados das cartas e sem cruzar os elementos do topo ===== */
+  #p1,
+  #p3 {
+    z-index: 2150;
+  }
+
+  #p2 {
+    z-index: 2150;
+    top: max(4px, var(--safe-top)) !important;
+  }
+
+  /* ===== MÃO DO JOGADOR: reserva espaço para não bater nos botões ===== */
+  #mao {
+    z-index: 2600 !important;
+    pointer-events: none;
+  }
+
+  #mao .playerCard {
+    pointer-events: auto;
+  }
+
+  /* ===== BOTÕES: nunca ficam por cima das cartas do jogador ===== */
+  .game-button-truco,
+  .game-button-correr {
+    z-index: 2700 !important;
+    bottom: calc(112px + var(--safe-bottom)) !important;
+  }
+
+  /* ===== PLACAR / INFO: camadas próprias, sem atravessar cartas ===== */
+  #infoLive,
+  #placar {
+    z-index: 2800 !important;
+  }
+
+  #infoLive {
+    max-width: 36vw;
+    overflow: hidden;
+  }
+
+  #infoRodada,
+  #trucoStatus {
+    overflow-wrap: anywhere;
+  }
+
+  /* ===== VIRA: fica no centro da mesa e não cria uma segunda referência ===== */
+  #vira {
+    left: 50% !important;
+    top: 50% !important;
+    z-index: 1250 !important;
+    pointer-events: none;
+  }
+
+  /* ===== CARTAS DA MESA: não podem escapar do container central ===== */
+  #mesaCartas {
+    overflow: visible;
+    z-index: 1200 !important;
+  }
+
+  .cartaMesa {
+    z-index: 1;
+  }
+
+  /* ===== HISTÓRICO: não invadir a mão inferior ===== */
+  #painelHistorico {
+    z-index: 2200;
+    bottom: calc(132px + var(--safe-bottom)) !important;
+  }
+
+  /* ===== TIMER: sobre a mesa, mas abaixo dos controles e sem cobrir cartas do jogador ===== */
+  #cronometro {
+    z-index: 2500 !important;
+  }
+
+  /* ===== TOAST / MODAIS: sempre acima de tudo ===== */
+  #toast {
+    z-index: 4000 !important;
+  }
+
+  .telaFinal,
+  .telaFinal.show {
+    z-index: 5000 !important;
+  }
+}
+
+/* Telas muito estreitas: mantém as mãos dentro da área visual. */
+@media (max-width: 380px) {
+  :root {
+    --audit-opponent-card-w: 40px;
+    --audit-opponent-card-h: 60px;
+  }
+
+  #hand1 { left: calc(50% - (var(--audit-table-size) / 2) - 3px) !important; }
+  #hand3 { left: calc(50% + (var(--audit-table-size) / 2) + 3px) !important; }
+
+  #mao .playerCard {
+    width: 56px;
+    height: 82px;
+  }
+
+  .game-button {
+    min-width: 68px;
+    font-size: 8px;
+  }
+}
