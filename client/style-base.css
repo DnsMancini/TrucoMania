@@ -1,0 +1,452 @@
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --viewport-height: 100dvh;
+  --ui-z: 2600;
+  --overlay-z: 3000;
+  --table-size: min(90vw, 90vh);
+  --table-center-x: 50%;
+  --table-center-y: 50%;
+}
+
+@supports (height: 100svh) {
+  :root { --viewport-height: 100svh; }
+}
+
+body {
+  margin: 0;
+  background: #0b0b0b;
+  font-family: Arial, sans-serif;
+  color: white;
+  overflow: hidden;
+  touch-action: manipulation;
+}
+
+#gameWrapper {
+  width: 100vw;
+  height: 100dvh;
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avisoOrientacao {
+  display: none;
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: black;
+  color: white;
+  font-size: 20px;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  z-index: 9999;
+  flex-direction: column;
+}
+
+.mesa {
+  width: var(--table-size);
+  height: var(--table-size);
+  margin: 0;
+  border-radius: 50%;
+  position: fixed;
+  top: var(--table-center-y);
+  left: var(--table-center-x);
+  transform: translate(-50%, -50%);
+  background-color: #0a2b18;
+  background-image: url("/img/mesa.png");
+  background-size: cover;
+  background-position: center 56%;
+  background-repeat: no-repeat;
+  box-shadow: inset 0 0 80px rgba(0,0,0,0.9), 0 30px 80px rgba(0,0,0,0.9);
+}
+
+/* Container principal NÃO rotaciona mais */
+#game {
+  position: fixed;
+  top: var(--table-center-y);
+  left: var(--table-center-x);
+  width: var(--table-size);
+  height: var(--table-size);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 1900;
+  overflow: visible;
+}
+
+#ui {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: var(--ui-z);
+}
+#ui > * { pointer-events: auto; }
+
+/* ===== BOTÕES FIXOS (fora do #game) ===== */
+.game-button {
+  position: fixed;
+  min-width: 138px;
+  height: 48px;
+  padding: 0 18px;
+  border-radius: 12px;
+  border: 2px solid transparent;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  font-weight: 800;
+  font-size: 14px;
+  color: #f7f8fb;
+  cursor: pointer;
+  z-index: 2600;
+  transform: scale(1.03);
+  transform-origin: bottom center;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.22), 0 10px 22px rgba(0,0,0,0.45);
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
+}
+.game-button-truco {
+  left: 20px;
+  bottom: calc(154px + var(--safe-bottom));
+  background: linear-gradient(180deg, #d82727 0%, #a71212 55%, #7b0a0a 100%);
+  border-color: #ff6a5b;
+}
+.game-button-correr {
+  right: 20px;
+  bottom: calc(154px + var(--safe-bottom));
+  background: linear-gradient(180deg, #505a67 0%, #323a45 55%, #212832 100%);
+  border-color: #8e9baa;
+}
+.game-button:hover {
+  filter: brightness(1.08);
+  transform: scale(1.06) translateY(-1px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.26), 0 14px 26px rgba(0,0,0,0.52);
+}
+.game-button:active {
+  transform: scale(1.02) translateY(1px);
+  filter: brightness(0.98);
+}
+
+/* ===== JOGADORES (FIXOS no viewport, NÃO relativos à mesa) ===== */
+.player {
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  font-size: 12px;
+  --avatar-size: 48px;
+  z-index: 2000;
+}
+.avatar {
+  width: var(--avatar-size);
+  height: var(--avatar-size);
+  border-radius: 12px;
+  overflow: hidden;
+  background: linear-gradient(145deg, #2a2a2a, #111);
+  margin-bottom: 4px;
+  border: 2px dashed rgba(255,255,255,0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.avatar::after {
+  content: "📷";
+  font-size: 24px;
+  opacity: 0.3;
+}
+
+/* Posições fixas dos 4 jogadores (viewport) */
+#p0 {
+  left: 50%;
+  bottom: 120px;
+  transform: translateX(-50%);
+}
+#p1 {
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+#p2 {
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+#p3 {
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* ===== MÃOS DOS BOTS (fixos no viewport, sem espaço nas bordas) ===== */
+.botHand { position: fixed; display: flex; gap: 0; }
+#hand1 { left: 0; top: 50%; transform: translate(0, -50%); flex-direction: column; z-index: 2000; }
+#hand2 { top: 40px; left: 50%; transform: translateX(-50%); z-index: 2000; }
+#hand3 { right: 0; top: 50%; transform: translate(0, -50%); flex-direction: column; z-index: 2000; }
+
+.carta {
+  width: 85px; height: 125px;
+  background-color: white;
+  border-radius: 12px;
+  border: 1px solid rgba(0,0,0,0.2);
+  box-shadow: 0 10px 18px rgba(0,0,0,0.45), inset 0 2px 3px rgba(255,255,255,0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 18px;
+  user-select: none;
+  position: relative;
+  overflow: hidden;
+}
+.carta.virada {
+  background: #fff url("/img/carta-copag-vermelha.png") center/contain no-repeat !important;
+  image-rendering: crisp-edges;
+}
+.carta.playerCard {
+  background: linear-gradient(145deg, #ffffff, #eaeaea);
+  color: #111;
+}
+
+.carta-corner {
+  position: absolute;
+  font-size: 14px;
+  font-weight: bold;
+  line-height: 1;
+}
+.top-left { top: 4px; left: 6px; }
+.bottom-right { bottom: 4px; right: 6px; transform: rotate(180deg); }
+
+.carta-center {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 34px;
+  font-weight: bold;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+.cartaMesa .carta-center { font-size: 22px; }
+
+#mesaCartas {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: min(420px, 76%); height: min(260px, 52%);
+  transform: translate(-50%, -50%);
+  z-index: 1200;
+  pointer-events: none;
+}
+.cartaMesa {
+  position: absolute;
+  width: 60px; height: 85px;
+  background: white;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  overflow: hidden;
+}
+.c0 { top: calc(50% + 80px); left: 50%; transform: translate(-50%, -50%); }
+.c1 { top: 50%; left: calc(50% - 110px); transform: translate(-50%, -50%); }
+.c2 { top: calc(50% - 80px); left: 50%; transform: translate(-50%, -50%); }
+.c3 { top: 50%; left: calc(50% + 110px); transform: translate(-50%, -50%); }
+
+/* Mão do jogador (FIXA na base da tela, INDEPENDENTE da mesa) */
+#mao {
+  position: fixed;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  display: flex;
+  justify-content: center;
+  gap: 0;
+  z-index: 9999;
+  padding-bottom: max(8px, var(--safe-bottom));
+}
+#mao .playerCard {
+  margin-left: -18px;
+  transition: transform 0.15s ease;
+}
+#mao .playerCard:first-child { margin-left: 0; }
+#mao .playerCard:nth-child(1) { transform: rotate(-8deg); }
+#mao .playerCard:nth-child(2) { transform: rotate(0deg); }
+#mao .playerCard:nth-child(3) { transform: rotate(8deg); }
+#mao .playerCard:hover {
+  transform: translateY(-18px) scale(1.05);
+  z-index: 2200;
+}
+
+/* Ajustes das mãos laterais (dentro do #game) */
+#hand1 .carta { margin-top: -59px; }
+#hand1 .carta:first-child { margin-top: 0; }
+#hand3 .carta { margin-top: -59px; }
+#hand3 .carta:first-child { margin-top: 0; }
+#hand1 .carta:nth-child(1), #hand3 .carta:nth-child(1) { transform: rotate(82deg); }
+#hand1 .carta:nth-child(2), #hand3 .carta:nth-child(2) { transform: rotate(90deg); }
+#hand1 .carta:nth-child(3), #hand3 .carta:nth-child(3) { transform: rotate(98deg); }
+
+#hand2 .carta { margin-left: -39px; }
+#hand2 .carta:first-child { margin-left: 0; }
+#hand2 .carta:nth-child(1) { transform: rotate(-9deg); }
+#hand2 .carta:nth-child(2) { transform: rotate(0deg); }
+#hand2 .carta:nth-child(3) { transform: rotate(9deg); }
+
+/* Informações ao vivo (não rotacionam) */
+#infoLive {
+  position: fixed;
+  top: calc(var(--safe-top) + 8px);
+  left: calc(var(--safe-left) + 8px);
+  background: rgba(0,0,0,0.7);
+  border: 1px solid rgba(241,196,15,0.5);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: #f1c40f;
+  font-weight: 700;
+  font-size: 14px;
+  z-index: 1200;
+  pointer-events: none;
+}
+#infoRodada { font-size: 16px; margin-bottom: 4px; }
+#trucoStatus { font-size: 13px; color: #fff; }
+
+/* Placar (não rotaciona) */
+#placar {
+  position: fixed;
+  top: 0; right: 0;
+  z-index: 1200;
+}
+.placar-times { display: flex; justify-content: flex-end; gap: 0; }
+.placar-time {
+  width: clamp(132px, 18vw, 165px);
+  aspect-ratio: 165/93;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: clamp(18px, 2.6vw, 25px);
+  box-sizing: border-box;
+}
+.placar-time--nos {
+  background-image: url("/img/bandeiraverde.png");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+.placar-time--eles {
+  background-image: url("/img/bandeirabranca.png");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+.placar-time-nome { font-size: 12px; font-weight: 800; color: #eef3ee; text-transform: uppercase; }
+.placar-time-pontos { font-size: 30px; font-weight: 900; color: #eef3ee; }
+
+/* Histórico de rodadas (não rotaciona) */
+#painelHistorico {
+  position: fixed;
+  left: calc(var(--safe-left) + 8px);
+  bottom: 80px;
+  width: 44px;
+  min-height: 132px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 2200;
+}
+#historicoRodadas { display: flex; flex-direction: column; gap: 10px; }
+.bolinha-rodada {
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.38);
+  box-shadow: inset -3px -4px 6px rgba(0,0,0,0.35), inset 2px 3px 5px rgba(255,255,255,0.28), 0 5px 10px rgba(0,0,0,0.42);
+}
+.bolinha-verde { background: radial-gradient(circle at 30% 26%, #80f5b1, #2ecc71, #1b7741); }
+.bolinha-azul { background: radial-gradient(circle at 30% 26%, #ff8f8f, #c1121f, #5b0a0f); }
+.bolinha-branca { background: radial-gradient(circle at 30% 26%, #fff, #ececec, #b8b8b8); }
+.bolinha-ouro { background: radial-gradient(circle at 30% 26%, #ffe8a3, #d4af37, #8a6a00); }
+
+#vira {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%) scale(0.85);
+  z-index: 1100;
+}
+
+#toast {
+  position: fixed;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0,0,0,0.9);
+  color: #f1c40f;
+  padding: 12px 24px;
+  border: 2px solid #f1c40f;
+  border-radius: 12px;
+  font-weight: 800;
+  font-size: 16px;
+  z-index: 3500;
+  display: none;
+}
+.cronometro {
+  position: fixed;
+  top: 60%; left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0,0,0,0.85);
+  border: 2px solid #f1c40f;
+  border-radius: 12px;
+  padding: 16px 24px;
+  color: #f1c40f;
+  font-size: 48px;
+  font-weight: bold;
+  z-index: 3000;
+}
+.oculto { display: none !important; }
+.game-hidden { display: none !important; }
+
+/* ===== AJUSTE VISUAL DA MESA =====
+   Mantém o visual existente, mas faz a composição desktop seguir a mesa.
+   O mobile fica para a próxima etapa da auditoria. */
+@media (min-width: 769px) {
+  :root {
+    --table-size: min(78vw, 78vh);
+    --table-gap: 18px;
+  }
+
+  #p0 {
+    left: 50%;
+    bottom: calc(50% - (var(--table-size) / 2) - 78px);
+  }
+
+  #p2 {
+    top: calc(50% - (var(--table-size) / 2) - 78px);
+    left: 50%;
+  }
+
+  #p1 {
+    left: calc(50% - (var(--table-size) / 2) - 78px);
+    top: 50%;
+  }
+
+  #p3 {
+    right: calc(50% - (var(--table-size) / 2) - 78px);
+    top: 50%;
+  }
+
+  #hand1 {
+    left: calc(50% - (var(--table-size) / 2) - 16px);
+  }
+
+  #hand3 {
+    right: calc(50% - (var(--table-size) / 2) - 16px);
+  }
+
+  #hand2 {
+    top: calc(50% - (var(--table-size) / 2) - 8px);
+  }
+
+  #mao {
+    bottom: max(8px, var(--safe-bottom));
+  }
+}
