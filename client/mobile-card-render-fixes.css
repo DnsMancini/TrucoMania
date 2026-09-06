@@ -1,0 +1,29 @@
+/* Correções de renderização das cartas no centro e das mãos no mobile. */
+@media (max-width: 900px) {
+  /* Carta virada dentro de .cartaMesa não pode manter o tamanho da carta da mão. */
+  .cartaMesa > .carta.virada {
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    border-radius: inherit;
+    box-sizing: border-box;
+    background-size: cover !important;
+    background-position: center !important;
+  }
+
+  /* Evita que transformações das cartas laterais alterem o espaçamento do container. */
+  #hand1 .carta,
+  #hand2 .carta,
+  #hand3 .carta {
+    flex: 0 0 auto;
+    box-sizing: border-box;
+  }
+
+  /* Mantém o conteúdo da carta sempre dentro do próprio cartão. */
+  .carta,
+  .cartaMesa {
+    box-sizing: border-box;
+  }
+}
