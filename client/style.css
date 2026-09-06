@@ -1,167 +1,368 @@
 @import url("/style-base.css");
 
-/* Mobile game layout overrides. The original stylesheet is preserved in style-base.css. */
-@media (orientation: landscape) and (max-width: 900px) {
+/* =========================================================
+   MOBILE — O jogo funciona em PORTRAIT.
+   Não bloqueamos nem pedimos rotação da tela.
+   ========================================================= */
+@media (max-width: 900px) {
   :root {
-    --table-size: min(82vw, 86dvh);
+    --safe-game-bottom: max(8px, var(--safe-bottom));
+    --table-size: min(92vw, 52dvh);
+  }
+
+  .avisoOrientacao {
+    display: none !important;
   }
 
   .player {
-    --avatar-size: 38px;
+    --avatar-size: 36px;
     font-size: 10px;
   }
 
+  .avatar {
+    border-radius: 9px;
+    border-width: 1px;
+  }
+
+  /* Mesa central compacta para sobrar espaço para a mão do jogador. */
+  .mesa,
+  #game {
+    width: var(--table-size);
+    height: var(--table-size);
+  }
+
+  /* Jogadores */
   #p0 {
     left: 50%;
-    bottom: max(72px, calc(50% - (var(--table-size) / 2) - 48px));
+    bottom: 118px;
     transform: translateX(-50%);
   }
 
   #p1 {
-    left: max(4px, calc(50% - (var(--table-size) / 2) - 50px));
+    left: 3px;
     top: 50%;
     transform: translateY(-50%);
   }
 
   #p2 {
-    top: max(calc(var(--safe-top) + 2px), calc(50% - (var(--table-size) / 2) - 50px));
+    top: max(34px, calc(var(--safe-top) + 4px));
     left: 50%;
     transform: translateX(-50%);
   }
 
   #p3 {
-    right: max(4px, calc(50% - (var(--table-size) / 2) - 50px));
+    right: 3px;
     top: 50%;
     transform: translateY(-50%);
   }
 
+  /* Cartas dos adversários */
   .carta {
-    width: 58px;
-    height: 84px;
-    border-radius: 9px;
+    width: 54px;
+    height: 78px;
+    border-radius: 8px;
   }
 
-  .carta-center { font-size: 24px; }
-  .carta-corner { font-size: 10px; }
+  .carta-center { font-size: 22px; }
+  .carta-corner { font-size: 9px; }
   .top-left { top: 3px; left: 4px; }
   .bottom-right { bottom: 3px; right: 4px; }
 
   #hand1 {
-    left: max(0px, calc(50% - (var(--table-size) / 2) - 18px));
+    left: 0;
     top: 50%;
-    transform: translate(0, -50%);
+    transform: translateY(-50%);
   }
 
+  #hand3 {
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  #hand1 .carta,
+  #hand3 .carta {
+    margin-top: -38px;
+  }
+
+  #hand1 .carta:first-child,
+  #hand3 .carta:first-child {
+    margin-top: 0;
+  }
+
+  #hand1 .carta:nth-child(1),
+  #hand3 .carta:nth-child(1) { transform: rotate(82deg); }
+  #hand1 .carta:nth-child(2),
+  #hand3 .carta:nth-child(2) { transform: rotate(90deg); }
+  #hand1 .carta:nth-child(3),
+  #hand3 .carta:nth-child(3) { transform: rotate(98deg); }
+
   #hand2 {
-    top: max(2px, calc(50% - (var(--table-size) / 2) - 4px));
+    top: max(36px, calc(var(--safe-top) + 8px));
     left: 50%;
     transform: translateX(-50%);
   }
 
-  #hand3 {
-    right: max(0px, calc(50% - (var(--table-size) / 2) - 18px));
-    top: 50%;
-    transform: translate(0, -50%);
+  #hand2 .carta {
+    margin-left: -25px;
   }
-
-  #hand1 .carta,
-  #hand3 .carta { margin-top: -40px; }
-  #hand1 .carta:first-child,
-  #hand3 .carta:first-child { margin-top: 0; }
-  #hand2 .carta { margin-left: -27px; }
   #hand2 .carta:first-child { margin-left: 0; }
 
+  /* Cartas jogadas no centro */
   #mesaCartas {
-    width: min(330px, 70%);
-    height: min(210px, 50%);
+    width: 82%;
+    height: 58%;
   }
 
   .cartaMesa {
-    width: 44px;
-    height: 63px;
+    width: 42px;
+    height: 60px;
     border-radius: 7px;
   }
 
-  .cartaMesa .carta-center { font-size: 17px; }
-  .c0 { top: calc(50% + 58px); }
-  .c1 { left: calc(50% - 78px); }
-  .c2 { top: calc(50% - 58px); }
-  .c3 { left: calc(50% + 78px); }
+  .cartaMesa .carta-center { font-size: 16px; }
+  .c0 { top: calc(50% + 43px); }
+  .c1 { left: calc(50% - 58px); }
+  .c2 { top: calc(50% - 43px); }
+  .c3 { left: calc(50% + 58px); }
 
+  /* Mão do jogador: área inferior própria, sem sair da tela. */
   #mao {
-    bottom: max(2px, var(--safe-bottom));
+    left: 50%;
+    bottom: var(--safe-game-bottom);
+    max-width: 94vw;
     padding-bottom: 0;
-    z-index: 2500;
+    z-index: 9999;
   }
 
   #mao .playerCard {
-    margin-left: -15px;
+    width: 68px;
+    height: 100px;
+    margin-left: -18px;
   }
   #mao .playerCard:first-child { margin-left: 0; }
-  #mao .playerCard:nth-child(1) { transform: rotate(-6deg); }
-  #mao .playerCard:nth-child(3) { transform: rotate(6deg); }
-  #mao .playerCard:hover { transform: translateY(-10px) scale(1.03); }
+  #mao .playerCard:nth-child(1) { transform: rotate(-7deg); }
+  #mao .playerCard:nth-child(2) { transform: rotate(0deg); }
+  #mao .playerCard:nth-child(3) { transform: rotate(7deg); }
+  #mao .playerCard:hover { transform: translateY(-8px) scale(1.02); }
 
+  /* Botões de ação ficam nos cantos, acima da mão. */
   .game-button {
-    min-width: 88px;
-    height: 38px;
-    padding: 0 10px;
+    min-width: 82px;
+    height: 36px;
+    padding: 0 9px;
     border-radius: 9px;
-    font-size: 11px;
-    letter-spacing: 0.4px;
+    font-size: 10px;
+    letter-spacing: 0.3px;
     transform: none;
   }
 
   .game-button:hover { transform: none; }
   .game-button:active { transform: scale(0.97); }
-  .game-button-truco { left: max(6px, var(--safe-left)); bottom: max(8px, var(--safe-bottom)); }
-  .game-button-correr { right: max(6px, var(--safe-right)); bottom: max(8px, var(--safe-bottom)); }
 
+  .game-button-truco {
+    left: max(6px, var(--safe-left));
+    bottom: 112px;
+  }
+
+  .game-button-correr {
+    right: max(6px, var(--safe-right));
+    bottom: 112px;
+  }
+
+  /* Informações superiores */
   #infoLive {
     top: max(4px, var(--safe-top));
     left: max(4px, var(--safe-left));
-    padding: 4px 7px;
+    padding: 4px 6px;
     border-radius: 6px;
-    font-size: 9px;
-    opacity: 0.92;
+    font-size: 8px;
   }
-  #infoRodada { font-size: 10px; margin-bottom: 2px; }
-  #trucoStatus { font-size: 9px; }
+
+  #infoRodada { font-size: 9px; margin-bottom: 1px; }
+  #trucoStatus { font-size: 8px; }
 
   #placar {
     top: max(2px, var(--safe-top));
     right: max(2px, var(--safe-right));
   }
+
   .placar-time {
-    width: 74px;
-    padding-top: 8px;
+    width: 62px;
+    padding-top: 6px;
   }
-  .placar-time-nome { font-size: 8px; }
-  .placar-time-pontos { font-size: 20px; }
-  .placar-status { font-size: 8px; }
+
+  .placar-time-nome { font-size: 7px; }
+  .placar-time-pontos { font-size: 18px; }
+  .placar-status { font-size: 7px; }
 
   #painelHistorico {
     left: max(2px, var(--safe-left));
-    bottom: 52px;
-    width: 28px;
-    min-height: 82px;
+    bottom: 150px;
+    width: 24px;
+    min-height: 70px;
   }
-  #historicoRodadas { gap: 5px; }
-  .bolinha-rodada { width: 12px; height: 12px; }
+
+  #historicoRodadas { gap: 4px; }
+  .bolinha-rodada { width: 10px; height: 10px; }
+
+  /* Modal de resultado: sempre cabe em telas estreitas. */
+  .tela-final-card {
+    width: min(88vw, 360px);
+    max-height: 82dvh;
+    box-sizing: border-box;
+    overflow: auto;
+  }
 }
 
-@media (orientation: portrait) and (max-width: 900px) {
-  .avisoOrientacao {
-    display: flex;
+/* =========================================================
+   LOBBY MOBILE — uma coluna, sem overflow horizontal.
+   ========================================================= */
+@media (max-width: 600px) {
+  .lobby,
+  .lobby-shell {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: hidden;
   }
-  .mesa,
-  #game,
-  .player,
-  #mao,
-  .game-button,
-  #infoLive,
-  #placar,
-  #painelHistorico {
-    visibility: hidden;
+
+  .topbar-premium {
+    min-height: 58px;
+    padding: 8px 10px;
+    gap: 8px;
+    box-sizing: border-box;
+  }
+
+  .player-chip {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .player-chip > div:last-child {
+    min-width: 0;
+  }
+
+  #playerDisplayName {
+    display: block;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .currency-strip {
+    gap: 4px;
+  }
+
+  .currency-pill {
+    padding: 5px 7px;
+    font-size: 11px;
+  }
+
+  .topbar-actions {
+    gap: 4px;
+  }
+
+  .icon-btn {
+    min-width: 34px;
+    min-height: 34px;
+  }
+
+  .lobby-grid {
+    display: block !important;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px;
+  }
+
+  .social-sidebar {
+    display: none !important;
+  }
+
+  .tournament-hero {
+    display: block;
+    padding: 14px;
+  }
+
+  .lobby-title {
+    font-size: clamp(22px, 7vw, 30px);
+    line-height: 1.05;
+  }
+
+  .lobby-subtitle {
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  .hero-cta {
+    width: 100%;
+    margin-top: 10px;
+  }
+
+  .entry-panel {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px;
+  }
+
+  .lobby-menu {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  #roomControls {
+    grid-template-columns: 1fr !important;
+  }
+
+  #roomCodeEntry {
+    display: grid !important;
+    grid-template-columns: 1fr;
+  }
+
+  #roomCodeInput,
+  #joinCodeBtn,
+  #createBtn,
+  #randomMatchBtn {
+    width: 100%;
+    min-height: 44px;
+    box-sizing: border-box;
+  }
+
+  .rooms-headline-row {
+    margin-top: 12px;
+  }
+
+  .rooms-list {
+    width: 100%;
+    overflow-x: hidden;
+  }
+
+  .bottom-nav {
+    min-height: 56px;
+    padding-bottom: max(4px, var(--safe-bottom));
+  }
+
+  .bottom-nav button {
+    min-width: 0;
+    flex: 1;
+    font-size: 11px;
+  }
+}
+
+/* Telas muito estreitas: reduz ainda mais as cartas sem perder toque. */
+@media (max-width: 360px) {
+  :root { --table-size: 90vw; }
+
+  #mao .playerCard {
+    width: 60px;
+    height: 90px;
+    margin-left: -16px;
+  }
+
+  .game-button {
+    min-width: 76px;
+    font-size: 9px;
   }
 }
