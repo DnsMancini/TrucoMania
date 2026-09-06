@@ -1,13 +1,5 @@
 /* TrucoMania — Hub mobile compacto
    Reduz altura ocupada e reorganiza os controles para aproveitar largura. */
-
-/* O jogador já está autenticado e seu nickname é carregado do perfil.
-   Mantemos o input no DOM por compatibilidade com o fluxo legado, mas ele
-   não é mais uma informação que o usuário precisa preencher. */
-#nameInput {
-  display: none !important;
-}
-
 @media (max-width: 600px) {
   .lobby { padding: 6px 7px calc(6px + var(--safe-bottom)); }
   .lobby-shell { gap: 6px; }
@@ -27,7 +19,7 @@
   .lobby-subtitle { margin-top: 4px; font-size: 10px; line-height: 1.2; }
   .hero-cta { margin-top: 6px; min-height: 34px; padding: 7px 10px; font-size: 10px; }
 
-  /* A entrada deixa de empilhar tudo: usamos largura antes de altura. */
+  /* A entrada usa a largura antes da altura. O nickname já vem do perfil. */
   .entry-panel {
     padding: 7px;
     border-radius: 12px;
@@ -39,12 +31,12 @@
   .lobby-menu {
     grid-column: 1 / -1;
     display: grid !important;
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: 1fr !important;
     gap: 5px;
   }
+  #nameInput { display: none !important; }
   .lobby-input { padding: 8px 10px; min-height: 38px; border-radius: 9px; font-size: 14px; }
   .lobby-button { min-height: 38px; padding: 8px 10px; border-radius: 9px; font-size: 10px; letter-spacing: .35px; }
-  #createBtn { width: 100%; }
 
   /* Tipo e bots continuam lado a lado, sem uma coluna vazia. */
   #roomControls {
@@ -57,8 +49,7 @@
   #roomControls label .lobby-input { min-height: 34px; padding: 6px 7px; font-size: 11px; }
   #roomFillBots { margin: 0; }
 
-  /* Código tem poucos caracteres: recebe uma largura fixa pequena.
-     O botão de código ocupa o restante e a partida aleatória fica ao lado. */
+  /* Código tem poucos caracteres: recebe uma largura pequena. */
   #roomCodeEntry {
     grid-column: 1;
     display: grid !important;
