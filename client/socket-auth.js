@@ -142,4 +142,14 @@
 
   installAuthListener();
   console.info('[SOCKET-AUTH] Ponte Firebase → Socket.IO instalada.');
+
+  // Carrega a correção de transição somente depois que game.js já foi carregado,
+  // permitindo que ela complemente o listener de "turn" sem alterar a lógica principal.
+  window.addEventListener('load', () => {
+    if (document.querySelector('script[data-truco-round-fix]')) return;
+    const script = document.createElement('script');
+    script.src = '/round-transition-fix.js?v=1';
+    script.dataset.trucoRoundFix = 'true';
+    document.body.appendChild(script);
+  }, { once: true });
 })();
