@@ -10,7 +10,6 @@
   const originalIo = io;
   let currentSocket = null;
   let authListenerRegistered = false;
-  let tokenVersion = 0;
   const protectedEvents = new Set(['createRoom', 'joinRoom', 'randomMatch', 'reconnectToGame', 'leaveRoom', 'playCard', 'callBet', 'respondBet', 'respondMaoDe11', 'fleeHand']);
 
   async function authenticateSocket(socket, reason) {
@@ -26,36 +25,46 @@
       return false;
     }
 
-    try {
-      const version = ++tokenVersion;
-      const token = await user.getIdToken();
-      if (!socket.connected || version !== tokenVersion) return false;
+    // Apenas uma autenticação por socket pode ficar em andamento.
+    // Isso evita duas chamadas simultâneas quando o socket conecta e, ao
+    // mesmo tempo, o primeiro evento protegido é emitido.
+    if (socket.__trucoAuthPromise) return socket.__trucoAuthPromise;
 
-      return await new Promise((resolve) => {
-        let settled = false;
-        const finish = (ok) => {
-          if (settled) return;
-          settled = true;
-          resolve(ok);
-        };
+    socket.__trucoAuthPromise = (async () => {
+      try {
+        const token = await user.getIdToken();
+        if (!socket.connected) return false;
 
-        socket.__trucoOriginalEmit('authenticate', token, (response) => {
-          if (response && response.ok) {
-            socket.__trucoAuthUid = user.uid;
-            console.info('[SOCKET-AUTH] Socket autenticado:', reason || 'ok');
-            finish(true);
-          } else {
-            console.error('[SOCKET-AUTH] Falha na autenticação:', response?.error || 'resposta inválida');
-            finish(false);
-          }
+        return await new Promise((resolve) => {
+          let settled = false;
+          const finish = (ok) => {
+            if (settled) return;
+            settled = true;
+            resolve(ok);
+          };
+
+          socket.__trucoOriginalEmit('authenticate', token, (response) => {
+            if (response && response.ok) {
+              socket.__trucoAuthUid = user.uid;
+              console.info('[SOCKET-AUTH] Socket autenticado:', reason || 'ok');
+              finish(true);
+            } else {
+              console.error('[SOCKET-AUTH] Falha na autenticação:', response?.error || 'resposta inválida');
+              finish(false);
+            }
+          });
+
+          setTimeout(() => finish(false), 10000);
         });
+      } catch (error) {
+        console.error('[SOCKET-AUTH] Erro ao obter/validar token:', error.message);
+        return false;
+      } finally {
+        socket.__trucoAuthPromise = null;
+      }
+    })();
 
-        setTimeout(() => finish(false), 10000);
-      });
-    } catch (error) {
-      console.error('[SOCKET-AUTH] Erro ao obter/validar token:', error.message);
-      return false;
-    }
+    return socket.__trucoAuthPromise;
   }
 
   function flushQueue(socket, ok) {
@@ -83,21 +92,21 @@
       if (!socket) return;
 
       if (!user) {
-        tokenVersion++;
         socket.__trucoManiaAuthenticated = false;
         socket.__trucoAuthUid = null;
         return;
       }
 
-      // O servidor não aceita dois "authenticate" no mesmo Socket.IO socket.
-      // Quando o Firebase renova o token, reconectamos o socket para que o
-      // evento "connect" faça uma autenticação limpa com o token novo.
-      // Isso evita derrubar a sessão por causa de um refresh periódico do Firebase.
+      // O Firebase renova o ID token periodicamente. Não reconectamos o
+      // Socket.IO aqui: uma reconexão no meio da partida pode trocar o estado
+      // online/offline e criar uma janela desnecessária para travamentos.
+      // O servidor aceita reautenticação no mesmo socket e substitui o listener
+      // anterior de banimento antes de instalar o novo.
       if (socket.connected && socket.__trucoManiaAuthenticated && socket.__trucoAuthUid === user.uid) {
-        tokenVersion++;
         socket.__trucoManiaAuthenticated = false;
-        socket.disconnect();
-        socket.connect();
+        const ok = await authenticateSocket(socket, 'renovação do token');
+        socket.__trucoManiaAuthenticated = ok;
+        if (ok) flushQueue(socket, true);
       }
     });
   }
@@ -111,6 +120,7 @@
     socket.__trucoManiaAuthenticated = false;
     socket.__trucoAuthUid = null;
     socket.__trucoAuthQueue = [];
+    socket.__trucoAuthPromise = null;
     socket.__trucoOriginalEmit = socket.emit.bind(socket);
 
     socket.emit = function (eventName, ...eventArgs) {
