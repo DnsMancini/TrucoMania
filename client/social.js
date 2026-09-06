@@ -2,7 +2,8 @@
   'use strict';
 
   const setup = () => {
-    if (typeof socket === 'undefined') return;
+    const socket = window.trucoSocket;
+    if (!socket) return;
 
     const card = document.querySelector('.social-sidebar .social-card');
     if (!card) return;
@@ -51,7 +52,6 @@
     const modalClose = modal.querySelector('#friendsModalClose');
     const requestBox = modal.querySelector('#friendRequests');
     const fullList = modal.querySelector('#friendListFull');
-
     let friendsState = { friends: [], requests: [] };
 
     const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
@@ -88,7 +88,6 @@
 
     const loadFriends = () => socket.emit('getFriends', result => {
       if (result?.error) return;
-      // A lista é enviada pelo evento friendsUpdate.
     });
 
     socket.on('friendsUpdate', state => {
@@ -166,10 +165,12 @@
       });
     });
 
-    manageButton.addEventListener('click', () => {
+    const openFriends = () => {
       modal.style.display = 'flex';
       loadFriends();
-    });
+    };
+    manageButton.addEventListener('click', openFriends);
+    if (inviteButton) inviteButton.addEventListener('click', openFriends);
     modalClose.addEventListener('click', () => { modal.style.display = 'none'; });
     modal.addEventListener('click', event => { if (event.target === modal) modal.style.display = 'none'; });
 
