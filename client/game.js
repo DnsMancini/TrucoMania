@@ -77,11 +77,16 @@ let renderGeneration = 0;
 document.addEventListener('user-authenticated', (e) => {
   if (e.detail && e.detail.nickname) {
     myNickname = e.detail.nickname;
-    if (nameInput && !nameInput.value) nameInput.value = myNickname;
+    if (nameInput) nameInput.value = myNickname;
     const p0avatar = document.querySelector('#p0 .avatar');
     if (p0avatar) p0avatar.textContent = e.detail.avatar || myNickname.charAt(0).toUpperCase();
   }
 });
+
+function getPlayerName() {
+  const profileName = myNickname || document.getElementById('playerDisplayName')?.textContent?.trim();
+  return profileName || 'Jogador';
+}
 
 const turnIndicator = document.createElement('div');
 turnIndicator.id = 'turnIndicator';
@@ -122,7 +127,7 @@ function createCardHTML(card) {
 }
 
 createBtn.onclick = () => {
-  const name = nameInput.value.trim() || 'Jogador';
+  const name = getPlayerName();
   const options = { visibility: roomVisibilityEl?.value || 'public', fillWithBots: roomFillBotsEl ? roomFillBotsEl.checked : true };
   socket.emit('createRoom', { playerName: name, options }, (res) => {
     if (res?.error) return alert(res.error);
@@ -132,7 +137,7 @@ createBtn.onclick = () => {
 };
 
 function joinRoomFromList(code) {
-  const name = nameInput.value.trim() || 'Jogador';
+  const name = getPlayerName();
   socket.emit('joinRoom', { roomCode: code, playerName: name }, (res) => {
     if (res?.error) return alert(res.error);
     currentGameCode = res.roomCode;
@@ -142,7 +147,7 @@ function joinRoomFromList(code) {
 
 if (joinCodeBtn) joinCodeBtn.onclick = () => { const code = roomCodeInput?.value.trim().toUpperCase(); if (!code) return alert('Informe o código da sala.'); joinRoomFromList(code); };
 if (randomMatchBtn) randomMatchBtn.onclick = () => {
-  const name = nameInput.value.trim() || 'Jogador';
+  const name = getPlayerName();
   socket.emit('randomMatch', { playerName: name }, (res) => {
     if (res?.error) return alert(res.error);
     if (res?.createNew) {
