@@ -7,46 +7,51 @@
 @import url("/avatar-card-position.css?v=1");
 
 /* Botões de ação da partida: menores e sem ocupar espaço desnecessário. */
-.game-button {
-  min-width: 108px;
-  height: 38px;
-  padding: 0 12px;
-  border-radius: 9px;
-  font-size: 12px;
-  letter-spacing: 0.4px;
-  transform: none;
-}
-.game-button:hover { transform: translateY(-1px); }
-.game-button:active { transform: translateY(1px); }
-.game-button-truco,
-.game-button-correr {
-  bottom: calc(126px + var(--safe-bottom));
-}
+.game-button { min-width:108px; height:38px; padding:0 12px; border-radius:9px; font-size:12px; letter-spacing:.4px; transform:none; }
+.game-button:hover { transform:translateY(-1px); }
+.game-button:active { transform:translateY(1px); }
+.game-button-truco,.game-button-correr { bottom:calc(126px + var(--safe-bottom)); }
+@media (max-width:768px) { .game-button { min-width:88px; height:34px; padding:0 9px; border-radius:8px; font-size:10px; letter-spacing:.25px; } .game-button-truco,.game-button-correr { bottom:calc(92px + var(--safe-bottom)); } }
+@media (max-width:380px) { .game-button { min-width:82px; height:32px; padding:0 8px; font-size:9px; } .game-button-truco,.game-button-correr { bottom:calc(88px + var(--safe-bottom)); } }
 
-@media (max-width: 768px) {
-  .game-button {
-    min-width: 88px;
-    height: 34px;
-    padding: 0 9px;
-    border-radius: 8px;
-    font-size: 10px;
-    letter-spacing: 0.25px;
-  }
-  .game-button-truco,
-  .game-button-correr {
-    bottom: calc(92px + var(--safe-bottom));
-  }
-}
+/* Mesa desktop baseada na referência aprovada: mesa cheia, nomes junto às mãos,
+   painel de eventos no alto à direita, rodadas no canto e ações centralizadas. */
+@media (min-width:769px) {
+  :root { --table-size:min(100vw,100vh); }
+  body { background:#07130d; }
+  #gameWrapper { width:100vw; height:100vh; }
+  .mesa { width:100vw; height:100vh; top:50%; left:50%; border-radius:50%; background-size:cover; background-position:center; box-shadow:inset 0 0 90px rgba(0,0,0,.88),0 18px 60px rgba(0,0,0,.72); }
+  #game { width:100vw; height:100vh; top:50%; left:50%; }
 
-@media (max-width: 380px) {
-  .game-button {
-    min-width: 82px;
-    height: 32px;
-    padding: 0 8px;
-    font-size: 9px;
-  }
-  .game-button-truco,
-  .game-button-correr {
-    bottom: calc(88px + var(--safe-bottom));
-  }
+  #hand2 { top:72px; left:50%; transform:translateX(-50%); }
+  #hand1 { left:118px; top:50%; transform:translateY(-50%); }
+  #hand3 { right:118px; top:50%; transform:translateY(-50%); }
+  #mao { bottom:24px; left:50%; transform:translateX(-50%); padding-bottom:0; }
+
+  .player { z-index:2050; font-size:17px; font-weight:800; text-shadow:0 2px 4px rgba(0,0,0,.85); }
+  .player .avatar { display:none !important; }
+  #p0 { left:50%; bottom:118px; transform:translateX(-50%); }
+  #p1 { left:28px; top:50%; transform:translateY(-50%); }
+  #p2 { top:22px; left:50%; transform:translateX(-50%); }
+  #p3 { right:28px; top:50%; transform:translateY(-50%); }
+  #p0 .name,#p1 .name,#p2 .name,#p3 .name { margin:0; }
+
+  #painelEventosPartida { top:34px; right:28px; left:auto; width:300px; }
+  .evento-partida { padding:7px 10px; border-radius:8px; font-size:13px; line-height:1.2; background:rgba(5,10,8,.78); box-shadow:0 5px 16px rgba(0,0,0,.3); }
+
+  #painelHistorico { left:30px; bottom:30px; width:44px; min-height:auto; }
+  #historicoRodadas { gap:8px; }
+  .bolinha-rodada { width:17px; height:17px; }
+
+  .game-button,.game-button-truco,.game-button-correr { position:fixed; top:auto; bottom:28px; width:102px; min-width:102px; height:36px; padding:0 10px; border-radius:18px; font-size:12px; letter-spacing:.35px; transform:none; }
+  .game-button-truco { left:calc(50% - 112px); right:auto; }
+  .game-button-correr { left:calc(50% + 10px); right:auto; }
+  .game-button:hover { transform:translateY(-1px); }
+  .game-button:active { transform:translateY(1px); }
+
+  #placar { top:16px; right:18px; opacity:.96; }
+  .placar-time { width:105px; padding-top:12px; }
+  .placar-time-nome { font-size:10px; }
+  .placar-time-pontos { font-size:24px; }
+  .placar-status { font-size:11px; }
 }
