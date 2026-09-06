@@ -41,6 +41,7 @@
 
         socket.__trucoOriginalEmit('authenticate', token, (response) => {
           if (response && response.ok) {
+            socket.__trucoAuthUid = user.uid;
             console.info('[SOCKET-AUTH] Socket autenticado:', reason || 'ok');
             finish(true);
           } else {
@@ -78,15 +79,26 @@
     authListenerRegistered = true;
 
     firebase.auth().onIdTokenChanged(async (user) => {
-      if (!currentSocket || !currentSocket.connected) return;
+      const socket = currentSocket;
+      if (!socket) return;
+
       if (!user) {
         tokenVersion++;
-        currentSocket.__trucoManiaAuthenticated = false;
+        socket.__trucoManiaAuthenticated = false;
+        socket.__trucoAuthUid = null;
         return;
       }
-      const ok = await authenticateSocket(currentSocket, 'token atualizado');
-      currentSocket.__trucoManiaAuthenticated = ok;
-      if (ok) flushQueue(currentSocket, true);
+
+      // O servidor não aceita dois "authenticate" no mesmo Socket.IO socket.
+      // Quando o Firebase renova o token, reconectamos o socket para que o
+      // evento "connect" faça uma autenticação limpa com o token novo.
+      // Isso evita derrubar a sessão por causa de um refresh periódico do Firebase.
+      if (socket.connected && socket.__trucoManiaAuthenticated && socket.__trucoAuthUid === user.uid) {
+        tokenVersion++;
+        socket.__trucoManiaAuthenticated = false;
+        socket.disconnect();
+        socket.connect();
+      }
     });
   }
 
@@ -97,6 +109,7 @@
     currentSocket = socket;
 
     socket.__trucoManiaAuthenticated = false;
+    socket.__trucoAuthUid = null;
     socket.__trucoAuthQueue = [];
     socket.__trucoOriginalEmit = socket.emit.bind(socket);
 
