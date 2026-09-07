@@ -18,7 +18,6 @@
     marker.hidden = true;
     panel.appendChild(marker);
 
-    const timers = new Map();
     const addEvent = (text, type = '') => {
       if (!text) return;
       const item = document.createElement('div');
@@ -27,11 +26,10 @@
       list.appendChild(item);
       while (list.children.length > 4) list.firstElementChild.remove();
       requestAnimationFrame(() => item.classList.add('visivel'));
-      const timer = setTimeout(() => {
+      setTimeout(() => {
         item.classList.remove('visivel');
         setTimeout(() => item.remove(), 250);
       }, 4200);
-      timers.set(item, timer);
     };
 
     const playerName = index => {
@@ -72,54 +70,25 @@
   else setup();
 })();
 
-// Resultado da rodada: mantém as quatro cartas visíveis e destaca a vencedora.
+// Resultado da rodada: mantém as quatro cartas na mesa e destaca somente a vencedora.
 (() => {
   'use strict';
   const socket = window.trucoSocket;
   if (!socket) return;
 
-  let restoreTimer = null;
-  let clearTimer = null;
-
-  const cleanup = () => {
-    if (restoreTimer) clearTimeout(restoreTimer);
-    if (clearTimer) clearTimeout(clearTimer);
-    restoreTimer = null;
-    clearTimer = null;
-  };
-
-  socket.on('cardPlayed', () => cleanup());
-
   socket.on('roundResult', ({ winner }) => {
     const mesaCartas = document.getElementById('mesaCartas');
     if (!mesaCartas) return;
-    cleanup();
 
-    const snapshot = Array.from(mesaCartas.children).map((el) => ({
-      html: el.outerHTML,
-      player: el.dataset.cardPlayer
-    }));
-    if (!snapshot.length) return;
+    // Não recria nem reposiciona as cartas. Isso evita piscar, sobreposição
+    // artificial e perda do alinhamento rotacional da mesa.
+    mesaCartas.querySelectorAll('.cartaMesa-destaque').forEach(card => {
+      card.classList.remove('cartaMesa-destaque');
+    });
 
-    const winnerCard = snapshot.find((item) => String(item.player) === String(winner));
-    if (winnerCard) {
-      const wrapper = document.createElement('div');
-      wrapper.innerHTML = winnerCard.html;
-      wrapper.firstElementChild?.classList.add('cartaMesa-destaque');
-      winnerCard.html = wrapper.innerHTML;
-    }
+    const winnerCard = Array.from(mesaCartas.children)
+      .find(card => String(card.dataset.cardPlayer) === String(winner));
 
-    // O game.js limpa a mesa em 1200ms; restauramos antes disso.
-    restoreTimer = setTimeout(() => {
-      if (!mesaCartas.children.length) {
-        snapshot.forEach((item) => mesaCartas.insertAdjacentHTML('beforeend', item.html));
-      }
-    }, 1050);
-
-    // Deixa o resultado tempo suficiente para conferência visual.
-    clearTimer = setTimeout(() => {
-      mesaCartas.innerHTML = '';
-      cleanup();
-    }, 3800);
+    if (winnerCard) winnerCard.classList.add('cartaMesa-destaque');
   });
 })();
