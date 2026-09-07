@@ -48,3 +48,7 @@
   .placar-time-pontos { font-size:24px; }
   .placar-status { font-size:11px; }
 }
+
+/* A tela final só deve aparecer quando o servidor emitir matchOver. */
+#telaFinal { display:none !important; }
+#telaFinal.show { display:flex !important; }
