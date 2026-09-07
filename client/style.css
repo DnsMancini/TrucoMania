@@ -61,5 +61,35 @@
   .placar-status { font-size:11px; }
 }
 
+/* Resposta ao truco: tudo acontece dentro da mesa, sem confirm/alert do navegador. */
+#betResponsePanel {
+  position:fixed;
+  z-index:2800;
+  left:50%;
+  top:50%;
+  transform:translate(-50%,-50%);
+  width:min(360px,calc(100vw - 32px));
+  padding:14px;
+  border:1px solid rgba(241,196,15,.45);
+  border-radius:14px;
+  background:rgba(5,10,8,.94);
+  box-shadow:0 16px 42px rgba(0,0,0,.65),0 0 28px rgba(241,196,15,.12);
+  text-align:center;
+  opacity:0;
+  pointer-events:none;
+  visibility:hidden;
+  transition:opacity .16s ease,transform .16s ease;
+}
+#betResponsePanel.visible { opacity:1; pointer-events:auto; visibility:visible; }
+.bet-response-title { font-size:18px; font-weight:900; letter-spacing:.8px; color:#f1c40f; }
+.bet-response-value { margin-top:3px; font-size:12px; color:rgba(255,255,255,.72); }
+.bet-response-actions { display:flex; justify-content:center; gap:7px; margin-top:12px; }
+.bet-response-actions button { min-width:96px; height:34px; padding:0 10px; border:1px solid rgba(255,255,255,.16); border-radius:8px; background:rgba(255,255,255,.08); color:#fff; font:800 10px/1 inherit; letter-spacing:.45px; cursor:pointer; }
+.bet-response-actions button:hover { background:rgba(255,255,255,.14); transform:translateY(-1px); }
+#betAcceptBtn { border-color:rgba(92,184,92,.55); }
+#betRaiseBtn { border-color:rgba(241,196,15,.55); }
+#betFleeBtn { border-color:rgba(217,83,79,.55); }
+@media (max-width:600px) { #betResponsePanel { width:min(330px,calc(100vw - 24px)); padding:11px; } .bet-response-title { font-size:16px; } .bet-response-actions { gap:5px; margin-top:9px; } .bet-response-actions button { min-width:0; flex:1; height:32px; font-size:9px; padding:0 6px; } }
+
 #telaFinal { display:none !important; }
 #telaFinal.show { display:flex !important; }
