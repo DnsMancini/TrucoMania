@@ -97,3 +97,73 @@
     if (winnerCard) winnerCard.classList.add('cartaMesa-destaque');
   });
 })();
+
+// Retorno ao lobby/nova partida sem recarregar a página.
+// O Firebase Auth permanece ativo e o Socket.IO já autenticado é reutilizado.
+(() => {
+  'use strict';
+
+  const voltarAoLobby = (novaPartida) => {
+    const socket = window.trucoSocket;
+    const lobby = document.getElementById('lobby');
+    const gameWrapper = document.getElementById('gameWrapper');
+    const telaFinal = document.getElementById('telaFinal');
+    const contagem = document.getElementById('contagemRegressiva');
+    const mesa = document.getElementById('mesaCartas');
+    const mao = document.getElementById('mao');
+    const vira = document.getElementById('vira');
+    const btnTruco = document.getElementById('btnTruco');
+    const btnCorrer = document.getElementById('btnCorrer');
+
+    const mostrarLobby = () => {
+      if (gameWrapper) gameWrapper.classList.add('game-hidden');
+      if (lobby) lobby.classList.remove('game-hidden');
+      if (contagem) {
+        contagem.classList.add('oculto');
+        contagem.style.display = '';
+      }
+      if (telaFinal) telaFinal.classList.remove('show');
+      if (mesa) mesa.innerHTML = '';
+      if (mao) mao.innerHTML = '';
+      if (vira) {
+        vira.innerHTML = '';
+        vira.classList.add('oculto');
+      }
+      btnTruco?.classList.add('oculto');
+      btnCorrer?.classList.add('oculto');
+      window.limparAnuncioTruco?.();
+      window.getRooms?.();
+    };
+
+    if (!socket || !socket.connected) {
+      mostrarLobby();
+      if (novaPartida) setTimeout(() => document.getElementById('randomMatchBtn')?.click(), 0);
+      return;
+    }
+
+    socket.emit('leaveRoom', () => {
+      mostrarLobby();
+      if (novaPartida) setTimeout(() => document.getElementById('randomMatchBtn')?.click(), 0);
+    });
+  };
+
+  const instalar = () => {
+    const voltar = document.getElementById('btnVoltarLobby');
+    const nova = document.getElementById('btnBuscarNova');
+    if (!voltar || !nova || voltar.dataset.authSafeNavigation === '1') return;
+    voltar.dataset.authSafeNavigation = '1';
+    nova.dataset.authSafeNavigation = '1';
+
+    const interceptar = (event, novaPartida) => {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      voltarAoLobby(novaPartida);
+    };
+
+    voltar.addEventListener('click', event => interceptar(event, false), true);
+    nova.addEventListener('click', event => interceptar(event, true), true);
+  };
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', instalar, { once: true });
+  else instalar();
+})();
