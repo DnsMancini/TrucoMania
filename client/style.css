@@ -5,9 +5,8 @@
 @import url("/btn-sair-sala.css?v=1");
 @import url("/game-events.css?v=1");
 @import url("/avatar-card-position.css?v=1");
-@import url("/round-result-highlight.css?v=1");
+@import url("/round-result-highlight.css?v=2");
 
-/* Botões de ação da partida: menores e sem ocupar espaço desnecessário. */
 .game-button { min-width:108px; height:38px; padding:0 12px; border-radius:9px; font-size:12px; letter-spacing:.4px; transform:none; }
 .game-button:hover { transform:translateY(-1px); }
 .game-button:active { transform:translateY(1px); }
@@ -15,7 +14,19 @@
 @media (max-width:768px) { .game-button { min-width:88px; height:34px; padding:0 9px; border-radius:8px; font-size:10px; letter-spacing:.25px; } .game-button-truco,.game-button-correr { bottom:calc(92px + var(--safe-bottom)); } }
 @media (max-width:380px) { .game-button { min-width:82px; height:32px; padding:0 8px; font-size:9px; } .game-button-truco,.game-button-correr { bottom:calc(88px + var(--safe-bottom)); } }
 
-/* Mesa desktop baseada na referência aprovada. */
+/* Cartas da mesa: distribuição radial, orientação voltada para cada jogador e queda suave. */
+#mesaCartas { z-index:1200; }
+#vira { z-index:1400; }
+.cartaMesa { z-index:1; opacity:0; animation-duration:.65s; animation-timing-function:cubic-bezier(.22,.75,.3,1); animation-fill-mode:forwards; will-change:translate,opacity; }
+.cartaMesa.c0 { transform:translate(-50%,-50%) rotate(0deg); animation-name:cartaMesaCairBaixo; top:calc(50% + 108px); }
+.cartaMesa.c1 { transform:translate(-50%,-50%) rotate(90deg); animation-name:cartaMesaCairEsquerda; left:calc(50% - 138px); }
+.cartaMesa.c2 { transform:translate(-50%,-50%) rotate(180deg); animation-name:cartaMesaCairCima; top:calc(50% - 108px); }
+.cartaMesa.c3 { transform:translate(-50%,-50%) rotate(-90deg); animation-name:cartaMesaCairDireita; left:calc(50% + 138px); }
+@keyframes cartaMesaCairBaixo { from { opacity:0; translate:0 48px; } to { opacity:1; translate:0 0; } }
+@keyframes cartaMesaCairEsquerda { from { opacity:0; translate:-48px 0; } to { opacity:1; translate:0 0; } }
+@keyframes cartaMesaCairCima { from { opacity:0; translate:0 -48px; } to { opacity:1; translate:0 0; } }
+@keyframes cartaMesaCairDireita { from { opacity:0; translate:48px 0; } to { opacity:1; translate:0 0; } }
+
 @media (min-width:769px) {
   :root { --table-size:min(100vw,100vh); }
   body { background:#07130d; }
@@ -50,6 +61,5 @@
   .placar-status { font-size:11px; }
 }
 
-/* A tela final só deve aparecer quando o servidor emitir matchOver. */
 #telaFinal { display:none !important; }
 #telaFinal.show { display:flex !important; }
