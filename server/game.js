@@ -3,7 +3,7 @@ const { cardStrength } = require('./utils');
 const { shouldCallBet, respondBet: chooseBotBet } = require('./bot');
 
 const NUM_PLAYERS = 4;
-const ROUND_DISPLAY_MS = 2500;
+const ROUND_DISPLAY_MS = 3200;
 const DECISION_TIMEOUT = 25000;
 
 class Game4P extends BaseGame4P {
@@ -86,10 +86,6 @@ class Game4P extends BaseGame4P {
   }
 
   scheduleOfflineResponse() {
-    // Se existir um bot respondente, o Socket.IO cuida dele quando os dois
-    // jogadores da dupla são bots. Porém, se a dupla tiver um humano offline
-    // e um bot, o humano offline precisa continuar tendo um fallback; caso
-    // contrário a partida pode ficar presa em turnStage='respond'.
     if (this.checkBotTurn && this.betState) {
       const team = this.betState.responderTeam;
       const teamPlayers = [team, team + 2];
@@ -135,10 +131,6 @@ class Game4P extends BaseGame4P {
   }
 
   scheduleOfflineTurn() {
-    // Em produção, o Socket.IO já possui um agendador dedicado para bots.
-    // Quando chamado pelo próprio fluxo do engine, delegamos explicitamente
-    // para ele; isso também garante que a nova rodada não fique presa caso
-    // o vencedor que inicia a rodada seja um bot.
     if (this.checkBotTurn && this.players[this.currentPlayer]?.isBot) {
       this.checkBotTurn();
       return;
