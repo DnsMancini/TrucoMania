@@ -280,6 +280,9 @@ function addTableCard(player, card, round, hidden = false) {
   const existing = mesaCartas.querySelector(`[data-card-player="${player}"][data-card-round="${round}"]`); if (existing) return;
   const rotatedPlayers = rotateArrayForPlayer([0, 1, 2, 3], myPlayerIndex); const relPos = rotatedPlayers.indexOf(player); const posicoes = ['c0', 'c3', 'c2', 'c1'];
   const cartaDiv = document.createElement('div'); cartaDiv.className = `cartaMesa ${posicoes[relPos >= 0 ? relPos : player]}`; cartaDiv.dataset.cardPlayer = String(player); cartaDiv.dataset.cardRound = String(round); cartaDiv.innerHTML = hidden ? '<div class="carta virada"></div>' : createCardHTML(card); mesaCartas.appendChild(cartaDiv);
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    if (cartaDiv.isConnected) cartaDiv.style.translate = '0 0';
+  }));
 }
 function renderCurrentRound(roundCards, round) { mesaCartas.innerHTML = ''; renderedRound = round; const current = roundCards?.[round] || []; for (let player = 0; player < 4; player++) { const card = current[player]; if (card) addTableCard(player, card, round, isMaoDeFerro || card.hidden === true); } }
 
@@ -306,7 +309,38 @@ socket.on('playerStatus', (players) => updatePlayerNames(players));
 socket.on('maoDe11Decision', ({ team }) => { isMaoDe11Decision = gameActive && myPlayerIndex !== null && myPlayerIndex % 2 === team; aguardandoResposta = false; isRespondingToBet = false; currentBetLevel = null; esconderPainelResposta(); clearTurnTimer(); if (isMaoDe11Decision) mostrarControlesMaoDe11(); else { btnTruco.classList.add('oculto'); btnCorrer.classList.add('oculto'); } atualizarInfoLive(); });
 socket.on('maoDe11Started', ({ handValue, currentPlayer }) => { isMaoDe11Decision = false; isMaoDe11Hand = true; currentHandValue = handValue; trucoStatusEl.textContent = `Truco: ${handValue} pts`; posicionarSeta(currentPlayer); isMyTurn = currentPlayer === myPlayerIndex; aguardandoResposta = false; isRespondingToBet = false; currentBetLevel = null; esconderPainelResposta(); clearTurnTimer(); if (isMyTurn) { btnCorrer.classList.remove('oculto'); atualizarBotaoTruco(); startTurnTimer(); } else { btnTruco.classList.add('oculto'); btnCorrer.classList.add('oculto'); clearTurnTimer(); } atualizarInfoLive(); });
 socket.on('turn', ({ currentPlayer }) => { if (isMaoDe11Decision) return; aguardandoResposta = false; isRespondingToBet = false; currentBetLevel = null; esconderPainelResposta(); isMyTurn = currentPlayer === myPlayerIndex; posicionarSeta(currentPlayer); if (isMyTurn) { btnCorrer.classList.remove('oculto'); atualizarBotaoTruco(); startTurnTimer(); } else { btnTruco.classList.add('oculto'); btnCorrer.classList.add('oculto'); clearTurnTimer(); } atualizarInfoLive(); });
-socket.on('cardPlayed', ({ player, card, round, hidden }) => { if (player === myPlayerIndex) { if (hidden) { if (playerHand.length) playerHand.shift(); renderizarMao(playerHand, false); } else if (card) { const idx = playerHand.findIndex(c => c.suit === card.suit && c.rank === card.rank); if (idx !== -1) { playerHand.splice(idx, 1); renderizarMao(playerHand, !isMaoDeFerro); } } clearTurnTimer(); } else { const rotatedPlayers = rotateArrayForPlayer([0, 1, 2, 3], myPlayerIndex); const relIndex = rotatedPlayers.indexOf(player); if (relIndex > 0) { const handEl = HAND_SLOTS[relIndex]; if (handEl?.lastElementChild) handEl.removeChild(handEl.lastElementChild); } } const effectiveRound = Number.isInteger(round) ? round : Math.max(0, renderedRound); if (renderedRound !== effectiveRound && renderedRound !== -1) { mesaCartas.innerHTML = ''; renderedRound = effectiveRound; } addTableCard(player, card, effectiveRound, Boolean(hidden) || isMaoDeFerro); audioCarta?.play().catch(() => {}); });
+socket.on('cardPlayed', ({ player, card, round, hidden }) => {
+  const effectiveRound = Number.isInteger(round) ? round : Math.max(0, renderedRound);
+  if (renderedRound !== effectiveRound && renderedRound !== -1) { mesaCartas.innerHTML = ''; renderedRound = effectiveRound; }
+
+  // A carta precisa entrar na mesa antes de ser retirada da mão do jogador.
+  // Isso é especialmente importante na última jogada da rodada: o cliente
+  // não pode mostrar o resultado enquanto a última carta ainda parece estar na mão.
+  addTableCard(player, card, effectiveRound, Boolean(hidden) || isMaoDeFerro);
+  audioCarta?.play().catch(() => {});
+
+  if (player === myPlayerIndex) {
+    const generationAtPlay = renderGeneration;
+    requestAnimationFrame(() => {
+      if (generationAtPlay !== renderGeneration) return;
+      if (hidden) {
+        if (playerHand.length) playerHand.shift();
+      } else if (card) {
+        const idx = playerHand.findIndex(c => c.suit === card.suit && c.rank === card.rank);
+        if (idx !== -1) playerHand.splice(idx, 1);
+      }
+      renderizarMao(playerHand, !isMaoDeFerro);
+      clearTurnTimer();
+    });
+  } else {
+    const rotatedPlayers = rotateArrayForPlayer([0, 1, 2, 3], myPlayerIndex);
+    const relIndex = rotatedPlayers.indexOf(player);
+    if (relIndex > 0) {
+      const handEl = HAND_SLOTS[relIndex];
+      if (handEl?.lastElementChild) handEl.removeChild(handEl.lastElementChild);
+    }
+  }
+});
 socket.on('roundResult', ({ round, winner }) => { infoRodadaEl.textContent = round >= 2 ? 'Mão encerrada' : `Rodada ${round + 2} de 3`; const bolinhas = painelHistorico.querySelectorAll('.bolinha-rodada'); if (bolinhas[round]) { let corClasse = 'bolinha-ouro'; if (winner !== -1) corClasse = winner % 2 === myPlayerIndex % 2 ? 'bolinha-verde' : 'bolinha-azul'; bolinhas[round].className = 'bolinha-rodada ' + corClasse; } });
 socket.on('handEnd', ({ winnerTeam, points, scores }) => { gameActive = false; isMaoDe11Hand = false; isMaoDe11Decision = false; isMaoDeFerro = false; aguardandoResposta = false; isRespondingToBet = false; currentBetLevel = null; lastBetTeam = null; isMyTurn = false; esconderPainelResposta(); clearTurnTimer(); teamAScoreEl.textContent = scores[0]; teamBScoreEl.textContent = scores[1]; if (scores?.includes(6)) audioSeis?.play().catch(() => {}); else if (scores?.includes(9)) audioNove?.play().catch(() => {}); else if (scores?.includes(12)) audioDoze?.play().catch(() => {}); btnTruco.classList.add('oculto'); btnCorrer.classList.add('oculto'); maoDiv.innerHTML = ''; hand1.innerHTML = ''; hand2.innerHTML = ''; hand3.innerHTML = ''; viraEl.classList.add('oculto'); if (winnerTeam !== -1) mostrarMensagem(winnerTeam === myPlayerIndex % 2 ? 'Seu time ganhou a mão!' : 'Time adversário ganhou a mão.'); else mostrarMensagem('Mão empatada — ninguém pontua.'); esconderSeta(); atualizarInfoLive(); });
 socket.on('setStart', ({ scores, setWins }) => { teamAScoreEl.textContent = scores?.[0] ?? 0; teamBScoreEl.textContent = scores?.[1] ?? 0; mostrarMensagem(`Novo set — ${setWins?.[0] ?? 0} x ${setWins?.[1] ?? 0}`); });
@@ -328,3 +362,6 @@ function clearTurnTimer() { if (turnTimerInterval) { clearInterval(turnTimerInte
 function autoPlayRandomCard() { if (!gameActive || !isMyTurn || isMaoDe11Decision || playerHand.length === 0) return; const idx = Math.floor(Math.random() * playerHand.length); socket.emit('playCard', isMaoDeFerro ? { blindIndex: idx } : playerHand[idx]); }
 function mostrarMensagem(texto) { if (!texto || !toastEl) return; toastEl.textContent = texto; toastEl.style.display = 'block'; setTimeout(() => { toastEl.style.display = 'none'; }, 3000); }
 function suitSymbol(suit) { const map = { paus: '♣', copas: '♥', espadas: '♠', ouros: '♦' }; return map[suit] || suit; }
+
+// O retorno ao lobby/nova partida é interceptado pelo módulo de navegação segura
+// em game-events.js, mantendo a sessão do Firebase e o socket autenticado.
