@@ -5,6 +5,7 @@
 @import url("/btn-sair-sala.css?v=1");
 @import url("/game-events.css?v=1");
 @import url("/avatar-card-position.css?v=1");
+@import url("/round-result-highlight.css?v=1");
 
 /* Botões de ação da partida: menores e sem ocupar espaço desnecessário. */
 .game-button { min-width:108px; height:38px; padding:0 12px; border-radius:9px; font-size:12px; letter-spacing:.4px; transform:none; }
