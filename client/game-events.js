@@ -1,39 +1,52 @@
 (() => {
   'use strict';
 
-  // Bloqueio definitivo do antigo destaque da carta vencedora.
-  // Isso também protege contra CSS/JS antigo em cache que ainda tente aplicar
-  // a classe .cartaMesa-destaque ou uma animação de sobe-e-desce.
-  const bloquearDestaqueVencedor = () => {
+  // Neutraliza qualquer implementação antiga que tente destacar a carta vencedora.
+  // A carta vencedora não possui estado visual próprio nesta versão.
+  const limparDestaqueCartas = () => {
+    const mesa = document.getElementById('mesaCartas');
+    if (!mesa) return;
+    mesa.querySelectorAll('.cartaMesa').forEach(card => {
+      const pos = Array.from(card.classList).find(c => /^c[0-3]$/.test(c));
+      card.className = `cartaMesa ${pos || 'c0'}`;
+      card.removeAttribute('style');
+    });
+  };
+
+  const instalarBlindagem = () => {
     if (!document.head) return;
     if (!document.getElementById('bloqueioDestaqueCartaVencedora')) {
       const style = document.createElement('style');
       style.id = 'bloqueioDestaqueCartaVencedora';
       style.textContent = `
-        #mesaCartas .cartaMesa-destaque,
-        #mesaCartas .cartaMesa-destaque:hover,
-        #mesaCartas .cartaMesa-destaque:active {
-          animation: none !important;
+        #mesaCartas .cartaMesa,
+        #mesaCartas .cartaMesa.cartaMesa-destaque,
+        #mesaCartas .cartaMesa.cartaMesa-destaque:hover,
+        #mesaCartas .cartaMesa.cartaMesa-destaque:active {
           scale: 1 !important;
-          translate: 0 0 !important;
           filter: none !important;
-          box-shadow: none !important;
-          border: none !important;
+          outline: none !important;
+          border: 1px solid rgba(0,0,0,.2) !important;
+          box-shadow: 0 10px 18px rgba(0,0,0,.45), inset 0 2px 3px rgba(255,255,255,.9) !important;
         }
       `;
       document.head.appendChild(style);
     }
-    const mesa = document.getElementById('mesaCartas');
-    mesa?.querySelectorAll('.cartaMesa-destaque').forEach(card => card.classList.remove('cartaMesa-destaque'));
+    limparDestaqueCartas();
   };
 
-  const observer = new MutationObserver(() => bloquearDestaqueVencedor());
-  const iniciarBloqueio = () => {
-    bloquearDestaqueVencedor();
-    if (document.body) observer.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['class', 'style'] });
+  const observer = new MutationObserver(() => limparDestaqueCartas());
+  const iniciarBlindagem = () => {
+    instalarBlindagem();
+    if (document.body) observer.observe(document.body, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ['class', 'style']
+    });
   };
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciarBloqueio, { once: true });
-  else iniciarBloqueio();
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciarBlindagem, { once: true });
+  else iniciarBlindagem();
 
   const setup = () => {
     if (document.getElementById('gameEventsInitialized')) return;
@@ -69,7 +82,7 @@
       window.limparAnuncioTruco?.();
     });
     socket.on('cardPlayed', data => {
-      bloquearDestaqueVencedor();
+      limparDestaqueCartas();
       addEvent(`${playerName(data?.playerIndex ?? data?.player ?? 0)} jogou uma carta.`);
     });
     socket.on('betCalled', data => {
@@ -91,13 +104,17 @@
     });
     socket.on('betRejected', () => window.limparAnuncioTruco?.());
     socket.on('roundResult', data => {
-      bloquearDestaqueVencedor();
+      // O servidor informa quem venceu apenas para a bolinha/histórico.
+      // Não usamos winner para alterar qualquer carta da mesa.
+      limparDestaqueCartas();
+      requestAnimationFrame(() => limparDestaqueCartas());
+      setTimeout(() => limparDestaqueCartas(), 30);
       if (data?.winner != null) addEvent(`Mão para ${playerName(data.winner)}.`, 'round');
       else addEvent('Mão encerrada.', 'round');
       window.limparAnuncioTruco?.();
     });
     socket.on('handEnd', () => {
-      bloquearDestaqueVencedor();
+      limparDestaqueCartas();
       addEvent('Rodada encerrada.', 'round');
       window.limparAnuncioTruco?.();
     });
@@ -128,11 +145,9 @@
 })();
 
 // Retorno ao lobby/nova partida sem recarregar a página.
-// O Firebase Auth permanece ativo e o Socket.IO já autenticado é reutilizado.
 (() => {
   'use strict';
-
-  const voltarAoLobby = (novaPartida) => {
+  const voltarAoLobby = novaPartida => {
     const socket = window.trucoSocket;
     const lobby = document.getElementById('lobby');
     const gameWrapper = document.getElementById('gameWrapper');
@@ -143,56 +158,29 @@
     const vira = document.getElementById('vira');
     const btnTruco = document.getElementById('btnTruco');
     const btnCorrer = document.getElementById('btnCorrer');
-
     const mostrarLobby = () => {
-      if (gameWrapper) gameWrapper.classList.add('game-hidden');
-      if (lobby) lobby.classList.remove('game-hidden');
-      if (contagem) {
-        contagem.classList.add('oculto');
-        contagem.style.display = '';
-      }
-      if (telaFinal) telaFinal.classList.remove('show');
+      gameWrapper?.classList.add('game-hidden');
+      lobby?.classList.remove('game-hidden');
+      contagem?.classList.add('oculto');
+      if (contagem) contagem.style.display = '';
+      telaFinal?.classList.remove('show');
       if (mesa) mesa.innerHTML = '';
       if (mao) mao.innerHTML = '';
-      if (vira) {
-        vira.innerHTML = '';
-        vira.classList.add('oculto');
-      }
-      btnTruco?.classList.add('oculto');
-      btnCorrer?.classList.add('oculto');
-      window.limparAnuncioTruco?.();
-      window.getRooms?.();
+      if (vira) { vira.innerHTML = ''; vira.classList.add('oculto'); }
+      btnTruco?.classList.add('oculto'); btnCorrer?.classList.add('oculto');
+      window.limparAnuncioTruco?.(); window.getRooms?.();
     };
-
-    if (!socket || !socket.connected) {
-      mostrarLobby();
-      if (novaPartida) setTimeout(() => document.getElementById('randomMatchBtn')?.click(), 0);
-      return;
-    }
-
-    socket.emit('leaveRoom', () => {
-      mostrarLobby();
-      if (novaPartida) setTimeout(() => document.getElementById('randomMatchBtn')?.click(), 0);
-    });
+    if (!socket?.connected) { mostrarLobby(); if (novaPartida) setTimeout(() => document.getElementById('randomMatchBtn')?.click(), 0); return; }
+    socket.emit('leaveRoom', () => { mostrarLobby(); if (novaPartida) setTimeout(() => document.getElementById('randomMatchBtn')?.click(), 0); });
   };
-
   const instalar = () => {
     const voltar = document.getElementById('btnVoltarLobby');
     const nova = document.getElementById('btnBuscarNova');
     if (!voltar || !nova || voltar.dataset.authSafeNavigation === '1') return;
-    voltar.dataset.authSafeNavigation = '1';
-    nova.dataset.authSafeNavigation = '1';
-
-    const interceptar = (event, novaPartida) => {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      voltarAoLobby(novaPartida);
-    };
-
+    voltar.dataset.authSafeNavigation = '1'; nova.dataset.authSafeNavigation = '1';
+    const interceptar = (event, novaPartida) => { event.preventDefault(); event.stopImmediatePropagation(); voltarAoLobby(novaPartida); };
     voltar.addEventListener('click', event => interceptar(event, false), true);
     nova.addEventListener('click', event => interceptar(event, true), true);
   };
-
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', instalar, { once: true });
-  else instalar();
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', instalar, { once: true }); else instalar();
 })();
