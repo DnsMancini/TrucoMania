@@ -85,19 +85,6 @@
   window.limparAnuncioTruco = () => document.getElementById('anuncioTruco')?.classList.remove('visivel');
 })();
 
-(() => {
-  'use strict';
-  const socket = window.trucoSocket;
-  if (!socket) return;
-  socket.on('roundResult', ({ winner }) => {
-    const mesaCartas = document.getElementById('mesaCartas');
-    if (!mesaCartas) return;
-    mesaCartas.querySelectorAll('.cartaMesa-destaque').forEach(card => card.classList.remove('cartaMesa-destaque'));
-    const winnerCard = Array.from(mesaCartas.children).find(card => String(card.dataset.cardPlayer) === String(winner));
-    if (winnerCard) winnerCard.classList.add('cartaMesa-destaque');
-  });
-})();
-
 // Retorno ao lobby/nova partida sem recarregar a página.
 // O Firebase Auth permanece ativo e o Socket.IO já autenticado é reutilizado.
 (() => {
