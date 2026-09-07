@@ -1,17 +1,19 @@
 .cartaMesa-destaque {
   z-index: 30 !important;
+  scale: 1.08;
   border: 2px solid #f1c40f !important;
   box-shadow: 0 0 0 2px rgba(241,196,15,.2), 0 0 18px rgba(241,196,15,.62), 0 12px 24px rgba(0,0,0,.5) !important;
   filter: saturate(1.05) brightness(1.03);
-  transition: scale .22s ease, translate .22s ease, box-shadow .22s ease, filter .22s ease;
-  scale: 1.08;
+  transition: scale .22s ease, box-shadow .22s ease, filter .22s ease;
 }
 
-/* O destaque acompanha a direção da carta na mesa, sem girar ou piscar. */
-.c0.cartaMesa-destaque { translate: 0 8px; }
-.c1.cartaMesa-destaque { translate: -8px 0; }
-.c2.cartaMesa-destaque { translate: 0 -8px; }
-.c3.cartaMesa-destaque { translate: 8px 0; }
+/* Mantém a carta exatamente na posição da mesa; o destaque não a desloca. */
+.c0.cartaMesa-destaque,
+.c1.cartaMesa-destaque,
+.c2.cartaMesa-destaque,
+.c3.cartaMesa-destaque {
+  translate: 0 0;
+}
 
 @media (max-width:768px) {
   .cartaMesa-destaque { scale: 1.06; }
