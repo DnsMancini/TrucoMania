@@ -312,10 +312,6 @@ socket.on('turn', ({ currentPlayer }) => { if (isMaoDe11Decision) return; aguard
 socket.on('cardPlayed', ({ player, card, round, hidden }) => {
   const effectiveRound = Number.isInteger(round) ? round : Math.max(0, renderedRound);
   if (renderedRound !== effectiveRound && renderedRound !== -1) { mesaCartas.innerHTML = ''; renderedRound = effectiveRound; }
-
-  // A carta precisa entrar na mesa antes de ser retirada da mão do jogador.
-  // Isso é especialmente importante na última jogada da rodada: o cliente
-  // não pode mostrar o resultado enquanto a última carta ainda parece estar na mão.
   addTableCard(player, card, effectiveRound, Boolean(hidden) || isMaoDeFerro);
   audioCarta?.play().catch(() => {});
 
@@ -341,7 +337,20 @@ socket.on('cardPlayed', ({ player, card, round, hidden }) => {
     }
   }
 });
-socket.on('roundResult', ({ round, winner }) => { infoRodadaEl.textContent = round >= 2 ? 'Mão encerrada' : `Rodada ${round + 2} de 3`; const bolinhas = painelHistorico.querySelectorAll('.bolinha-rodada'); if (bolinhas[round]) { let corClasse = 'bolinha-ouro'; if (winner !== -1) corClasse = winner % 2 === myPlayerIndex % 2 ? 'bolinha-verde' : 'bolinha-azul'; bolinhas[round].className = 'bolinha-rodada ' + corClasse; } });
+socket.on('roundResult', ({ round, winner }) => {
+  infoRodadaEl.textContent = round >= 2 ? 'Mão encerrada' : `Rodada ${round + 2} de 3`;
+  const bolinhas = painelHistorico.querySelectorAll('.bolinha-rodada');
+  if (bolinhas[round]) {
+    let corClasse = 'bolinha-ouro';
+    if (winner !== -1) corClasse = winner % 2 === myPlayerIndex % 2 ? 'bolinha-verde' : 'bolinha-azul';
+    bolinhas[round].className = 'bolinha-rodada ' + corClasse;
+  }
+  const generationAtSchedule = renderGeneration;
+  setTimeout(() => {
+    if (generationAtSchedule !== renderGeneration || renderedRound !== round) return;
+    mesaCartas.innerHTML = '';
+  }, 1200);
+});
 socket.on('handEnd', ({ winnerTeam, points, scores }) => { gameActive = false; isMaoDe11Hand = false; isMaoDe11Decision = false; isMaoDeFerro = false; aguardandoResposta = false; isRespondingToBet = false; currentBetLevel = null; lastBetTeam = null; isMyTurn = false; esconderPainelResposta(); clearTurnTimer(); teamAScoreEl.textContent = scores[0]; teamBScoreEl.textContent = scores[1]; if (scores?.includes(6)) audioSeis?.play().catch(() => {}); else if (scores?.includes(9)) audioNove?.play().catch(() => {}); else if (scores?.includes(12)) audioDoze?.play().catch(() => {}); btnTruco.classList.add('oculto'); btnCorrer.classList.add('oculto'); maoDiv.innerHTML = ''; hand1.innerHTML = ''; hand2.innerHTML = ''; hand3.innerHTML = ''; viraEl.classList.add('oculto'); if (winnerTeam !== -1) mostrarMensagem(winnerTeam === myPlayerIndex % 2 ? 'Seu time ganhou a mão!' : 'Time adversário ganhou a mão.'); else mostrarMensagem('Mão empatada — ninguém pontua.'); esconderSeta(); atualizarInfoLive(); });
 socket.on('setStart', ({ scores, setWins }) => { teamAScoreEl.textContent = scores?.[0] ?? 0; teamBScoreEl.textContent = scores?.[1] ?? 0; mostrarMensagem(`Novo set — ${setWins?.[0] ?? 0} x ${setWins?.[1] ?? 0}`); });
 socket.on('matchOver', ({ winnerTeam, reason }) => { gameActive = false; isMaoDe11Hand = false; isMaoDe11Decision = false; isMaoDeFerro = false; aguardandoResposta = false; isRespondingToBet = false; currentBetLevel = null; lastBetTeam = null; isMyTurn = false; esconderPainelResposta(); clearTurnTimer(); contagemEl.classList.add('oculto'); telaFinal.classList.add('show'); if (reason === 'all_offline') { textoFinal.textContent = 'PARTIDA ENCERRADA'; resumoFinal.textContent = 'Todos os jogadores ficaram offline.'; } else { textoFinal.textContent = winnerTeam === myPlayerIndex % 2 ? 'VOCÊ VENCEU A PARTIDA!' : 'VOCÊ PERDEU A PARTIDA!'; resumoFinal.textContent = 'Clique em Voltar ao Lobby para jogar novamente.'; } document.getElementById('btnVoltarLobby').onclick = () => location.reload(); document.getElementById('btnBuscarNova').onclick = () => location.reload(); esconderSeta(); });
