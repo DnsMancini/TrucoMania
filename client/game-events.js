@@ -137,3 +137,45 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', instalar, { once: true });
   else instalar();
 })();
+
+// Cartas restauradas pelo gameStateRestore devem aparecer prontas, sem repetir
+// a animação de queda. Cartas jogadas normalmente continuam animadas.
+(() => {
+  'use strict';
+  const neutralizarAnimacaoRestaurada = () => {
+    const mesa = document.getElementById('mesaCartas');
+    if (!mesa) return;
+    mesa.querySelectorAll('.cartaMesa').forEach(carta => {
+      carta.style.animation = 'none';
+      carta.style.opacity = '1';
+      carta.style.translate = '0 0';
+    });
+  };
+
+  const instalar = () => {
+    const socket = window.trucoSocket;
+    const mesa = document.getElementById('mesaCartas');
+    if (!socket || !mesa || mesa.dataset.restoreAnimationFix === '1') return;
+    mesa.dataset.restoreAnimationFix = '1';
+
+    let restaurando = false;
+    let timer = null;
+
+    const observer = new MutationObserver(() => {
+      if (restaurando) neutralizarAnimacaoRestaurada();
+    });
+    observer.observe(mesa, { childList: true, subtree: true });
+
+    socket.on('gameStateRestore', () => {
+      restaurando = true;
+      neutralizarAnimacaoRestaurada();
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        restaurando = false;
+      }, 250);
+    });
+  };
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', instalar, { once: true });
+  else instalar();
+})();
