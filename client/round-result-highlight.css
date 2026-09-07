@@ -1,3 +1,13 @@
+/* As cartas jogadas pertencem à mesa e devem ficar acima das mãos dos adversários. */
+#mesaCartas {
+  z-index: 2100 !important;
+}
+
+/* A vira continua acima das cartas jogadas. */
+#vira {
+  z-index: 2200 !important;
+}
+
 .cartaMesa-destaque {
   z-index: 30 !important;
   scale: 1.08;
