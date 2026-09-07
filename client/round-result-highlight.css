@@ -1,20 +1,18 @@
 .cartaMesa-destaque {
-  z-index: 20 !important;
-  transform: translate(-50%, -50%) translateY(-12px) scale(1.14) !important;
-  border: 3px solid #f1c40f !important;
-  box-shadow: 0 0 0 3px rgba(241,196,15,.22), 0 0 26px rgba(241,196,15,.78), 0 14px 26px rgba(0,0,0,.55) !important;
-  filter: saturate(1.08) brightness(1.05);
-  transition: transform .22s ease, box-shadow .22s ease, filter .22s ease;
-  animation: cartaMesaDestaque 1s ease-in-out infinite alternate;
+  z-index: 30 !important;
+  border: 2px solid #f1c40f !important;
+  box-shadow: 0 0 0 2px rgba(241,196,15,.2), 0 0 18px rgba(241,196,15,.62), 0 12px 24px rgba(0,0,0,.5) !important;
+  filter: saturate(1.05) brightness(1.03);
+  transition: scale .22s ease, translate .22s ease, box-shadow .22s ease, filter .22s ease;
+  scale: 1.08;
 }
 
-@keyframes cartaMesaDestaque {
-  from { filter: saturate(1.05) brightness(1.02); }
-  to { filter: saturate(1.15) brightness(1.12); }
-}
+/* O destaque acompanha a direção da carta na mesa, sem girar ou piscar. */
+.c0.cartaMesa-destaque { translate: 0 8px; }
+.c1.cartaMesa-destaque { translate: -8px 0; }
+.c2.cartaMesa-destaque { translate: 0 -8px; }
+.c3.cartaMesa-destaque { translate: 8px 0; }
 
 @media (max-width:768px) {
-  .cartaMesa-destaque {
-    transform: translate(-50%, -50%) translateY(-9px) scale(1.1) !important;
-  }
+  .cartaMesa-destaque { scale: 1.06; }
 }
