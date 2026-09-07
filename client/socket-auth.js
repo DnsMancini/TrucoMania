@@ -168,3 +168,21 @@
   window.addEventListener('load', loadSocialModule, { once: true });
   console.info('[SOCKET-AUTH] Ponte Firebase → Socket.IO instalada.');
 })();
+
+// Compatibilidade interna: o painel visual foi removido, mas o motor da partida
+// ainda usa estes dois nós para manter rodada/status sem quebrar o fluxo do jogo.
+(function ensureGameStatusNodes() {
+  const createHiddenNode = (id) => {
+    let node = document.getElementById(id);
+    if (!node) {
+      node = document.createElement('span');
+      node.id = id;
+      node.style.display = 'none';
+      node.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(node);
+    }
+    return node;
+  };
+  createHiddenNode('infoRodada');
+  createHiddenNode('trucoStatus');
+})();
