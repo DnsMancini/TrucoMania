@@ -1,6 +1,40 @@
 (() => {
   'use strict';
 
+  // Bloqueio definitivo do antigo destaque da carta vencedora.
+  // Isso também protege contra CSS/JS antigo em cache que ainda tente aplicar
+  // a classe .cartaMesa-destaque ou uma animação de sobe-e-desce.
+  const bloquearDestaqueVencedor = () => {
+    if (!document.head) return;
+    if (!document.getElementById('bloqueioDestaqueCartaVencedora')) {
+      const style = document.createElement('style');
+      style.id = 'bloqueioDestaqueCartaVencedora';
+      style.textContent = `
+        #mesaCartas .cartaMesa-destaque,
+        #mesaCartas .cartaMesa-destaque:hover,
+        #mesaCartas .cartaMesa-destaque:active {
+          animation: none !important;
+          scale: 1 !important;
+          translate: 0 0 !important;
+          filter: none !important;
+          box-shadow: none !important;
+          border: none !important;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+    const mesa = document.getElementById('mesaCartas');
+    mesa?.querySelectorAll('.cartaMesa-destaque').forEach(card => card.classList.remove('cartaMesa-destaque'));
+  };
+
+  const observer = new MutationObserver(() => bloquearDestaqueVencedor());
+  const iniciarBloqueio = () => {
+    bloquearDestaqueVencedor();
+    if (document.body) observer.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['class', 'style'] });
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciarBloqueio, { once: true });
+  else iniciarBloqueio();
+
   const setup = () => {
     if (document.getElementById('gameEventsInitialized')) return;
     const socket = window.trucoSocket;
@@ -34,7 +68,10 @@
       if (round != null) addEvent(`Rodada ${round}`, 'round');
       window.limparAnuncioTruco?.();
     });
-    socket.on('cardPlayed', data => addEvent(`${playerName(data?.playerIndex ?? data?.player ?? 0)} jogou uma carta.`));
+    socket.on('cardPlayed', data => {
+      bloquearDestaqueVencedor();
+      addEvent(`${playerName(data?.playerIndex ?? data?.player ?? 0)} jogou uma carta.`);
+    });
     socket.on('betCalled', data => {
       addEvent(`${playerName(data?.playerIndex ?? data?.player ?? 0)} pediu Truco!`, 'bet');
       window.mostrarAnuncioTruco?.(data?.level || 'truco');
@@ -54,11 +91,16 @@
     });
     socket.on('betRejected', () => window.limparAnuncioTruco?.());
     socket.on('roundResult', data => {
+      bloquearDestaqueVencedor();
       if (data?.winner != null) addEvent(`Mão para ${playerName(data.winner)}.`, 'round');
       else addEvent('Mão encerrada.', 'round');
       window.limparAnuncioTruco?.();
     });
-    socket.on('handEnd', () => { addEvent('Rodada encerrada.', 'round'); window.limparAnuncioTruco?.(); });
+    socket.on('handEnd', () => {
+      bloquearDestaqueVencedor();
+      addEvent('Rodada encerrada.', 'round');
+      window.limparAnuncioTruco?.();
+    });
     socket.on('setStart', data => addEvent(`Novo set — ${data?.score ?? ''}`.trim(), 'round'));
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', setup);
