@@ -10,6 +10,8 @@
 
 /* Entrada suave: a carta chega à mesa sem piscar e sem alterar sua rotação. */
 .cartaMesa {
+  translate: 0 -18px;
+  opacity: .78;
   transition: translate .34s cubic-bezier(.22,.72,.25,1), opacity .24s ease;
 }
 
