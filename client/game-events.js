@@ -5,19 +5,16 @@
     if (document.getElementById('gameEventsInitialized')) return;
     const socket = window.trucoSocket;
     if (!socket) return;
-
     const panel = document.createElement('div');
     panel.id = 'painelEventosPartida';
     panel.setAttribute('aria-live', 'polite');
     panel.innerHTML = '<div class="eventos-partida-lista"></div>';
     document.body.appendChild(panel);
-
     const list = panel.querySelector('.eventos-partida-lista');
     const marker = document.createElement('span');
     marker.id = 'gameEventsInitialized';
     marker.hidden = true;
     panel.appendChild(marker);
-
     const addEvent = (text, type = '') => {
       if (!text) return;
       const item = document.createElement('div');
@@ -26,69 +23,77 @@
       list.appendChild(item);
       while (list.children.length > 4) list.firstElementChild.remove();
       requestAnimationFrame(() => item.classList.add('visivel'));
-      setTimeout(() => {
-        item.classList.remove('visivel');
-        setTimeout(() => item.remove(), 250);
-      }, 4200);
+      setTimeout(() => { item.classList.remove('visivel'); setTimeout(() => item.remove(), 250); }, 4200);
     };
-
     const playerName = index => {
       const el = document.querySelector(`#p${index} .name, #p${index} .player-name`);
       return el?.textContent?.trim() || (index === window.myPlayerIndex ? 'Você' : `Jogador ${Number(index) + 1}`);
     };
-
     socket.on('handStart', data => {
       const round = data?.round ?? data?.hand ?? null;
       if (round != null) addEvent(`Rodada ${round}`, 'round');
+      window.limparAnuncioTruco?.();
     });
-    socket.on('cardPlayed', data => {
-      const name = playerName(data?.playerIndex ?? data?.player ?? 0);
-      addEvent(`${name} jogou uma carta.`);
-    });
+    socket.on('cardPlayed', data => addEvent(`${playerName(data?.playerIndex ?? data?.player ?? 0)} jogou uma carta.`));
     socket.on('betCalled', data => {
-      const name = playerName(data?.playerIndex ?? data?.player ?? 0);
-      addEvent(`${name} pediu Truco!`, 'bet');
+      addEvent(`${playerName(data?.playerIndex ?? data?.player ?? 0)} pediu Truco!`, 'bet');
+      window.mostrarAnuncioTruco?.(data?.level || 'truco');
     });
     socket.on('betRaised', data => {
-      const name = playerName(data?.playerIndex ?? data?.player ?? 0);
       const value = data?.value ?? data?.bet ?? '';
-      addEvent(`${name} aumentou${value ? ` para ${value}` : ''}!`, 'bet');
+      addEvent(`${playerName(data?.playerIndex ?? data?.player ?? 0)} aumentou${value ? ` para ${value}` : ''}!`, 'bet');
+      window.mostrarAnuncioTruco?.(data?.level || data?.bet || data?.value);
     });
     socket.on('betAccepted', data => {
-      const name = playerName(data?.playerIndex ?? data?.player ?? 0);
-      addEvent(`${name} aceitou.`, 'bet');
+      addEvent(`${playerName(data?.playerIndex ?? data?.player ?? 0)} aceitou.`, 'bet');
+      window.limparAnuncioTruco?.();
     });
+    socket.on('betFled', data => {
+      addEvent(`${playerName(data?.playerIndex ?? data?.player ?? 0)} correu.`, 'bet');
+      window.limparAnuncioTruco?.();
+    });
+    socket.on('betRejected', () => window.limparAnuncioTruco?.());
     socket.on('roundResult', data => {
       if (data?.winner != null) addEvent(`Mão para ${playerName(data.winner)}.`, 'round');
       else addEvent('Mão encerrada.', 'round');
+      window.limparAnuncioTruco?.();
     });
-    socket.on('handEnd', () => addEvent('Rodada encerrada.', 'round'));
+    socket.on('handEnd', () => { addEvent('Rodada encerrada.', 'round'); window.limparAnuncioTruco?.(); });
     socket.on('setStart', data => addEvent(`Novo set — ${data?.score ?? ''}`.trim(), 'round'));
   };
-
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', setup);
   else setup();
 })();
 
-// Resultado da rodada: mantém as quatro cartas na mesa e destaca somente a vencedora.
+(() => {
+  'use strict';
+  const labels = { truco: 'TRUCO!', retruco: 'TRUCO 6!', valenove: 'TRUCO 9!', valedoze: 'TRUCO 12!', '6': 'TRUCO 6!', '9': 'TRUCO 9!', '12': 'TRUCO 12!' };
+  window.mostrarAnuncioTruco = level => {
+    const text = labels[level] || labels.truco;
+    let el = document.getElementById('anuncioTruco');
+    if (!el) { el = document.createElement('div'); el.id = 'anuncioTruco'; document.body.appendChild(el); }
+    el.innerHTML = '';
+    [...text].forEach((char, index) => {
+      const span = document.createElement('span');
+      span.textContent = char === ' ' ? '\u00a0' : char;
+      span.style.setProperty('--i', index);
+      span.style.setProperty('--n', text.length);
+      el.appendChild(span);
+    });
+    el.classList.add('visivel');
+  };
+  window.limparAnuncioTruco = () => document.getElementById('anuncioTruco')?.classList.remove('visivel');
+})();
+
 (() => {
   'use strict';
   const socket = window.trucoSocket;
   if (!socket) return;
-
   socket.on('roundResult', ({ winner }) => {
     const mesaCartas = document.getElementById('mesaCartas');
     if (!mesaCartas) return;
-
-    // Não recria nem reposiciona as cartas. Isso evita piscar, sobreposição
-    // artificial e perda do alinhamento rotacional da mesa.
-    mesaCartas.querySelectorAll('.cartaMesa-destaque').forEach(card => {
-      card.classList.remove('cartaMesa-destaque');
-    });
-
-    const winnerCard = Array.from(mesaCartas.children)
-      .find(card => String(card.dataset.cardPlayer) === String(winner));
-
+    mesaCartas.querySelectorAll('.cartaMesa-destaque').forEach(card => card.classList.remove('cartaMesa-destaque'));
+    const winnerCard = Array.from(mesaCartas.children).find(card => String(card.dataset.cardPlayer) === String(winner));
     if (winnerCard) winnerCard.classList.add('cartaMesa-destaque');
   });
 })();
