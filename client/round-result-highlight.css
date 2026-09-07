@@ -8,6 +8,11 @@
   z-index: 10001 !important;
 }
 
+/* Entrada suave: a carta chega à mesa sem piscar e sem alterar sua rotação. */
+.cartaMesa {
+  transition: translate .34s cubic-bezier(.22,.72,.25,1), opacity .24s ease;
+}
+
 .cartaMesa-destaque {
   z-index: 30 !important;
   scale: 1.08;
