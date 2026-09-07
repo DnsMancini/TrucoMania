@@ -2,3 +2,7 @@
 
 /* As cartas da mao nao devem saltar/ganhar destaque ao passar o mouse. */
 #mao .playerCard:hover { transform:none !important; z-index:auto !important; }
+
+/* Vira/manilha: deve permanecer visivel no centro da mesa durante a mao. */
+#vira { display:flex !important; visibility:visible !important; opacity:1 !important; z-index:2500 !important; pointer-events:none !important; }
+#vira.oculto { display:none !important; }
