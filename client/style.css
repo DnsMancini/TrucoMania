@@ -26,6 +26,23 @@
 @keyframes cartaMesaCairCima { from { opacity:0; translate:0 -48px; } to { opacity:1; translate:0 0; } }
 @keyframes cartaMesaCairDireita { from { opacity:0; translate:48px 0; } to { opacity:1; translate:0 0; } }
 
+/* Blindagem final: mesmo que uma versão antiga do JS/CSS reapareça, a carta vencedora
+   usa exatamente a mesma aparência, sombra, borda, escala e queda das demais. */
+#mesaCartas .cartaMesa.cartaMesa-destaque,
+#mesaCartas .cartaMesa.cartaMesa-destaque:hover,
+#mesaCartas .cartaMesa.cartaMesa-destaque:active {
+  scale:1 !important;
+  translate:0 0 !important;
+  filter:none !important;
+  outline:none !important;
+  border:1px solid rgba(0,0,0,.2) !important;
+  box-shadow:0 10px 18px rgba(0,0,0,.45),inset 0 2px 3px rgba(255,255,255,.9) !important;
+}
+#mesaCartas .cartaMesa.cartaMesa-destaque.c0 { transform:translate(-50%,-50%) rotate(0deg) !important; animation-name:cartaMesaCairBaixo !important; }
+#mesaCartas .cartaMesa.cartaMesa-destaque.c1 { transform:translate(-50%,-50%) rotate(90deg) !important; animation-name:cartaMesaCairEsquerda !important; }
+#mesaCartas .cartaMesa.cartaMesa-destaque.c2 { transform:translate(-50%,-50%) rotate(180deg) !important; animation-name:cartaMesaCairCima !important; }
+#mesaCartas .cartaMesa.cartaMesa-destaque.c3 { transform:translate(-50%,-50%) rotate(-90deg) !important; animation-name:cartaMesaCairDireita !important; }
+
 @media (min-width:769px) {
   :root { --table-size:min(100vw,100vh); }
   body { background:#07130d; }
