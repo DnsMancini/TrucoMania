@@ -16,10 +16,19 @@ body {
     #070807;
 }
 
-/* A mesa continua usando exatamente o mesmo elemento e dimensões,
-   preservando as posições calculadas pelo jogo. */
+/* A mesa passa a usar 100vw de diâmetro: encosta nas duas bordas laterais
+   e continua perfeitamente circular. O mesmo tamanho é compartilhado com
+   a camada de jogo para preservar a geometria dos elementos da partida. */
+:root {
+  --table-size: 100vw;
+}
+
 .mesa {
   box-sizing: border-box;
+  width: var(--table-size);
+  height: var(--table-size);
+  max-width: none;
+  max-height: none;
   border: clamp(7px, 1.2vw, 14px) solid var(--table-item1-rim);
   outline: 1px solid rgba(226, 174, 91, .48);
   background-color: var(--table-item1-felt);
@@ -72,6 +81,10 @@ body {
 
 @media (max-width: 900px) {
   .mesa {
+    width: 100vw;
+    height: 100vw;
+    max-width: none;
+    max-height: none;
     border-width: clamp(5px, 1.5vw, 9px);
     box-shadow:
       inset 0 0 0 1px rgba(236, 190, 108, .2),
