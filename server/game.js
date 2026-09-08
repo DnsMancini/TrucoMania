@@ -158,7 +158,23 @@ class Game4P extends BaseGame4P {
     }
 
     const strongestTeams = [...new Set(strongestPlayers.map(i => i % 2))];
-    const winnerPlayer = strongestTeams.length === 1 ? strongestPlayers[0] : -1;
+
+    // Quando dois jogadores da mesma equipe empatam na maior carta,
+    // quem venceu a rodada para efeito de saída da próxima é quem jogou
+    // primeiro entre os empatados. Isso evita trocar o starter para o
+    // parceiro apenas por causa do índice do jogador.
+    let winnerPlayer = -1;
+    if (strongestTeams.length === 1 && strongestPlayers.length > 0) {
+      const starter = this.roundStarter;
+      for (let offset = 0; offset < NUM_PLAYERS; offset++) {
+        const candidate = (starter - offset + NUM_PLAYERS) % NUM_PLAYERS;
+        if (strongestPlayers.includes(candidate)) {
+          winnerPlayer = candidate;
+          break;
+        }
+      }
+    }
+
     const winnerTeam = winnerPlayer === -1 ? -1 : winnerPlayer % 2;
 
     this.roundWinners[this.currentRound] = winnerTeam;
@@ -189,6 +205,9 @@ class Game4P extends BaseGame4P {
     this.currentRound++;
     this.playersInRound = 0;
 
+    // O jogador que efetivamente venceu a rodada começa a próxima.
+    // Em empate de maior carta na mesma equipe, o desempate acima usa a ordem
+    // real de jogo, preservando exatamente quem fez a última rodada.
     const nextRoundStarter = winnerPlayer !== -1 ? winnerPlayer : this.roundStarter;
     this.roundStarter = nextRoundStarter;
     this.currentPlayer = nextRoundStarter;
