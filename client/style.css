@@ -5,6 +5,7 @@
 @import url("/btn-sair-sala.css?v=2");
 @import url("/game-events.css?v=2");
 @import url("/avatar-card-position.css?v=2");
+@import url("/table-stage-item1.css?v=2");
 
 .game-button { min-width:108px; height:38px; padding:0 12px; border-radius:9px; font-size:12px; letter-spacing:.4px; transform:none; }
 .game-button:hover { transform:translateY(-1px); }
