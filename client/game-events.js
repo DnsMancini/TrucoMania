@@ -287,7 +287,6 @@
 
   const originalEmit = socket.emit.bind(socket);
   socket.emit = function (eventName, ...args) {
-    if (!shareEmitOriginal) shareEmitOriginal = originalEmit;
     const last = args[args.length - 1];
     if (typeof last === 'function' && ['createRoom', 'joinRoom', 'randomMatch'].includes(eventName)) {
       args[args.length - 1] = function (res, ...rest) {
@@ -301,4 +300,86 @@
   socket.on('gameStateRestore', data => setRoomCode(data?.roomCode));
   socket.on('handStart', data => setRoomCode(data?.roomCode));
   socket.on('setStart', data => setRoomCode(data?.roomCode));
+})();
+
+// Pressionar e segurar a própria carta encobre/revela somente no cliente.
+// Toque normal continua jogando a carta normalmente.
+(() => {
+  'use strict';
+
+  const HOLD_MS = 500;
+  let holdTimer = null;
+  let holdCard = null;
+  let suppressClick = null;
+
+  const isOwnCard = target => target?.closest?.('#mao .playerCard');
+
+  const guardarFrente = card => {
+    if (!card.dataset.faceHtml && !card.classList.contains('virada')) {
+      card.dataset.faceHtml = card.innerHTML;
+    }
+  };
+
+  const encobrirOuRevelar = card => {
+    if (!card || card.classList.contains('mao-de-ferro')) return;
+    guardarFrente(card);
+    const escondida = card.classList.toggle('virada');
+    if (escondida) {
+      card.innerHTML = '';
+      card.setAttribute('aria-pressed', 'true');
+      card.dataset.encoberta = '1';
+    } else {
+      card.innerHTML = card.dataset.faceHtml || '';
+      card.setAttribute('aria-pressed', 'false');
+      card.dataset.encoberta = '0';
+    }
+    suppressClick = card;
+  };
+
+  const cancelarHold = () => {
+    if (holdTimer) clearTimeout(holdTimer);
+    holdTimer = null;
+    holdCard = null;
+  };
+
+  const iniciarHold = event => {
+    const card = isOwnCard(event.target);
+    if (!card || card.classList.contains('virada') && !card.dataset.faceHtml) return;
+    guardarFrente(card);
+    cancelarHold();
+    holdCard = card;
+    holdTimer = setTimeout(() => {
+      if (!holdCard?.isConnected) return cancelarHold();
+      encobrirOuRevelar(holdCard);
+      holdTimer = null;
+    }, HOLD_MS);
+  };
+
+  const finalizarHold = () => cancelarHold();
+
+  const instalar = () => {
+    const mao = document.getElementById('mao');
+    if (!mao || mao.dataset.holdCoverInstalled === '1') return;
+    mao.dataset.holdCoverInstalled = '1';
+
+    mao.addEventListener('pointerdown', iniciarHold, { passive: true });
+    mao.addEventListener('pointerup', finalizarHold, { passive: true });
+    mao.addEventListener('pointercancel', finalizarHold, { passive: true });
+    mao.addEventListener('pointerleave', finalizarHold, { passive: true });
+
+    document.addEventListener('click', event => {
+      if (suppressClick && event.target.closest?.('#mao .playerCard') === suppressClick) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        suppressClick = null;
+      }
+    }, true);
+
+    mao.addEventListener('contextmenu', event => {
+      if (isOwnCard(event.target)) event.preventDefault();
+    });
+  };
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', instalar, { once: true });
+  else instalar();
 })();
