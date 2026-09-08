@@ -275,16 +275,24 @@ function updatePlayerNames(players) {
   for (let i = 0; i < 4; i++) { const slotEl = nomesSlots[SLOT_ORDER[i]]; const player = rotatedPlayers[i]; if (slotEl) slotEl.textContent = (player?.name || '') + (player?.isBot ? ' (Bot)' : ''); }
 }
 
-function addTableCard(player, card, round, hidden = false) {
+function addTableCard(player, card, round, hidden = false, animate = true) {
   if (player === undefined || player === null) return;
   const existing = mesaCartas.querySelector(`[data-card-player="${player}"][data-card-round="${round}"]`); if (existing) return;
   const rotatedPlayers = rotateArrayForPlayer([0, 1, 2, 3], myPlayerIndex); const relPos = rotatedPlayers.indexOf(player); const posicoes = ['c0', 'c3', 'c2', 'c1'];
-  const cartaDiv = document.createElement('div'); cartaDiv.className = `cartaMesa ${posicoes[relPos >= 0 ? relPos : player]}`; cartaDiv.dataset.cardPlayer = String(player); cartaDiv.dataset.cardRound = String(round); cartaDiv.innerHTML = hidden ? '<div class="carta virada"></div>' : createCardHTML(card); mesaCartas.appendChild(cartaDiv);
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    if (cartaDiv.isConnected) cartaDiv.style.translate = '0 0';
-  }));
+  const cartaDiv = document.createElement('div'); cartaDiv.className = `cartaMesa ${posicoes[relPos >= 0 ? relPos : player]}`; cartaDiv.dataset.cardPlayer = String(player); cartaDiv.dataset.cardRound = String(round); cartaDiv.innerHTML = hidden ? '<div class="carta virada"></div>' : createCardHTML(card);
+  if (!animate) {
+    cartaDiv.style.opacity = '1';
+    cartaDiv.style.animation = 'none';
+    cartaDiv.style.translate = '0 0';
+  }
+  mesaCartas.appendChild(cartaDiv);
+  if (animate) {
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      if (cartaDiv.isConnected) cartaDiv.style.translate = '0 0';
+    }));
+  }
 }
-function renderCurrentRound(roundCards, round) { mesaCartas.innerHTML = ''; renderedRound = round; const current = roundCards?.[round] || []; for (let player = 0; player < 4; player++) { const card = current[player]; if (card) addTableCard(player, card, round, isMaoDeFerro || card.hidden === true); } }
+function renderCurrentRound(roundCards, round) { mesaCartas.innerHTML = ''; renderedRound = round; const current = roundCards?.[round] || []; for (let player = 0; player < 4; player++) { const card = current[player]; if (card) addTableCard(player, card, round, isMaoDeFerro || card.hidden === true, false); } }
 
 socket.on('handStart', (data) => {
   const loadingOverlay = document.getElementById('contagemRegressiva'); loadingOverlay?.classList.add('oculto'); loadingOverlay?.classList.remove('matchmaking-active'); if (loadingOverlay) loadingOverlay.style.display = 'none';
