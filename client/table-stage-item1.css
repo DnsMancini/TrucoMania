@@ -20,6 +20,19 @@
   background-repeat: no-repeat;
 }
 
+/* Carta escolhida: sobe sem alterar o tamanho da mão. */
+#mao .playerCard.carta-selecionada {
+  transform: translateY(-22px);
+  z-index: 20;
+  transition: transform 120ms ease;
+}
+
+#mao .playerCard {
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 @media (max-width: 900px) {
   .mesa {
     width: 100vw;
@@ -31,4 +44,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .mesa { transition: none !important; }
+  #mao .playerCard.carta-selecionada { transition: none !important; }
 }
