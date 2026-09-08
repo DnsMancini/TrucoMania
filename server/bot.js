@@ -153,57 +153,71 @@ function chooseCard(hand, viraRank, context = {}) {
   const teammateWinning = Boolean(teammateCard && cardStrength(teammateCard, viraRank) === strongestOnTable);
   const beatingCards = validCards.filter(item => item.strength > strongestOnTable).sort((a, b) => a.strength - b.strength);
   const sortedAsc = validCards.slice().sort((a, b) => a.strength - b.strength);
+  const sortedDesc = validCards.slice().sort((a, b) => b.strength - a.strength);
+  const manilhaCards = validCards.filter(item => item.strength >= 11).sort((a, b) => a.strength - b.strength);
+  const discardCards = validCards.filter(item => item.strength < 11).sort((a, b) => a.strength - b.strength);
+  const hasFutureRound = currentRound < 2 && cardsRemainingAfterPlay > 0;
+  const lastOpportunity = currentRound >= 2 || cardsRemainingAfterPlay === 0;
 
-  // Se o parceiro já está ganhando, não queima uma carta boa. Na última carta,
-  // porém, não existe mais o que preservar: joga a menor disponível.
+  // Se o parceiro já está ganhando, não há motivo para queimar carta boa.
+  // A exceção é a última oportunidade, quando não existe rodada futura para
+  // guardar a carta.
   if (teammateWinning && strongestOnTable > -Infinity) {
+    if (lastOpportunity) return sortedAsc[0].card;
+    if (discardCards.length) return discardCards[0].card;
     return sortedAsc[0].card;
   }
 
-  // Se ninguém colocou carta, a saída deve administrar a mão inteira.
+  // Se ninguém colocou carta, administra a mão pensando nas próximas rodadas.
   if (strongestOnTable === -Infinity) {
+    if (lastOpportunity) return sortedAsc[0].card;
     if (currentRound === 0) {
+      if (discardCards.length && manilhaCards.length) {
+        const r = Math.random();
+        if (r < 0.70) return discardCards[0].card;
+      }
       if (info.top >= 14 && info.second >= 10 && Math.random() < 0.20) {
         return validCards.find(item => item.strength === info.second)?.card || sortedAsc[0].card;
       }
       const r = Math.random();
       if (r < 0.58) return sortedAsc[0].card;
       if (r < 0.88) return sortedAsc[Math.min(1, sortedAsc.length - 1)].card;
-      return validCards.slice().sort((a, b) => b.strength - a.strength)[0].card;
+      return sortedDesc[0].card;
     }
-    if (ownRounds > oppRounds) return sortedAsc[Math.min(1, sortedAsc.length - 1)].card;
-    if (oppRounds > ownRounds || pressure > 0.10) return validCards.slice().sort((a, b) => b.strength - a.strength)[0].card;
-    return sortedAsc[Math.min(1, sortedAsc.length - 1)].card;
+    if (discardCards.length) {
+      if (oppRounds > ownRounds || pressure > 0.10) return sortedAsc[Math.min(1, discardCards.length - 1)].card;
+      return discardCards[0].card;
+    }
+    return sortedAsc[0].card;
   }
 
-  // Se há como ganhar, usa a menor carta que ganha. Isso evita gastar uma
-  // manilha superior quando uma inferior já resolve a rodada.
+  // Se consegue ganhar, normalmente usa a menor carta que resolve a rodada.
+  // Mas ganhar uma rodada não justifica automaticamente gastar uma manilha:
+  // se ainda há rodada futura, só queima a manilha quando não houver descarte
+  // seguro ou quando a situação da partida pedir reação.
   if (beatingCards.length) {
     const cheapestWinner = beatingCards[0];
-    const strongest = validCards.slice().sort((a, b) => b.strength - a.strength)[0];
-
-    // Se ainda haverá rodada e a única forma de ganhar é gastar uma carta
-    // muito valiosa, preservar pode ser melhor que ganhar uma rodada pequena.
-    // Na última carta não preservamos: é a última oportunidade.
-    const onlyWinner = beatingCards.length === 1;
-    const isVeryStrong = cheapestWinner.strength >= 11;
-    const canPreserve = cardsRemainingAfterPlay > 0 && onlyWinner && isVeryStrong;
+    const nonManilhaWinner = beatingCards.find(item => item.strength < 11);
+    const strongest = sortedDesc[0];
+    const winningManilha = cheapestWinner.strength >= 11;
+    const canPreserveWinningManilha = hasFutureRound && winningManilha && discardCards.length > 0 && !nonManilhaWinner;
     const trailing = oppRounds > ownRounds;
+    const opponentHasRoundAdvantage = oppRounds > ownRounds || (oppRounds === ownRounds && pressure > 0.10);
 
-    if (canPreserve && !trailing && currentRound < 2) {
-      return sortedAsc[0].card;
+    if (canPreserveWinningManilha && !trailing && !opponentHasRoundAdvantage) {
+      return discardCards[0].card;
     }
 
-    // Se temos mais de uma carta capaz de ganhar, sempre usamos a mais barata.
-    // Se estamos na última carta, isso também é obrigatório do ponto de vista
-    // estratégico: não existe rodada futura para guardar a carta.
+    // Se há mais de uma carta vencedora, pega a menor. Na última oportunidade
+    // não há razão para preservar uma carta que não poderá ser usada depois.
     return cheapestWinner.card || strongest.card;
   }
 
-  // Não dá para ganhar a rodada. Aqui está a regra de preservação:
-  // com cartas futuras, descarta a menor e guarda as fortes; na última carta,
-  // simplesmente joga a única carta que restou.
-  if (cardsRemainingAfterPlay > 0) {
+  // Não consegue ganhar. Prioridade absoluta aqui é preservar manilhas/fortes
+  // enquanto houver uma rodada futura: descarta a menor carta não-manilha.
+  // Somente na última oportunidade aceitamos gastar a carta forte.
+  if (hasFutureRound) {
+    if (discardCards.length) return discardCards[0].card;
     return sortedAsc[0].card;
   }
 
