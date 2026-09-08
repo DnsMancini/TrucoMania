@@ -138,8 +138,6 @@
   else instalar();
 })();
 
-// Cartas restauradas pelo gameStateRestore devem aparecer prontas, sem repetir
-// a animação de queda. Cartas jogadas normalmente continuam animadas.
 (() => {
   'use strict';
   const neutralizarAnimacaoRestaurada = () => {
@@ -157,89 +155,51 @@
     const mesa = document.getElementById('mesaCartas');
     if (!socket || !mesa || mesa.dataset.restoreAnimationFix === '1') return;
     mesa.dataset.restoreAnimationFix = '1';
-
     let restaurando = false;
     let timer = null;
-
-    const observer = new MutationObserver(() => {
-      if (restaurando) neutralizarAnimacaoRestaurada();
-    });
+    const observer = new MutationObserver(() => { if (restaurando) neutralizarAnimacaoRestaurada(); });
     observer.observe(mesa, { childList: true, subtree: true });
-
     socket.on('gameStateRestore', () => {
       restaurando = true;
       neutralizarAnimacaoRestaurada();
       clearTimeout(timer);
-      timer = setTimeout(() => {
-        restaurando = false;
-      }, 250);
+      timer = setTimeout(() => { restaurando = false; }, 250);
     });
   };
-
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', instalar, { once: true });
   else instalar();
 })();
 
-// O game.js toca audioNove/audioSeis/audioDoze em handEnd apenas porque o placar
-// final pode conter 9/6/12. Isso faz o som tocar ao CORRER quando o placar já está
-// nesses valores. Esses sons devem ficar reservados para TRUCO 6/9/12.
 (() => {
   'use strict';
   const socket = window.trucoSocket;
   if (!socket || typeof socket.onevent !== 'function') return;
-
   const originalOnevent = socket.onevent.bind(socket);
   socket.onevent = function (packet) {
     const eventName = packet?.data?.[0];
     if (eventName !== 'handEnd') return originalOnevent(packet);
-
-    const audios = ['audioSeis', 'audioNove', 'audioDoze']
-      .map(id => document.getElementById(id))
-      .filter(Boolean);
+    const audios = ['audioSeis', 'audioNove', 'audioDoze'].map(id => document.getElementById(id)).filter(Boolean);
     const originalPlay = new Map();
-
-    audios.forEach(audio => {
-      originalPlay.set(audio, audio.play);
-      audio.play = () => Promise.resolve();
-    });
-
-    try {
-      return originalOnevent(packet);
-    } finally {
-      audios.forEach(audio => {
-        const play = originalPlay.get(audio);
-        if (play) audio.play = play;
-      });
-    }
+    audios.forEach(audio => { originalPlay.set(audio, audio.play); audio.play = () => Promise.resolve(); });
+    try { return originalOnevent(packet); }
+    finally { audios.forEach(audio => { const play = originalPlay.get(audio); if (play) audio.play = play; }); }
   };
 })();
 
-// Compartilhar sala: manter apenas um ícone discreto e mostrar o código ao toque/hover.
 (() => {
   'use strict';
   const socket = window.trucoSocket;
   if (!socket) return;
-
   let roomCode = null;
   let shareButton = null;
   let codeHint = null;
   let shareEmitOriginal = null;
-
-  const normalizarCodigo = value => {
-    const code = String(value ?? '').trim().toUpperCase();
-    return code || null;
-  };
-
-  const atualizarHint = () => {
-    if (!codeHint) return;
-    codeHint.textContent = roomCode ? `Código da sala: ${roomCode}` : 'Código da sala indisponível';
-  };
-
+  const normalizarCodigo = value => { const code = String(value ?? '').trim().toUpperCase(); return code || null; };
+  const atualizarHint = () => { if (!codeHint) return; codeHint.textContent = roomCode ? `Código da sala: ${roomCode}` : 'Código da sala indisponível'; };
   const criarUI = () => {
     if (shareButton) return;
     const gameWrapper = document.getElementById('gameWrapper');
     if (!gameWrapper) return;
-
     const container = document.createElement('div');
     container.id = 'compartilharSala';
     container.innerHTML = '<button id="btnCompartilharSala" type="button" aria-label="Compartilhar sala" title="Compartilhar sala">↗</button><div id="codigoSalaHint" role="status"></div>';
@@ -247,13 +207,8 @@
     shareButton = container.querySelector('#btnCompartilharSala');
     codeHint = container.querySelector('#codigoSalaHint');
     atualizarHint();
-
-    const mostrarCodigo = () => {
-      container.classList.add('mostrar-codigo');
-      atualizarHint();
-    };
+    const mostrarCodigo = () => { container.classList.add('mostrar-codigo'); atualizarHint(); };
     const esconderCodigo = () => container.classList.remove('mostrar-codigo');
-
     shareButton.addEventListener('mouseenter', mostrarCodigo);
     shareButton.addEventListener('mouseleave', esconderCodigo);
     shareButton.addEventListener('focus', mostrarCodigo);
@@ -276,110 +231,106 @@
       } catch (_) {}
     });
   };
-
-  const setRoomCode = code => {
-    const normalized = normalizarCodigo(code);
-    if (!normalized) return;
-    roomCode = normalized;
-    criarUI();
-    atualizarHint();
-  };
-
+  const setRoomCode = code => { const normalized = normalizarCodigo(code); if (!normalized) return; roomCode = normalized; criarUI(); atualizarHint(); };
   const originalEmit = socket.emit.bind(socket);
   socket.emit = function (eventName, ...args) {
+    if (!shareEmitOriginal) shareEmitOriginal = originalEmit;
     const last = args[args.length - 1];
     if (typeof last === 'function' && ['createRoom', 'joinRoom', 'randomMatch'].includes(eventName)) {
-      args[args.length - 1] = function (res, ...rest) {
-        if (res?.roomCode) setRoomCode(res.roomCode);
-        return last.call(this, res, ...rest);
-      };
+      args[args.length - 1] = function (res, ...rest) { if (res?.roomCode) setRoomCode(res.roomCode); return last.call(this, res, ...rest); };
     }
     return originalEmit(eventName, ...args);
   };
-
   socket.on('gameStateRestore', data => setRoomCode(data?.roomCode));
   socket.on('handStart', data => setRoomCode(data?.roomCode));
   socket.on('setStart', data => setRoomCode(data?.roomCode));
 })();
 
-// Pressionar e segurar a própria carta encobre/revela somente no cliente.
-// Toque normal continua jogando a carta normalmente.
+// Interação da mão: toque seleciona, segundo toque joga; pressão longa encobre/desencobre.
 (() => {
   'use strict';
-
   const HOLD_MS = 500;
-  let holdTimer = null;
-  let holdCard = null;
-  let suppressClick = null;
+  const mao = document.getElementById('mao');
+  if (!mao || mao.dataset.cardInteractionInstalled === '1') return;
+  mao.dataset.cardInteractionInstalled = '1';
 
-  const isOwnCard = target => target?.closest?.('#mao .playerCard');
+  let press = null;
+  const getCard = target => target?.closest?.('#mao .playerCard');
+  const getCards = () => [...mao.querySelectorAll('.playerCard')];
+  const clearSelection = except => getCards().forEach(card => { if (card !== except) card.classList.remove('carta-selecionada'); });
+  const cancelPress = () => { if (!press) return; clearTimeout(press.timer); press = null; };
 
-  const guardarFrente = card => {
-    if (!card.dataset.faceHtml && !card.classList.contains('virada')) {
-      card.dataset.faceHtml = card.innerHTML;
+  const restoreCardFace = card => {
+    const key = card.dataset.cardKey || '';
+    const [suit, rank] = key.split(':');
+    if (!suit || !rank || suit === 'blind') return;
+    const symbol = { paus:'♣', copas:'♥', espadas:'♠', ouros:'♦' }[suit] || suit;
+    const color = (suit === 'copas' || suit === 'ouros') ? 'naipe-vermelho' : 'naipe-preto';
+    card.innerHTML = `<div class="carta-corner top-left ${color}">${rank}${symbol}</div><div class="carta-center ${color}">${rank}${symbol}</div><div class="carta-corner bottom-right ${color}">${rank}${symbol}</div>`;
+  };
+
+  const toggleHidden = card => {
+    if (!card) return;
+    const hidden = card.classList.toggle('virada');
+    card.classList.remove('carta-selecionada');
+    card.dataset.hiddenByUser = hidden ? '1' : '0';
+    if (hidden) card.innerHTML = '';
+    else restoreCardFace(card);
+  };
+
+  const playCard = card => {
+    if (!window.gameActive || !window.isMyTurn) return;
+    const cards = getCards();
+    const index = cards.indexOf(card);
+    if (index < 0) return;
+    const key = card.dataset.cardKey || '';
+    const [suit, rank] = key.split(':');
+    if (window.isMaoDeFerro || key.startsWith('blind:')) {
+      const blindIndex = key.startsWith('blind:') ? Number(key.slice(6)) : index;
+      window.trucoSocket?.emit('playCard', { blindIndex });
+    } else if (suit && rank) {
+      window.trucoSocket?.emit('playCard', { suit, rank });
     }
+    card.classList.remove('carta-selecionada');
+    if (typeof window.clearTurnTimer === 'function') window.clearTurnTimer();
   };
 
-  const encobrirOuRevelar = card => {
-    if (!card || card.classList.contains('mao-de-ferro')) return;
-    guardarFrente(card);
-    const escondida = card.classList.toggle('virada');
-    if (escondida) {
-      card.innerHTML = '';
-      card.setAttribute('aria-pressed', 'true');
-      card.dataset.encoberta = '1';
-    } else {
-      card.innerHTML = card.dataset.faceHtml || '';
-      card.setAttribute('aria-pressed', 'false');
-      card.dataset.encoberta = '0';
-    }
-    suppressClick = card;
-  };
-
-  const cancelarHold = () => {
-    if (holdTimer) clearTimeout(holdTimer);
-    holdTimer = null;
-    holdCard = null;
-  };
-
-  const iniciarHold = event => {
-    const card = isOwnCard(event.target);
-    if (!card || card.classList.contains('virada') && !card.dataset.faceHtml) return;
-    guardarFrente(card);
-    cancelarHold();
-    holdCard = card;
-    holdTimer = setTimeout(() => {
-      if (!holdCard?.isConnected) return cancelarHold();
-      encobrirOuRevelar(holdCard);
-      holdTimer = null;
+  mao.addEventListener('pointerdown', event => {
+    const card = getCard(event.target);
+    if (!card) return;
+    cancelPress();
+    press = { card, startX: event.clientX, startY: event.clientY, long: false, timer: null };
+    press.timer = setTimeout(() => {
+      if (!press || press.card !== card) return;
+      press.long = true;
+      toggleHidden(card);
     }, HOLD_MS);
-  };
+  }, true);
 
-  const finalizarHold = () => cancelarHold();
+  mao.addEventListener('pointermove', event => {
+    if (!press) return;
+    if (Math.abs(event.clientX - press.startX) > 12 || Math.abs(event.clientY - press.startY) > 12) {
+      press.moved = true;
+      clearTimeout(press.timer);
+    }
+  }, true);
 
-  const instalar = () => {
-    const mao = document.getElementById('mao');
-    if (!mao || mao.dataset.holdCoverInstalled === '1') return;
-    mao.dataset.holdCoverInstalled = '1';
+  mao.addEventListener('pointerup', () => {
+    if (!press) return;
+    const current = press;
+    clearTimeout(current.timer);
+    press = null;
+    if (current.moved || current.long) return;
+    const card = current.card;
+    if (card.classList.contains('carta-selecionada')) playCard(card);
+    else { clearSelection(card); card.classList.add('carta-selecionada'); }
+  }, true);
 
-    mao.addEventListener('pointerdown', iniciarHold, { passive: true });
-    mao.addEventListener('pointerup', finalizarHold, { passive: true });
-    mao.addEventListener('pointercancel', finalizarHold, { passive: true });
-    mao.addEventListener('pointerleave', finalizarHold, { passive: true });
-
-    document.addEventListener('click', event => {
-      if (suppressClick && event.target.closest?.('#mao .playerCard') === suppressClick) {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        suppressClick = null;
-      }
-    }, true);
-
-    mao.addEventListener('contextmenu', event => {
-      if (isOwnCard(event.target)) event.preventDefault();
-    });
-  };
-
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', instalar, { once: true });
-  else instalar();
+  mao.addEventListener('pointercancel', cancelPress, true);
+  mao.addEventListener('click', event => {
+    const card = getCard(event.target);
+    if (!card) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }, true);
 })();
