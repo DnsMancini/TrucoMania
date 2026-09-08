@@ -179,3 +179,37 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', instalar, { once: true });
   else instalar();
 })();
+
+// O game.js toca audioNove/audioSeis/audioDoze em handEnd apenas porque o placar
+// final pode conter 9/6/12. Isso faz o som tocar ao CORRER quando o placar já está
+// nesses valores. Esses sons devem ficar reservados para TRUCO 6/9/12.
+(() => {
+  'use strict';
+  const socket = window.trucoSocket;
+  if (!socket || typeof socket.onevent !== 'function') return;
+
+  const originalOnevent = socket.onevent.bind(socket);
+  socket.onevent = function (packet) {
+    const eventName = packet?.data?.[0];
+    if (eventName !== 'handEnd') return originalOnevent(packet);
+
+    const audios = ['audioSeis', 'audioNove', 'audioDoze']
+      .map(id => document.getElementById(id))
+      .filter(Boolean);
+    const originalPlay = new Map();
+
+    audios.forEach(audio => {
+      originalPlay.set(audio, audio.play);
+      audio.play = () => Promise.resolve();
+    });
+
+    try {
+      return originalOnevent(packet);
+    } finally {
+      audios.forEach(audio => {
+        const play = originalPlay.get(audio);
+        if (play) audio.play = play;
+      });
+    }
+  };
+})();
