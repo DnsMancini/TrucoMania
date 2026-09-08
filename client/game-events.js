@@ -213,3 +213,92 @@
     }
   };
 })();
+
+// Compartilhar sala: manter apenas um ícone discreto e mostrar o código ao toque/hover.
+(() => {
+  'use strict';
+  const socket = window.trucoSocket;
+  if (!socket) return;
+
+  let roomCode = null;
+  let shareButton = null;
+  let codeHint = null;
+  let shareEmitOriginal = null;
+
+  const normalizarCodigo = value => {
+    const code = String(value ?? '').trim().toUpperCase();
+    return code || null;
+  };
+
+  const atualizarHint = () => {
+    if (!codeHint) return;
+    codeHint.textContent = roomCode ? `Código da sala: ${roomCode}` : 'Código da sala indisponível';
+  };
+
+  const criarUI = () => {
+    if (shareButton) return;
+    const gameWrapper = document.getElementById('gameWrapper');
+    if (!gameWrapper) return;
+
+    const container = document.createElement('div');
+    container.id = 'compartilharSala';
+    container.innerHTML = '<button id="btnCompartilharSala" type="button" aria-label="Compartilhar sala" title="Compartilhar sala">↗</button><div id="codigoSalaHint" role="status"></div>';
+    gameWrapper.appendChild(container);
+    shareButton = container.querySelector('#btnCompartilharSala');
+    codeHint = container.querySelector('#codigoSalaHint');
+    atualizarHint();
+
+    const mostrarCodigo = () => {
+      container.classList.add('mostrar-codigo');
+      atualizarHint();
+    };
+    const esconderCodigo = () => container.classList.remove('mostrar-codigo');
+
+    shareButton.addEventListener('mouseenter', mostrarCodigo);
+    shareButton.addEventListener('mouseleave', esconderCodigo);
+    shareButton.addEventListener('focus', mostrarCodigo);
+    shareButton.addEventListener('blur', esconderCodigo);
+    shareButton.addEventListener('touchstart', mostrarCodigo, { passive: true });
+    shareButton.addEventListener('touchend', () => setTimeout(esconderCodigo, 1800), { passive: true });
+    shareButton.addEventListener('click', async () => {
+      if (!roomCode) return;
+      const shareUrl = `${window.location.origin}/?room=${encodeURIComponent(roomCode)}`;
+      const shareData = { title: 'TrucoMania', text: `Entre na minha sala do TrucoMania. Código: ${roomCode}`, url: shareUrl };
+      try {
+        if (navigator.share) await navigator.share(shareData);
+        else if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(`${shareData.text}\n${shareUrl}`);
+          const old = codeHint.textContent;
+          codeHint.textContent = 'Link copiado!';
+          container.classList.add('mostrar-codigo');
+          setTimeout(() => { codeHint.textContent = old; }, 1500);
+        }
+      } catch (_) {}
+    });
+  };
+
+  const setRoomCode = code => {
+    const normalized = normalizarCodigo(code);
+    if (!normalized) return;
+    roomCode = normalized;
+    criarUI();
+    atualizarHint();
+  };
+
+  const originalEmit = socket.emit.bind(socket);
+  socket.emit = function (eventName, ...args) {
+    if (!shareEmitOriginal) shareEmitOriginal = originalEmit;
+    const last = args[args.length - 1];
+    if (typeof last === 'function' && ['createRoom', 'joinRoom', 'randomMatch'].includes(eventName)) {
+      args[args.length - 1] = function (res, ...rest) {
+        if (res?.roomCode) setRoomCode(res.roomCode);
+        return last.call(this, res, ...rest);
+      };
+    }
+    return originalEmit(eventName, ...args);
+  };
+
+  socket.on('gameStateRestore', data => setRoomCode(data?.roomCode));
+  socket.on('handStart', data => setRoomCode(data?.roomCode));
+  socket.on('setStart', data => setRoomCode(data?.roomCode));
+})();
