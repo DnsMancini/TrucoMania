@@ -103,17 +103,6 @@
     });
   }
 
-  function loadSocialModule() {
-    if (document.getElementById('trucomania-social-script')) return;
-    const script = document.createElement('script');
-    script.id = 'trucomania-social-script';
-    script.src = '/social.js?v=1';
-    script.async = true;
-    script.onload = () => console.info('[SOCIAL] Módulo de amigos carregado.');
-    script.onerror = () => console.error('[SOCIAL] Não foi possível carregar o módulo de amigos.');
-    document.body.appendChild(script);
-  }
-
   window.io = function (...args) {
     const socket = originalIo(...args);
     currentSocket = socket;
@@ -165,7 +154,6 @@
   };
 
   installAuthListener();
-  window.addEventListener('load', loadSocialModule, { once: true });
   console.info('[SOCKET-AUTH] Ponte Firebase → Socket.IO instalada.');
 })();
 
