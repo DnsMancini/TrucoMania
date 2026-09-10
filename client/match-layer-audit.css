@@ -40,12 +40,13 @@
 #mesaCartas .cartaMesa.c2 { animation-name: cartaMesaCairCima !important; }
 #mesaCartas .cartaMesa.c3 { animation-name: cartaMesaCairDireita !important; }
 
-/* Indicador de turno criado dinamicamente por game.js. */
+/* Indicador de turno criado dinamicamente por game.js.
+   Fica acima da mão e abaixo dos controles superiores. */
 #turnIndicator {
   position: fixed;
   width: 30px;
   height: 30px;
-  z-index: 2575;
+  z-index: 2680 !important;
   pointer-events: none;
   opacity: 0;
   visibility: hidden;
