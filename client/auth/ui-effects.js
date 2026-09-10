@@ -168,7 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (relPos < 0) return;
       const cartaDiv = document.createElement('div');
       cartaDiv.className = `cartaMesa ${posicoes[relPos]}`;
-      cartaDiv.innerHTML = createCardHTML(card);
+      cartaDiv.innerHTML = card.hidden ? '<div class="carta virada"></div>' : createCardHTML(card);
       mesa.appendChild(cartaDiv);
     });
   };
