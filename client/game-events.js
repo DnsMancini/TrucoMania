@@ -164,22 +164,6 @@
 (() => {
   'use strict';
   const socket = window.trucoSocket;
-  if (!socket || typeof socket.onevent !== 'function') return;
-  const originalOnevent = socket.onevent.bind(socket);
-  socket.onevent = function (packet) {
-    const eventName = packet?.data?.[0];
-    if (eventName !== 'handEnd') return originalOnevent(packet);
-    const audios = ['audioSeis', 'audioNove', 'audioDoze'].map(id => document.getElementById(id)).filter(Boolean);
-    const originalPlay = new Map();
-    audios.forEach(audio => { originalPlay.set(audio, audio.play); audio.play = () => Promise.resolve(); });
-    try { return originalOnevent(packet); }
-    finally { audios.forEach(audio => { const play = originalPlay.get(audio); if (play) play.call(audio); }); }
-  };
-})();
-
-(() => {
-  'use strict';
-  const socket = window.trucoSocket;
   if (!socket) return;
   let roomCode = null;
   let shareButton = null;
