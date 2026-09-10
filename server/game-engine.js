@@ -93,6 +93,7 @@ class Game4P {
   playCard(playerIndex, card) {
     if (!isValidPlayerIndex(playerIndex) || this.turnStage !== 'play' || playerIndex !== this.currentPlayer) return false;
     const hand = this.hands[playerIndex]; let cardIndex = -1;
+    const hidden = card?.hidden === true;
     if (isValidCard(card)) cardIndex = hand.findIndex(c => c.suit === card.suit && c.rank === card.rank);
     else if (this.maoDeFerro && isValidBlindIndex(card)) cardIndex = card.blindIndex;
     else return false;
@@ -100,10 +101,11 @@ class Game4P {
     if (!this.roundCards[this.currentRound]) this.roundCards[this.currentRound] = new Array(NUM_PLAYERS).fill(null);
     if (this.roundCards[this.currentRound][playerIndex]) return false;
     const played = hand.splice(cardIndex, 1)[0];
+    const publicCard = hidden || this.maoDeFerro ? { hidden: true } : played;
     if (this.offlineActionTimer) { clearTimeout(this.offlineActionTimer); this.offlineActionTimer = null; }
     if (this.playersInRound === 0) this.roundStarter = playerIndex;
-    this.roundCards[this.currentRound][playerIndex] = played; this.playersInRound++;
-    this.emit('cardPlayed', { player: playerIndex, card: played, round: this.currentRound }, 'all');
+    this.roundCards[this.currentRound][playerIndex] = publicCard; this.playersInRound++;
+    this.emit('cardPlayed', { player: playerIndex, card: publicCard, hidden: publicCard.hidden === true, round: this.currentRound }, 'all');
     if (this.playersInRound === NUM_PLAYERS) this.resolveRound();
     else { this.currentPlayer = (playerIndex + 3) % NUM_PLAYERS; this.emit('turn', { currentPlayer: this.currentPlayer }, 'all'); this.scheduleOfflineTurn(); }
     return true;
@@ -111,9 +113,9 @@ class Game4P {
 
   resolveRound() {
     const round = this.roundCards[this.currentRound] || []; let maxStrength = -Infinity;
-    for (const card of round) if (card) maxStrength = Math.max(maxStrength, cardStrength(card, this.vira.rank));
+    for (const card of round) if (card && !card.hidden) maxStrength = Math.max(maxStrength, cardStrength(card, this.vira.rank));
     const strongestPlayers = [];
-    for (let i = 0; i < NUM_PLAYERS; i++) { const card = round[i]; if (card && cardStrength(card, this.vira.rank) === maxStrength) strongestPlayers.push(i); }
+    for (let i = 0; i < NUM_PLAYERS; i++) { const card = round[i]; if (card && !card.hidden && cardStrength(card, this.vira.rank) === maxStrength) strongestPlayers.push(i); }
     const strongestTeams = [...new Set(strongestPlayers.map(i => i % 2))];
     const winnerPlayer = strongestTeams.length === 1 ? strongestPlayers[0] : -1; const winnerTeam = winnerPlayer === -1 ? -1 : winnerPlayer % 2;
     this.roundWinners[this.currentRound] = winnerTeam; if (winnerTeam !== -1) this.roundWins[winnerTeam]++;
