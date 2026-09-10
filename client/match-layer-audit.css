@@ -21,6 +21,19 @@
   z-index: 2900 !important;
 }
 
+/* Existe uma regra antiga de .cartaMesa injetada por leave-room.js.
+   Estas regras importantes tornam a animação declarada em style.css a única
+   animação efetiva, sem depender da ordem de execução dos scripts. */
+#mesaCartas .cartaMesa {
+  animation-duration: .65s !important;
+  animation-timing-function: cubic-bezier(.22,.75,.3,1) !important;
+  animation-fill-mode: forwards !important;
+}
+#mesaCartas .cartaMesa.c0 { animation-name: cartaMesaCairBaixo !important; }
+#mesaCartas .cartaMesa.c1 { animation-name: cartaMesaCairEsquerda !important; }
+#mesaCartas .cartaMesa.c2 { animation-name: cartaMesaCairCima !important; }
+#mesaCartas .cartaMesa.c3 { animation-name: cartaMesaCairDireita !important; }
+
 @media (max-width: 768px) {
   #btnSairSala {
     top: calc(var(--safe-top) + 8px) !important;
