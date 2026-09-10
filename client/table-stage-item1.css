@@ -68,12 +68,12 @@
 
 /*
    Hierarquia da mesa: a mão fica acima dos elementos do jogo,
-   mas abaixo dos overlays de resposta, compartilhamento, cronômetro e toast.
-   Isso evita que a mão com z-index 9999 cubra interfaces que precisam aparecer
-   por cima dela, sem alterar posição, tamanho ou interação das cartas.
+   mas abaixo dos botões e dos overlays da interface.
+   Isso evita que as cartas cubram os botões inferiores quando suas áreas se sobrepõem,
+   sem alterar posição, tamanho ou interação das cartas.
 */
 #mao {
-  z-index: 2700;
+  z-index: 2550;
 }
 
 @media (prefers-reduced-motion: reduce) {
