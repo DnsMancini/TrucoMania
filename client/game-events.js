@@ -235,15 +235,12 @@
   socket.on('setStart', data => setRoomCode(data?.roomCode));
 })();
 
-// Interação segura da mão: 1º toque seleciona, 2º toque joga; pressão longa encobre/revela.
-// Não usa capture de click para bloquear o game.js. A jogada é emitida aqui no pointerup.
 (() => {
   'use strict';
   const HOLD_MS = 500;
   const mao = document.getElementById('mao');
   if (!mao || mao.dataset.safeCardInteraction === '1') return;
   mao.dataset.safeCardInteraction = '1';
-
   let gesture = null;
   const cards = () => [...mao.querySelectorAll('.playerCard')];
   const cardFrom = target => target?.closest?.('#mao .playerCard');
@@ -263,15 +260,6 @@
     const parts = key.split(':');
     if (parts.length === 2 && parts[0] && parts[1]) window.trucoSocket?.emit('playCard', { suit: parts[0], rank: parts[1] });
   };
-  const restoreFace = card => {
-    const key = card.dataset.cardKey || '';
-    if (key.startsWith('blind:')) return;
-    const [suit, rank] = key.split(':');
-    if (!suit || !rank) return;
-    const symbol = { paus:'♣', copas:'♥', espadas:'♠', ouros:'♦' }[suit] || suit;
-    const color = (suit === 'copas' || suit === 'ouros') ? 'naipe-vermelho' : 'naipe-preto';
-    card.innerHTML = `<div class="carta-corner top-left ${color}">${rank}${symbol}</div><div class="carta-center ${color}">${rank}${symbol}</div><div class="carta-corner bottom-right ${color}">${rank}${symbol}</div>`;
-  };
   const toggleCover = card => {
     if (!card) return;
     if (!card.dataset.faceHtml && !card.classList.contains('virada')) card.dataset.faceHtml = card.innerHTML;
@@ -281,9 +269,7 @@
     card.setAttribute('aria-pressed', hidden ? 'true' : 'false');
     if (hidden) card.innerHTML = '';
     else card.innerHTML = card.dataset.faceHtml || '';
-    if (!hidden && !card.dataset.faceHtml) restoreFace(card);
   };
-
   mao.addEventListener('pointerdown', event => {
     const card = cardFrom(event.target);
     if (!card) return;
@@ -302,7 +288,6 @@
       }, HOLD_MS)
     };
   }, true);
-
   mao.addEventListener('pointermove', event => {
     if (!gesture) return;
     if (Math.abs(event.clientX - gesture.startX) > 12 || Math.abs(event.clientY - gesture.startY) > 12) {
@@ -310,14 +295,12 @@
       clearTimeout(gesture.timer);
     }
   }, true);
-
   mao.addEventListener('pointerup', event => {
     const current = gesture;
     if (!current || current.card !== cardFrom(event.target)) return;
     clearTimeout(current.timer);
     gesture = null;
     if (current.moved || current.long) return;
-
     const card = current.card;
     if (current.wasSelected) {
       emitCard(card);
@@ -327,16 +310,14 @@
       card.classList.add('carta-selecionada');
     }
   }, true);
-
   mao.addEventListener('pointercancel', () => {
     if (gesture?.timer) clearTimeout(gesture.timer);
     gesture = null;
   }, true);
-
+  // The game.js card click is intentionally suppressed: pointerup above is now the single source of truth.
   mao.addEventListener('click', event => {
-    const card = cardFrom(event.target);
-    if (!card) return;
-    // O click do navegador é apenas a continuação do pointerup acima.
-    // Não bloqueamos a propagação para não quebrar outras áreas do jogo.
-  }, false);
+    if (!cardFrom(event.target)) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }, true);
 })();
