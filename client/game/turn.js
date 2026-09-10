@@ -35,4 +35,7 @@
     startTurnTimer,
     clearTurnTimer
   };
+
+  window.startTurnTimer = startTurnTimer;
+  window.clearTurnTimer = clearTurnTimer;
 })();
