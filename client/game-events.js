@@ -1,18 +1,15 @@
 (() => {
   'use strict';
-
   const setup = () => {
     if (document.getElementById('gameEventsInitialized')) return;
     const socket = window.trucoSocket;
     if (!socket) return;
-
     const panel = document.createElement('div');
     panel.id = 'painelEventosPartida';
     panel.setAttribute('aria-live', 'polite');
     panel.innerHTML = '<div class="eventos-partida-lista"></div><span id="gameEventsInitialized" hidden></span>';
     document.body.appendChild(panel);
     const list = panel.querySelector('.eventos-partida-lista');
-
     const addEvent = (text, type = '') => {
       if (!text) return;
       const item = document.createElement('div');
@@ -23,20 +20,16 @@
       requestAnimationFrame(() => item.classList.add('visivel'));
       setTimeout(() => { item.classList.remove('visivel'); setTimeout(() => item.remove(), 250); }, 4200);
     };
-
     const playerName = index => {
       const el = document.querySelector(`#p${index} .name, #p${index} .player-name`);
       return el?.textContent?.trim() || (index === window.myPlayerIndex ? 'Você' : `Jogador ${Number(index) + 1}`);
     };
-
     socket.on('handStart', data => {
       const round = data?.round ?? data?.hand ?? null;
       if (round != null) addEvent(`Rodada ${round}`, 'round');
       window.limparAnuncioTruco?.();
     });
-    socket.on('cardPlayed', data => {
-      addEvent(`${playerName(data?.playerIndex ?? data?.player ?? 0)} jogou uma carta.`);
-    });
+    socket.on('cardPlayed', data => addEvent(`${playerName(data?.playerIndex ?? data?.player ?? 0)} jogou uma carta.`));
     socket.on('betCalled', data => {
       addEvent(`${playerName(data?.playerIndex ?? data?.player ?? 0)} pediu Truco!`, 'bet');
       window.mostrarAnuncioTruco?.(data?.level || 'truco');
@@ -66,7 +59,6 @@
     });
     socket.on('setStart', data => addEvent(`Novo set — ${data?.score ?? ''}`.trim(), 'round'));
   };
-
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', setup, { once: true });
   else setup();
 })();
@@ -149,7 +141,6 @@
       carta.style.translate = '0 0';
     });
   };
-
   const instalar = () => {
     const socket = window.trucoSocket;
     const mesa = document.getElementById('mesaCartas');
@@ -193,9 +184,8 @@
   let roomCode = null;
   let shareButton = null;
   let codeHint = null;
-  let shareEmitOriginal = null;
   const normalizarCodigo = value => { const code = String(value ?? '').trim().toUpperCase(); return code || null; };
-  const atualizarHint = () => { if (!codeHint) return; codeHint.textContent = roomCode ? `Código da sala: ${roomCode}` : 'Código da sala indisponível'; };
+  const atualizarHint = () => { if (codeHint) codeHint.textContent = roomCode ? `Código da sala: ${roomCode}` : 'Código da sala indisponível'; };
   const criarUI = () => {
     if (shareButton) return;
     const gameWrapper = document.getElementById('gameWrapper');
@@ -234,7 +224,6 @@
   const setRoomCode = code => { const normalized = normalizarCodigo(code); if (!normalized) return; roomCode = normalized; criarUI(); atualizarHint(); };
   const originalEmit = socket.emit.bind(socket);
   socket.emit = function (eventName, ...args) {
-    if (!shareEmitOriginal) shareEmitOriginal = originalEmit;
     const last = args[args.length - 1];
     if (typeof last === 'function' && ['createRoom', 'joinRoom', 'randomMatch'].includes(eventName)) {
       args[args.length - 1] = function (res, ...rest) { if (res?.roomCode) setRoomCode(res.roomCode); return last.call(this, res, ...rest); };
@@ -246,91 +235,108 @@
   socket.on('setStart', data => setRoomCode(data?.roomCode));
 })();
 
-// Interação da mão: toque seleciona, segundo toque joga; pressão longa encobre/desencobre.
+// Interação segura da mão: 1º toque seleciona, 2º toque joga; pressão longa encobre/revela.
+// Não usa capture de click para bloquear o game.js. A jogada é emitida aqui no pointerup.
 (() => {
   'use strict';
   const HOLD_MS = 500;
   const mao = document.getElementById('mao');
-  if (!mao || mao.dataset.cardInteractionInstalled === '1') return;
-  mao.dataset.cardInteractionInstalled = '1';
+  if (!mao || mao.dataset.safeCardInteraction === '1') return;
+  mao.dataset.safeCardInteraction = '1';
 
-  let press = null;
-  const getCard = target => target?.closest?.('#mao .playerCard');
-  const getCards = () => [...mao.querySelectorAll('.playerCard')];
-  const clearSelection = except => getCards().forEach(card => { if (card !== except) card.classList.remove('carta-selecionada'); });
-  const cancelPress = () => { if (!press) return; clearTimeout(press.timer); press = null; };
-
-  const restoreCardFace = card => {
+  let gesture = null;
+  const cards = () => [...mao.querySelectorAll('.playerCard')];
+  const cardFrom = target => target?.closest?.('#mao .playerCard');
+  const clearSelection = except => cards().forEach(card => { if (card !== except) card.classList.remove('carta-selecionada'); });
+  const playerCanPlay = () => {
+    const info = document.getElementById('infoRodada')?.textContent || '';
+    return info.includes('Sua vez!') && !info.includes('Decida a Mão de 11');
+  };
+  const emitCard = card => {
+    if (!playerCanPlay()) return;
     const key = card.dataset.cardKey || '';
+    if (key.startsWith('blind:')) {
+      const blindIndex = Number(key.slice(6));
+      if (Number.isInteger(blindIndex)) window.trucoSocket?.emit('playCard', { blindIndex });
+      return;
+    }
+    const parts = key.split(':');
+    if (parts.length === 2 && parts[0] && parts[1]) window.trucoSocket?.emit('playCard', { suit: parts[0], rank: parts[1] });
+  };
+  const restoreFace = card => {
+    const key = card.dataset.cardKey || '';
+    if (key.startsWith('blind:')) return;
     const [suit, rank] = key.split(':');
-    if (!suit || !rank || suit === 'blind') return;
+    if (!suit || !rank) return;
     const symbol = { paus:'♣', copas:'♥', espadas:'♠', ouros:'♦' }[suit] || suit;
     const color = (suit === 'copas' || suit === 'ouros') ? 'naipe-vermelho' : 'naipe-preto';
     card.innerHTML = `<div class="carta-corner top-left ${color}">${rank}${symbol}</div><div class="carta-center ${color}">${rank}${symbol}</div><div class="carta-corner bottom-right ${color}">${rank}${symbol}</div>`;
   };
-
-  const toggleHidden = card => {
+  const toggleCover = card => {
     if (!card) return;
+    if (!card.dataset.faceHtml && !card.classList.contains('virada')) card.dataset.faceHtml = card.innerHTML;
     const hidden = card.classList.toggle('virada');
     card.classList.remove('carta-selecionada');
-    card.dataset.hiddenByUser = hidden ? '1' : '0';
+    card.dataset.encoberta = hidden ? '1' : '0';
+    card.setAttribute('aria-pressed', hidden ? 'true' : 'false');
     if (hidden) card.innerHTML = '';
-    else restoreCardFace(card);
-  };
-
-  const playCard = card => {
-    if (!window.gameActive || !window.isMyTurn) return;
-    const cards = getCards();
-    const index = cards.indexOf(card);
-    if (index < 0) return;
-    const key = card.dataset.cardKey || '';
-    const [suit, rank] = key.split(':');
-    if (window.isMaoDeFerro || key.startsWith('blind:')) {
-      const blindIndex = key.startsWith('blind:') ? Number(key.slice(6)) : index;
-      window.trucoSocket?.emit('playCard', { blindIndex });
-    } else if (suit && rank) {
-      window.trucoSocket?.emit('playCard', { suit, rank });
-    }
-    card.classList.remove('carta-selecionada');
-    if (typeof window.clearTurnTimer === 'function') window.clearTurnTimer();
+    else card.innerHTML = card.dataset.faceHtml || '';
+    if (!hidden && !card.dataset.faceHtml) restoreFace(card);
   };
 
   mao.addEventListener('pointerdown', event => {
-    const card = getCard(event.target);
+    const card = cardFrom(event.target);
     if (!card) return;
-    cancelPress();
-    press = { card, startX: event.clientX, startY: event.clientY, long: false, timer: null };
-    press.timer = setTimeout(() => {
-      if (!press || press.card !== card) return;
-      press.long = true;
-      toggleHidden(card);
-    }, HOLD_MS);
+    if (gesture?.timer) clearTimeout(gesture.timer);
+    gesture = {
+      card,
+      startX: event.clientX,
+      startY: event.clientY,
+      wasSelected: card.classList.contains('carta-selecionada'),
+      long: false,
+      moved: false,
+      timer: setTimeout(() => {
+        if (!gesture || gesture.card !== card || gesture.moved) return;
+        gesture.long = true;
+        toggleCover(card);
+      }, HOLD_MS)
+    };
   }, true);
 
   mao.addEventListener('pointermove', event => {
-    if (!press) return;
-    if (Math.abs(event.clientX - press.startX) > 12 || Math.abs(event.clientY - press.startY) > 12) {
-      press.moved = true;
-      clearTimeout(press.timer);
+    if (!gesture) return;
+    if (Math.abs(event.clientX - gesture.startX) > 12 || Math.abs(event.clientY - gesture.startY) > 12) {
+      gesture.moved = true;
+      clearTimeout(gesture.timer);
     }
   }, true);
 
-  mao.addEventListener('pointerup', () => {
-    if (!press) return;
-    const current = press;
+  mao.addEventListener('pointerup', event => {
+    const current = gesture;
+    if (!current || current.card !== cardFrom(event.target)) return;
     clearTimeout(current.timer);
-    press = null;
+    gesture = null;
     if (current.moved || current.long) return;
+
     const card = current.card;
-    if (card.classList.contains('carta-selecionada')) playCard(card);
-    else { clearSelection(card); card.classList.add('carta-selecionada'); }
+    if (current.wasSelected) {
+      emitCard(card);
+      card.classList.remove('carta-selecionada');
+    } else {
+      clearSelection(card);
+      card.classList.add('carta-selecionada');
+    }
   }, true);
 
-  mao.addEventListener('pointercancel', cancelPress, true);
-  mao.addEventListener('click', event => {
-    const card = getCard(event.target);
-    if (!card) return;
-    event.preventDefault();
-    event.stopImmediatePropagation();
+  mao.addEventListener('pointercancel', () => {
+    if (gesture?.timer) clearTimeout(gesture.timer);
+    gesture = null;
   }, true);
+
+  mao.addEventListener('click', event => {
+    const card = cardFrom(event.target);
+    if (!card) return;
+    // O click do navegador é apenas a continuação do pointerup acima.
+    // Não bloqueamos a propagação para não quebrar outras áreas do jogo.
+  }, false);
 })();
