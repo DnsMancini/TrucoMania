@@ -51,12 +51,12 @@
 
 /*
    Carta selecionada: sobe e fica COMPLETAMENTE reta.
-   A mão normal continua com a curvatura definida no style-base.css.
-   Ao retirar a seleção, o transform original de cada posição volta.
+   A regra usa especificidade maior para vencer o hover global de game-events.css.
 */
-#mao .playerCard.carta-selecionada {
+#gameWrapper #mao .playerCard.carta-selecionada,
+#gameWrapper #mao .playerCard.carta-selecionada:hover {
   transform: translateY(-22px) rotate(0deg) !important;
-  z-index: 20;
+  z-index: 2200 !important;
   transition: transform 120ms ease;
 }
 
@@ -68,5 +68,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .mesa { transition: none !important; }
-  #mao .playerCard.carta-selecionada { transition: none !important; }
+  #gameWrapper #mao .playerCard.carta-selecionada,
+  #gameWrapper #mao .playerCard.carta-selecionada:hover { transition: none !important; }
 }
