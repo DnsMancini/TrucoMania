@@ -144,29 +144,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let authoritativeTurn = null;
   let turnLocked = true;
-  let roundCards = [];
-  const posicoes = ['c0', 'c3', 'c2', 'c1'];
-
-  const getRotatedIds = () => {
-    if (typeof myPlayerIndex !== 'number') return [0, 1, 2, 3];
-    return rotateArrayForPlayer([0, 1, 2, 3], myPlayerIndex);
-  };
-
-  const renderRoundCards = () => {
-    const mesa = document.getElementById('mesaCartas');
-    if (!mesa || typeof createCardHTML !== 'function') return;
-    const rotatedIds = getRotatedIds();
-    mesa.innerHTML = '';
-    roundCards.forEach(({ player, card }) => {
-      if (!card) return;
-      const relPos = rotatedIds.indexOf(player);
-      if (relPos < 0) return;
-      const cartaDiv = document.createElement('div');
-      cartaDiv.className = `cartaMesa ${posicoes[relPos]}`;
-      cartaDiv.innerHTML = card.hidden ? '<div class="carta virada"></div>' : createCardHTML(card);
-      mesa.appendChild(cartaDiv);
-    });
-  };
 
   const setTurn = (player) => {
     authoritativeTurn = Number.isInteger(player) ? player : null;
@@ -174,15 +151,11 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   socket.on('handStart', (data) => {
-    roundCards = [];
     authoritativeTurn = Number.isInteger(data?.currentPlayer) ? data.currentPlayer : null;
     turnLocked = false;
   });
 
   socket.on('gameStateRestore', (data) => {
-    roundCards = [];
-    const current = Array.isArray(data?.roundCards?.[data?.currentRound]) ? data.roundCards[data.currentRound] : [];
-    current.forEach((card, player) => { if (card) roundCards.push({ player, card }); });
     authoritativeTurn = Number.isInteger(data?.currentPlayer) ? data.currentPlayer : null;
     turnLocked = data?.turnStage !== 'play';
   });
@@ -190,23 +163,17 @@ document.addEventListener('DOMContentLoaded', () => {
   socket.on('maoDe11Started', ({ currentPlayer }) => setTurn(currentPlayer));
   socket.on('turn', ({ currentPlayer }) => setTurn(currentPlayer));
 
-  socket.on('cardPlayed', ({ player, card }) => {
+  socket.on('cardPlayed', () => {
     turnLocked = true;
-    if (Number.isInteger(player) && card) {
-      const existing = roundCards.findIndex(item => item.player === player);
-      if (existing >= 0) roundCards[existing] = { player, card };
-      else roundCards.push({ player, card });
-    }
   });
 
   socket.on('roundResult', () => {
-    roundCards = [];
+    // A mesa é renderizada exclusivamente por client/game.js.
   });
 
   socket.on('handEnd', () => {
     turnLocked = true;
     authoritativeTurn = null;
-    roundCards = [];
   });
 
   const mao = document.getElementById('mao');
@@ -218,13 +185,5 @@ document.addEventListener('DOMContentLoaded', () => {
         event.stopImmediatePropagation();
       }
     }, true);
-  }
-
-  const mesa = document.getElementById('mesaCartas');
-  if (mesa && typeof MutationObserver !== 'undefined') {
-    const observer = new MutationObserver(() => {
-      if (roundCards.length > 0 && mesa.children.length === 0 && gameActive) renderRoundCards();
-    });
-    observer.observe(mesa, { childList: true });
   }
 });
