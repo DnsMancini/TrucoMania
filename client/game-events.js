@@ -25,7 +25,7 @@
       return el?.textContent?.trim() || (index === window.myPlayerIndex ? 'Você' : `Jogador ${Number(index) + 1}`);
     };
     socket.on('handStart', data => {
-      const round = data?.round ?? data?.hand ?? null;
+      const round = data?.round ?? data?.currentRound ?? 1;
       if (round != null) addEvent(`Rodada ${round}`, 'round');
       window.limparAnuncioTruco?.();
     });
