@@ -49,24 +49,15 @@
   }
 }
 
-/* Carta escolhida: sobe mantendo a inclinação original da mão. */
+/*
+   Carta selecionada: sobe e fica COMPLETAMENTE reta.
+   A mão normal continua com a curvatura definida no style-base.css.
+   Ao retirar a seleção, o transform original de cada posição volta.
+*/
 #mao .playerCard.carta-selecionada {
-  transform: translateY(-22px);
+  transform: translateY(-22px) rotate(0deg) !important;
   z-index: 20;
   transition: transform 120ms ease;
-}
-
-/* O efeito acima não pode apagar a curvatura das 3 cartas. */
-#mao .playerCard:nth-child(1).carta-selecionada {
-  transform: translateY(-22px) rotate(-8deg) !important;
-}
-
-#mao .playerCard:nth-child(2).carta-selecionada {
-  transform: translateY(-22px) rotate(0deg) !important;
-}
-
-#mao .playerCard:nth-child(3).carta-selecionada {
-  transform: translateY(-22px) rotate(8deg) !important;
 }
 
 #mao .playerCard {
