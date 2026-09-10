@@ -20,6 +20,35 @@
   background-repeat: no-repeat;
 }
 
+/* Cartas laterais: 10% do diâmetro da mesa para dentro. */
+@media (min-width: 901px) {
+  #hand1 {
+    left: calc(50% - (var(--table-size) / 2) + (var(--table-size) * 0.10)) !important;
+  }
+
+  #hand3 {
+    right: calc(50% - (var(--table-size) / 2) + (var(--table-size) * 0.10)) !important;
+  }
+}
+
+/* Em telas menores, mantém a mesma proporção em relação à mesa. */
+@media (max-width: 900px) {
+  #hand1 {
+    left: calc(50% - (var(--table-size) / 2) + (var(--table-size) * 0.10)) !important;
+  }
+
+  #hand3 {
+    left: calc(50% + (var(--table-size) / 2) - (var(--table-size) * 0.10)) !important;
+  }
+
+  .mesa {
+    width: 100vw;
+    height: 100vw;
+    max-width: none;
+    max-height: none;
+  }
+}
+
 /* Carta escolhida: sobe sem alterar o tamanho da mão. */
 #mao .playerCard.carta-selecionada {
   transform: translateY(-22px);
@@ -31,15 +60,6 @@
   touch-action: manipulation;
   -webkit-user-select: none;
   user-select: none;
-}
-
-@media (max-width: 900px) {
-  .mesa {
-    width: 100vw;
-    height: 100vw;
-    max-width: none;
-    max-height: none;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
