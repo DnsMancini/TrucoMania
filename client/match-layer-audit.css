@@ -1,0 +1,34 @@
+/* Auditoria da tela de partida — correções de camadas e duplicidades visuais. */
+
+/* O compartilhamento atual é #compartilharSala. O painel antigo é legado e
+   não deve disputar espaço/camada com ele. */
+#roomSharePanel {
+  display: none !important;
+}
+
+/* O botão de saída não pode ocupar a mesma área do compartilhamento. */
+#btnSairSala {
+  top: calc(var(--safe-top) + 10px) !important;
+  left: auto !important;
+  right: calc(var(--safe-right) + 10px) !important;
+  z-index: 3100 !important;
+}
+
+/* O compartilhamento permanece no canto superior esquerdo. */
+#compartilharSala {
+  top: calc(var(--safe-top) + 10px) !important;
+  left: calc(var(--safe-left) + 10px) !important;
+  z-index: 2900 !important;
+}
+
+@media (max-width: 768px) {
+  #btnSairSala {
+    top: calc(var(--safe-top) + 8px) !important;
+    right: calc(var(--safe-right) + 8px) !important;
+  }
+
+  #compartilharSala {
+    top: calc(var(--safe-top) + 8px) !important;
+    left: calc(var(--safe-left) + 8px) !important;
+  }
+}
