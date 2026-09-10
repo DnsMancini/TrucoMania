@@ -173,7 +173,7 @@
     const originalPlay = new Map();
     audios.forEach(audio => { originalPlay.set(audio, audio.play); audio.play = () => Promise.resolve(); });
     try { return originalOnevent(packet); }
-    finally { audios.forEach(audio => { const play = originalPlay.get(audio); if (play) audio.play = play; }); }
+    finally { audios.forEach(audio => { const play = originalPlay.get(audio); if (play) play.call(audio); }); }
   };
 })();
 
@@ -304,7 +304,8 @@
     const card = current.card;
     if (current.wasSelected) {
       emitCard(card);
-      card.classList.remove('carta-selecionada');
+      // Mantém a carta levantada enquanto o servidor processa a jogada.
+      // O render da mão a remove quando a jogada for confirmada, evitando o efeito de "cair e depois ir para a mesa".
     } else {
       clearSelection(card);
       card.classList.add('carta-selecionada');
