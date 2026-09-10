@@ -290,15 +290,56 @@ document.addEventListener('DOMContentLoaded', () => {
       z-index: 10050 !important;
       pointer-events: none !important;
       margin: 0 !important;
-      transform: none !important;
+      transform: translateY(0) scale(1) !important;
       box-sizing: border-box;
       border: 2px solid #f1c40f !important;
-      box-shadow: 0 0 8px 2px rgba(241,196,15,.9), 0 0 22px 8px rgba(241,196,15,.55), inset 0 0 12px rgba(241,196,15,.25) !important;
-      animation: cartaVencedoraBrilho 1s ease-in-out infinite alternate;
+      filter: brightness(1.03);
+      box-shadow: 0 0 0 1px rgba(241,196,15,.35), 0 4px 12px rgba(0,0,0,.35), 0 0 14px rgba(241,196,15,.55), inset 0 0 8px rgba(241,196,15,.12) !important;
+      animation: cartaVencedoraDestaque 2.2s ease-in-out 1;
+      transform-origin: center center !important;
     }
-    @keyframes cartaVencedoraBrilho {
-      from { filter: brightness(1.05); box-shadow: 0 0 8px 2px rgba(241,196,15,.9), 0 0 22px 8px rgba(241,196,15,.55), inset 0 0 12px rgba(241,196,15,.25) !important; }
-      to { filter: brightness(1.28); box-shadow: 0 0 14px 4px rgba(255,230,80,1), 0 0 34px 12px rgba(241,196,15,.8), inset 0 0 18px rgba(241,196,15,.4) !important; }
+
+    @keyframes cartaVencedoraDestaque {
+      0% {
+        transform: translateY(0) scale(1) !important;
+        filter: brightness(1.03);
+        box-shadow: 0 0 0 1px rgba(241,196,15,.35), 0 4px 12px rgba(0,0,0,.35), 0 0 14px rgba(241,196,15,.55), inset 0 0 8px rgba(241,196,15,.12) !important;
+      }
+      12% {
+        transform: translateY(-12px) scale(1.025) !important;
+        filter: brightness(1.08);
+        box-shadow: 0 0 0 2px rgba(241,196,15,.55), 0 7px 16px rgba(0,0,0,.38), 0 0 22px rgba(241,196,15,.75), inset 0 0 10px rgba(241,196,15,.16) !important;
+      }
+      28% {
+        transform: translateY(-12px) scale(1.04) !important;
+        filter: brightness(1.1);
+        box-shadow: 0 0 0 2px rgba(241,196,15,.65), 0 8px 18px rgba(0,0,0,.4), 0 0 26px rgba(241,196,15,.82), inset 0 0 12px rgba(241,196,15,.18) !important;
+      }
+      42% {
+        transform: translateY(-12px) scale(1.025) !important;
+        filter: brightness(1.06);
+        box-shadow: 0 0 0 2px rgba(241,196,15,.5), 0 7px 16px rgba(0,0,0,.38), 0 0 20px rgba(241,196,15,.65), inset 0 0 10px rgba(241,196,15,.14) !important;
+      }
+      56% {
+        transform: translateY(-12px) scale(1.04) !important;
+        filter: brightness(1.1);
+        box-shadow: 0 0 0 2px rgba(241,196,15,.65), 0 8px 18px rgba(0,0,0,.4), 0 0 26px rgba(241,196,15,.82), inset 0 0 12px rgba(241,196,15,.18) !important;
+      }
+      72% {
+        transform: translateY(-10px) scale(1.025) !important;
+        filter: brightness(1.07);
+        box-shadow: 0 0 0 2px rgba(241,196,15,.55), 0 7px 16px rgba(0,0,0,.38), 0 0 22px rgba(241,196,15,.72), inset 0 0 10px rgba(241,196,15,.15) !important;
+      }
+      88% {
+        transform: translateY(-5px) scale(1.01) !important;
+        filter: brightness(1.04);
+        box-shadow: 0 0 0 1px rgba(241,196,15,.4), 0 5px 14px rgba(0,0,0,.35), 0 0 16px rgba(241,196,15,.58), inset 0 0 8px rgba(241,196,15,.12) !important;
+      }
+      100% {
+        transform: translateY(0) scale(1) !important;
+        filter: brightness(1.03);
+        box-shadow: 0 0 0 1px rgba(241,196,15,.35), 0 4px 12px rgba(0,0,0,.35), 0 0 14px rgba(241,196,15,.55), inset 0 0 8px rgba(241,196,15,.12) !important;
+      }
     }
   `;
   document.head.appendChild(style);
