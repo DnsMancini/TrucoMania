@@ -148,13 +148,13 @@ class Game4P extends BaseGame4P {
     let maxStrength = -Infinity;
 
     for (const card of round) {
-      if (card) maxStrength = Math.max(maxStrength, cardStrength(card, this.vira.rank));
+      if (card && !card.hidden) maxStrength = Math.max(maxStrength, cardStrength(card, this.vira.rank));
     }
 
     const strongestPlayers = [];
     for (let i = 0; i < NUM_PLAYERS; i++) {
       const card = round[i];
-      if (card && cardStrength(card, this.vira.rank) === maxStrength) strongestPlayers.push(i);
+      if (card && !card.hidden && cardStrength(card, this.vira.rank) === maxStrength) strongestPlayers.push(i);
     }
 
     const strongestTeams = [...new Set(strongestPlayers.map(i => i % 2))];
