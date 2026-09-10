@@ -258,7 +258,11 @@
       return;
     }
     const parts = key.split(':');
-    if (parts.length === 2 && parts[0] && parts[1]) window.trucoSocket?.emit('playCard', { suit: parts[0], rank: parts[1] });
+    if (parts.length === 2 && parts[0] && parts[1]) {
+      const payload = { suit: parts[0], rank: parts[1] };
+      if (card.classList.contains('virada') || card.dataset.encoberta === '1') payload.hidden = true;
+      window.trucoSocket?.emit('playCard', payload);
+    }
   };
   const toggleCover = card => {
     if (!card) return;
