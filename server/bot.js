@@ -36,8 +36,8 @@ function publicCards(context = {}) {
   const currentRound = context.currentRound || 0;
   const current = rounds[currentRound] || [];
   const previous = [];
-  for (let r = 0; r < Math.min(currentRound, rounds.length); r++) for (const card of (rounds[r] || [])) if (card) previous.push(card);
-  return { current, previous, all: previous.concat(current.filter(Boolean)) };
+  for (let r = 0; r < Math.min(currentRound, rounds.length); r++) for (const card of (rounds[r] || [])) if (card && !card.hidden) previous.push(card);
+  return { current, previous, all: previous.concat(current.filter(card => card && !card.hidden)) };
 }
 
 function scorePressure(context = {}, team) {
@@ -147,10 +147,10 @@ function chooseCard(hand, viraRank, context = {}) {
 
   const validCards = hand.map(card => ({ card, strength: cardStrength(card, viraRank) }));
   const cardsRemainingAfterPlay = Math.max(0, hand.length - 1);
-  const strongestOnTable = currentRoundCards.reduce((max, card) => card ? Math.max(max, cardStrength(card, viraRank)) : max, -Infinity);
+  const strongestOnTable = currentRoundCards.reduce((max, card) => card && !card.hidden ? Math.max(max, cardStrength(card, viraRank)) : max, -Infinity);
   const teammateIndex = (playerIndex + 2) % 4;
   const teammateCard = currentRoundCards[teammateIndex] || null;
-  const teammateWinning = Boolean(teammateCard && cardStrength(teammateCard, viraRank) === strongestOnTable);
+  const teammateWinning = Boolean(teammateCard && !teammateCard.hidden && cardStrength(teammateCard, viraRank) === strongestOnTable);
   const beatingCards = validCards.filter(item => item.strength > strongestOnTable).sort((a, b) => a.strength - b.strength);
   const sortedAsc = validCards.slice().sort((a, b) => a.strength - b.strength);
   const sortedDesc = validCards.slice().sort((a, b) => b.strength - a.strength);
@@ -159,16 +159,12 @@ function chooseCard(hand, viraRank, context = {}) {
   const hasFutureRound = currentRound < 2 && cardsRemainingAfterPlay > 0;
   const lastOpportunity = currentRound >= 2 || cardsRemainingAfterPlay === 0;
 
-  // Se o parceiro já está ganhando, não há motivo para queimar carta boa.
-  // A exceção é a última oportunidade, quando não existe rodada futura para
-  // guardar a carta.
   if (teammateWinning && strongestOnTable > -Infinity) {
     if (lastOpportunity) return sortedAsc[0].card;
     if (discardCards.length) return discardCards[0].card;
     return sortedAsc[0].card;
   }
 
-  // Se ninguém colocou carta, administra a mão pensando nas próximas rodadas.
   if (strongestOnTable === -Infinity) {
     if (lastOpportunity) return sortedAsc[0].card;
     if (currentRound === 0) {
@@ -191,10 +187,6 @@ function chooseCard(hand, viraRank, context = {}) {
     return sortedAsc[0].card;
   }
 
-  // Se consegue ganhar, normalmente usa a menor carta que resolve a rodada.
-  // Mas ganhar uma rodada não justifica automaticamente gastar uma manilha:
-  // se ainda há rodada futura, só queima a manilha quando não houver descarte
-  // seguro ou quando a situação da partida pedir reação.
   if (beatingCards.length) {
     const cheapestWinner = beatingCards[0];
     const nonManilhaWinner = beatingCards.find(item => item.strength < 11);
@@ -204,18 +196,10 @@ function chooseCard(hand, viraRank, context = {}) {
     const trailing = oppRounds > ownRounds;
     const opponentHasRoundAdvantage = oppRounds > ownRounds || (oppRounds === ownRounds && pressure > 0.10);
 
-    if (canPreserveWinningManilha && !trailing && !opponentHasRoundAdvantage) {
-      return discardCards[0].card;
-    }
-
-    // Se há mais de uma carta vencedora, pega a menor. Na última oportunidade
-    // não há razão para preservar uma carta que não poderá ser usada depois.
+    if (canPreserveWinningManilha && !trailing && !opponentHasRoundAdvantage) return discardCards[0].card;
     return cheapestWinner.card || strongest.card;
   }
 
-  // Não consegue ganhar. Prioridade absoluta aqui é preservar manilhas/fortes
-  // enquanto houver uma rodada futura: descarta a menor carta não-manilha.
-  // Somente na última oportunidade aceitamos gastar a carta forte.
   if (hasFutureRound) {
     if (discardCards.length) return discardCards[0].card;
     return sortedAsc[0].card;
