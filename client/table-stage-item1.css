@@ -49,11 +49,24 @@
   }
 }
 
-/* Carta escolhida: sobe sem alterar o tamanho da mão. */
+/* Carta escolhida: sobe mantendo a inclinação original da mão. */
 #mao .playerCard.carta-selecionada {
   transform: translateY(-22px);
   z-index: 20;
   transition: transform 120ms ease;
+}
+
+/* O efeito acima não pode apagar a curvatura das 3 cartas. */
+#mao .playerCard:nth-child(1).carta-selecionada {
+  transform: translateY(-22px) rotate(-8deg) !important;
+}
+
+#mao .playerCard:nth-child(2).carta-selecionada {
+  transform: translateY(-22px) rotate(0deg) !important;
+}
+
+#mao .playerCard:nth-child(3).carta-selecionada {
+  transform: translateY(-22px) rotate(8deg) !important;
 }
 
 #mao .playerCard {
