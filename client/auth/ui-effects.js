@@ -167,10 +167,6 @@ document.addEventListener('DOMContentLoaded', () => {
     turnLocked = true;
   });
 
-  socket.on('roundResult', () => {
-    // A mesa é renderizada exclusivamente por client/game.js.
-  });
-
   socket.on('handEnd', () => {
     turnLocked = true;
     authoritativeTurn = null;
