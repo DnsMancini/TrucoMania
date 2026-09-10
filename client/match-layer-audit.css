@@ -1,5 +1,11 @@
 /* Auditoria da tela de partida — correções de camadas e duplicidades visuais. */
 
+/* Camada canônica da vira: acima das cartas da mesa e consistente em desktop/mobile. */
+#vira {
+  z-index: 1400;
+  pointer-events: none;
+}
+
 /* O compartilhamento atual é #compartilharSala. O painel antigo é legado e
    não deve disputar espaço/camada com ele. */
 #roomSharePanel {
