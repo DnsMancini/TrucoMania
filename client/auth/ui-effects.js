@@ -140,16 +140,11 @@ class UIEffects {
 document.addEventListener('DOMContentLoaded', () => {
   window.uiEffects = new UIEffects();
 
-  // ========== CORREÇÃO DE VEZ, MESA E DESTAQUE DA CARTA VENCEDORA ==========
-  // Este código precisa rodar depois de game.js, por isso fica dentro do DOMContentLoaded.
   if (typeof socket === 'undefined') return;
 
   let authoritativeTurn = null;
   let turnLocked = true;
   let roundCards = [];
-  let winnerHighlightTimer = null;
-  let winnerOverlay = null;
-  const HIGHLIGHT_MS = 2500;
   const posicoes = ['c0', 'c3', 'c2', 'c1'];
 
   const getRotatedIds = () => {
@@ -173,64 +168,18 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   };
 
-  const clearWinnerHighlight = () => {
-    if (winnerHighlightTimer) {
-      clearTimeout(winnerHighlightTimer);
-      winnerHighlightTimer = null;
-    }
-    if (winnerOverlay) {
-      winnerOverlay.remove();
-      winnerOverlay = null;
-    }
-    const mesa = document.getElementById('mesaCartas');
-    if (mesa) mesa.style.visibility = 'visible';
-  };
-
-  const highlightWinner = (winner) => {
-    const mesa = document.getElementById('mesaCartas');
-    if (!mesa || !Number.isInteger(winner) || winner < 0) return;
-    const relPos = getRotatedIds().indexOf(winner);
-    if (relPos < 0) return;
-    const original = mesa.querySelector(`.cartaMesa.${posicoes[relPos]}`);
-    if (!original) return;
-
-    clearWinnerHighlight();
-    const rect = original.getBoundingClientRect();
-    winnerOverlay = original.cloneNode(true);
-    winnerOverlay.classList.add('cartaVencedoraOverlay');
-    winnerOverlay.style.left = `${rect.left}px`;
-    winnerOverlay.style.top = `${rect.top}px`;
-    winnerOverlay.style.width = `${rect.width}px`;
-    winnerOverlay.style.height = `${rect.height}px`;
-    document.body.appendChild(winnerOverlay);
-
-    // As cartas da próxima rodada podem ser recebidas pelo cliente durante o destaque,
-    // mas ficam invisíveis até o tempo terminar. Assim a carta vencedora continua em foco.
-    mesa.style.visibility = 'hidden';
-    winnerHighlightTimer = setTimeout(() => {
-      winnerHighlightTimer = null;
-      if (winnerOverlay) {
-        winnerOverlay.remove();
-        winnerOverlay = null;
-      }
-      mesa.style.visibility = 'visible';
-    }, HIGHLIGHT_MS);
-  };
-
   const setTurn = (player) => {
     authoritativeTurn = Number.isInteger(player) ? player : null;
     turnLocked = false;
   };
 
   socket.on('handStart', (data) => {
-    clearWinnerHighlight();
     roundCards = [];
     authoritativeTurn = Number.isInteger(data?.currentPlayer) ? data.currentPlayer : null;
     turnLocked = false;
   });
 
   socket.on('gameStateRestore', (data) => {
-    clearWinnerHighlight();
     roundCards = [];
     const current = Array.isArray(data?.roundCards?.[data?.currentRound]) ? data.roundCards[data.currentRound] : [];
     current.forEach((card, player) => { if (card) roundCards.push({ player, card }); });
@@ -250,15 +199,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  socket.on('roundResult', ({ winner }) => {
-    // O game.js original ainda limpa a mesa depois de 1,2s. O destaque é um clone
-    // independente e permanece visível por 2,5s, sem ser apagado por esse timeout.
-    highlightWinner(winner);
+  socket.on('roundResult', () => {
     roundCards = [];
   });
 
   socket.on('handEnd', () => {
-    clearWinnerHighlight();
     turnLocked = true;
     authoritativeTurn = null;
     roundCards = [];
@@ -282,65 +227,4 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     observer.observe(mesa, { childList: true });
   }
-
-  const style = document.createElement('style');
-  style.textContent = `
-    .cartaVencedoraOverlay {
-      position: fixed !important;
-      z-index: 10050 !important;
-      pointer-events: none !important;
-      margin: 0 !important;
-      transform: translateY(0) scale(1) !important;
-      box-sizing: border-box;
-      border: 2px solid #f1c40f !important;
-      filter: brightness(1.03);
-      box-shadow: 0 0 0 1px rgba(241,196,15,.35), 0 4px 12px rgba(0,0,0,.35), 0 0 14px rgba(241,196,15,.55), inset 0 0 8px rgba(241,196,15,.12) !important;
-      animation: cartaVencedoraDestaque 2.2s ease-in-out 1;
-      transform-origin: center center !important;
-    }
-
-    @keyframes cartaVencedoraDestaque {
-      0% {
-        transform: translateY(0) scale(1) !important;
-        filter: brightness(1.03);
-        box-shadow: 0 0 0 1px rgba(241,196,15,.35), 0 4px 12px rgba(0,0,0,.35), 0 0 14px rgba(241,196,15,.55), inset 0 0 8px rgba(241,196,15,.12) !important;
-      }
-      12% {
-        transform: translateY(-12px) scale(1.025) !important;
-        filter: brightness(1.08);
-        box-shadow: 0 0 0 2px rgba(241,196,15,.55), 0 7px 16px rgba(0,0,0,.38), 0 0 22px rgba(241,196,15,.75), inset 0 0 10px rgba(241,196,15,.16) !important;
-      }
-      28% {
-        transform: translateY(-12px) scale(1.04) !important;
-        filter: brightness(1.1);
-        box-shadow: 0 0 0 2px rgba(241,196,15,.65), 0 8px 18px rgba(0,0,0,.4), 0 0 26px rgba(241,196,15,.82), inset 0 0 12px rgba(241,196,15,.18) !important;
-      }
-      42% {
-        transform: translateY(-12px) scale(1.025) !important;
-        filter: brightness(1.06);
-        box-shadow: 0 0 0 2px rgba(241,196,15,.5), 0 7px 16px rgba(0,0,0,.38), 0 0 20px rgba(241,196,15,.65), inset 0 0 10px rgba(241,196,15,.14) !important;
-      }
-      56% {
-        transform: translateY(-12px) scale(1.04) !important;
-        filter: brightness(1.1);
-        box-shadow: 0 0 0 2px rgba(241,196,15,.65), 0 8px 18px rgba(0,0,0,.4), 0 0 26px rgba(241,196,15,.82), inset 0 0 12px rgba(241,196,15,.18) !important;
-      }
-      72% {
-        transform: translateY(-10px) scale(1.025) !important;
-        filter: brightness(1.07);
-        box-shadow: 0 0 0 2px rgba(241,196,15,.55), 0 7px 16px rgba(0,0,0,.38), 0 0 22px rgba(241,196,15,.72), inset 0 0 10px rgba(241,196,15,.15) !important;
-      }
-      88% {
-        transform: translateY(-5px) scale(1.01) !important;
-        filter: brightness(1.04);
-        box-shadow: 0 0 0 1px rgba(241,196,15,.4), 0 5px 14px rgba(0,0,0,.35), 0 0 16px rgba(241,196,15,.58), inset 0 0 8px rgba(241,196,15,.12) !important;
-      }
-      100% {
-        transform: translateY(0) scale(1) !important;
-        filter: brightness(1.03);
-        box-shadow: 0 0 0 1px rgba(241,196,15,.35), 0 4px 12px rgba(0,0,0,.35), 0 0 14px rgba(241,196,15,.55), inset 0 0 8px rgba(241,196,15,.12) !important;
-      }
-    }
-  `;
-  document.head.appendChild(style);
 });
