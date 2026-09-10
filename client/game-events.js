@@ -49,15 +49,16 @@
     });
     socket.on('betRejected', () => window.limparAnuncioTruco?.());
     socket.on('roundResult', data => {
-      if (data?.winner != null) addEvent(`Mão para ${playerName(data.winner)}.`, 'round');
+      if (data?.winner === -1) addEvent('Rodada empatada.', 'round');
+      else if (data?.winner != null) addEvent(`Mão para ${playerName(data.winner)}.`, 'round');
       else addEvent('Mão encerrada.', 'round');
       window.limparAnuncioTruco?.();
     });
     socket.on('handEnd', () => {
-      addEvent('Rodada encerrada.', 'round');
+      addEvent('Mão encerrada.', 'round');
       window.limparAnuncioTruco?.();
     });
-    socket.on('setStart', data => addEvent(`Novo set — ${data?.score ?? ''}`.trim(), 'round'));
+    socket.on('setStart', data => addEvent(`Novo set — ${data?.scores?.[0] ?? 0} x ${data?.scores?.[1] ?? 0}`, 'round'));
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', setup, { once: true });
   else setup();
