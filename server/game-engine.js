@@ -78,10 +78,10 @@ class Game4P {
     } else {
       this.handValue = 1; this.maoDe11 = false; this.maoDe11Team = null; this.maoDeFerro = false;
     }
-    this.maoDe11DecisionMade = false; this.currentPlayer = (this.dealerIndex + 1) % NUM_PLAYERS;
+    this.maoDe11DecisionMade = false; this.currentPlayer = (this.dealerIndex + 3) % NUM_PLAYERS;
     this.turnStage = this.maoDe11 ? 'mao11Decision' : 'play'; if (this.turnStage === 'mao11Decision') this.currentPlayer = null;
     this.betState = null; this.lastBetTeam = null; this.roundWins = [0, 0]; this.roundWinners = []; this.currentRound = 0; this.roundCards = [];
-    this.playersInRound = 0; this.roundStarter = (this.dealerIndex + 1) % NUM_PLAYERS;
+    this.playersInRound = 0; this.roundStarter = (this.dealerIndex + 3) % NUM_PLAYERS;
     for (let i = 0; i < NUM_PLAYERS; i++) {
       if (this.players[i]?.isBot) continue;
       this.emit('handStart', { player: i, hand: this.hands[i], vira: this.vira, currentPlayer: this.currentPlayer, dealer: this.dealerIndex, handValue: this.handValue, scores: this.scores, setWins: this.setWins, maoDe11: this.maoDe11, maoDe11Team: this.maoDe11Team, maoDe11DecisionMade: this.maoDe11DecisionMade, maoDeFerro: this.maoDeFerro, turnStage: this.turnStage, players: this.players.map(p => ({ name: p.name, isBot: p.isBot, online: p.online })) }, this.players[i].id);
@@ -192,31 +192,81 @@ class Game4P {
     this.offlineActionTimer = setTimeout(() => { this.offlineActionTimer = null; if (this.turnStage !== 'mao11Decision' || !this.maoDe11 || this.maoDe11DecisionMade || this.players[decisionPlayer]?.online !== false) return; this.respondMaoDe11(decisionPlayer, 'play'); }, DECISION_TIMEOUT);
   }
 
-  scheduleOfflineTurn() {
-    if (this.offlineActionTimer) { clearTimeout(this.offlineActionTimer); this.offlineActionTimer = null; }
-    if (this.turnStage !== 'play' || !isValidPlayerIndex(this.currentPlayer)) return;
-    const player = this.players[this.currentPlayer];
-    if (!player || player.isBot || player.online !== false) return;
-    this.offlineActionTimer = setTimeout(() => { this.offlineActionTimer = null; if (this.turnStage !== 'play' || this.players[this.currentPlayer]?.online !== false) return; this.autoPlayForPlayer(this.currentPlayer); }, 10000);
-  }
-
-  autoPlayForPlayer(playerIndex) {
-    if (!isValidPlayerIndex(playerIndex) || this.turnStage !== 'play' || playerIndex !== this.currentPlayer) return false;
-    const hand = this.hands[playerIndex]; if (!hand?.length) return false;
-    const index = crypto.randomInt(hand.length); return this.playCard(playerIndex, this.maoDeFerro ? { blindIndex: index } : hand[index]);
+  fleeHand(playerIndex) {
+    if (!isValidPlayerIndex(playerIndex) || this.turnStage !== 'play' || this.maoDe11 || this.maoDeFerro || playerIndex !== this.currentPlayer) return false;
+    const fleeingTeam = playerIndex % 2; const winningTeam = 1 - fleeingTeam; this.scores[winningTeam] += this.handValue;
+    this.emit('handEnd', { winnerTeam: winningTeam, points: this.handValue, scores: this.scores, setWins: this.setWins, draw: false }, 'all'); if (this.checkSetOver(winningTeam)) return true; this.advanceToNextHand(); return true;
   }
 
   callBet(playerIndex, betType) {
-    if (!isValidPlayerIndex(playerIndex) || !isValidBetType(betType) || this.turnStage !== 'play' || playerIndex !== this.currentPlayer || this.betState) return false;
-    const expectedBet = NEXT_BET[this.handValue]; if (betType !== expectedBet) return false;
-    const responderTeam = 1 - (playerIndex % 2); this.betState = { level: betType, challenger: playerIndex, responderTeam }; this.lastBetTeam = playerIndex % 2;
-    this.turnStage = 'respond'; this.emit('betCalled', { level: betType, challenger: playerIndex, responderTeam }, 'all'); this.emit('turnToRespond', { responderTeam }, 'all'); this.scheduleOfflineBetResponse(); return true;
+    if (!isValidPlayerIndex(playerIndex) || !isValidBetType(betType) || this.maoDe11 || this.maoDeFerro || this.turnStage !== 'play' || playerIndex !== this.currentPlayer || this.betState) return false;
+    const expectedBet = NEXT_BET[this.handValue]; if (expectedBet !== betType) return false;
+    const challengerTeam = playerIndex % 2; if (this.handValue >= 3 && this.lastBetTeam === challengerTeam) return false;
+    const responderTeam = 1 - challengerTeam; this.betState = { challenger: playerIndex, level: betType, responderTeam, responded: false }; this.turnStage = 'respond';
+    this.emit('betCalled', { challenger: playerIndex, level: betType, responderTeam }, 'all');
+    for (let i = 0; i < NUM_PLAYERS; i++) if (i % 2 === responderTeam && !this.players[i].isBot) this.emit('turnToRespond', { responderTeam }, this.players[i].id);
+    this.scheduleOfflineResponse(); return true;
   }
 
   respondBet(playerIndex, action) {
-    if (!isValidPlayerIndex(playerIndex) || !isValidBetAction(action) || this.turnStage !== 'respond' || !this.betState || playerIndex % 2 !== this.betState.responderTeam) return false;
-    const bet = this.betState; if (this.offlineActionTimer) { clearTimeout(this.offlineActionTimer); this.offlineActionTimer = null; }
-    if (action === 'accept') { this.handValue = BET_VALUES[bet.level]; this.betState = null; this.turnStage = 'play'; this.emit('betAccepted', { handValue: this.handValue }, 'all'); this.emit('turn', { currentPlayer: this.currentPlayer }, 'all'); this.scheduleOfflineTurn(); return true; }
-    if (action === 'flee') { this.betState = null; this.turnStage = 'play'; const winningTeam = 1 - bet.responderTeam; this.endHand(winningTeam); return true; } const nextBet = action; if (BET_VALUES[nextBet] <= BET_VALUES[bet.level]) return false; this.betState = { level: nextBet, challenger: playerIndex, responderTeam: 1 - (playerIndex % 2) }; this.lastBetTeam = playerIndex % 2; this.emit('betRaised', { level: nextBet, challenger: playerIndex, responderTeam: this.betState.responderTeam }, 'all'); this.emit('turnToRespond', { responderTeam: this.betState.responderTeam }, 'all'); this.scheduleOfflineBetResponse(); return true;
+    if (!isValidPlayerIndex(playerIndex) || !isValidBetAction(action) || this.turnStage !== 'respond' || !this.betState) return false;
+    const responderTeam = this.betState.responderTeam; if (playerIndex % 2 !== responderTeam) return false;
+    const { challenger, level } = this.betState; if (this.offlineActionTimer) { clearTimeout(this.offlineActionTimer); this.offlineActionTimer = null; }
+    if (action === 'flee') { const points = this.getBetValueBefore(level); const challengerTeam = challenger % 2; this.scores[challengerTeam] += points; this.emit('handEnd', { winnerTeam: challengerTeam, points, scores: this.scores, setWins: this.setWins, draw: false }, 'all'); if (this.checkSetOver(challengerTeam)) return true; this.advanceToNextHand(); return true; }
+    if (action === 'accept') { this.handValue = BET_VALUES[level]; this.lastBetTeam = challenger % 2; this.betState = null; this.turnStage = 'play'; this.emit('betAccepted', { handValue: this.handValue }, 'all'); this.emit('turn', { currentPlayer: this.currentPlayer }, 'all'); this.scheduleOfflineTurn(); return true; }
+    let nextLevel = null; if (action === 'retruco' && level === 'truco') nextLevel = 'retruco'; if (action === 'valenove' && level === 'retruco') nextLevel = 'valenove'; if (action === 'valedoze' && level === 'valenove') nextLevel = 'valedoze'; if (!nextLevel) return false;
+    this.betState = { challenger: playerIndex, level: nextLevel, responderTeam: 1 - responderTeam, responded: false }; this.lastBetTeam = playerIndex % 2; this.turnStage = 'respond';
+    this.emit('betRaised', { challenger: playerIndex, level: nextLevel, responderTeam: 1 - responderTeam }, 'all');
+    for (let i = 0; i < NUM_PLAYERS; i++) if (i % 2 === this.betState.responderTeam && !this.players[i].isBot) this.emit('turnToRespond', { responderTeam: this.betState.responderTeam }, this.players[i].id);
+    this.scheduleOfflineResponse(); return true;
   }
- 
+
+  getBetValueBefore(level) { if (level === 'truco') return 1; if (level === 'retruco') return 3; if (level === 'valenove') return 6; if (level === 'valedoze') return 9; return 1; }
+
+  scheduleOfflineResponse() {
+    if (this.turnStage !== 'respond' || !this.betState) return;
+    if (this.offlineActionTimer) clearTimeout(this.offlineActionTimer);
+    const team = this.betState.responderTeam; const teamPlayers = [team, team + 2]; const humanPlayers = teamPlayers.filter(index => this.players[index] && !this.players[index].isBot);
+    if (humanPlayers.length === 0) {
+      const botIndex = teamPlayers.find(index => this.players[index] && this.players[index].isBot);
+      if (botIndex !== undefined) {
+        this.offlineActionTimer = setTimeout(() => {
+          this.offlineActionTimer = null; if (this.turnStage !== 'respond' || !this.betState || !this.players[botIndex]?.isBot) return;
+          const context = { hand: this.hands[botIndex], vira: this.vira, handValue: this.handValue, maoDe11: this.maoDe11, betState: this.betState, playerIndex: botIndex, currentRound: this.currentRound, roundCards: this.roundCards, roundWins: this.roundWins, scores: this.scores, setWins: this.setWins, players: this.players };
+          const action = chooseBotBet(this.hands[botIndex], this.vira.rank, this.betState.level, context); this.respondBet(botIndex, action);
+        }, 700);
+      }
+      return;
+    }
+    const offlinePlayer = humanPlayers.find(index => this.players[index].online === false); const responsePlayer = offlinePlayer === undefined ? humanPlayers[0] : offlinePlayer;
+    this.offlineActionTimer = setTimeout(() => {
+      this.offlineActionTimer = null; if (this.turnStage !== 'respond' || !this.betState) return; const p = this.players[responsePlayer]; if (!p || p.isBot || p.online === true) return;
+      const context = { hand: this.hands[responsePlayer], vira: this.vira, handValue: this.handValue, maoDe11: this.maoDe11, betState: this.betState, playerIndex: responsePlayer, currentRound: this.currentRound, roundCards: this.roundCards, roundWins: this.roundWins, scores: this.scores, setWins: this.setWins, players: this.players };
+      const action = chooseBotBet(this.hands[responsePlayer], this.vira.rank, this.betState.level, context); this.respondBet(responsePlayer, action);
+    }, DECISION_TIMEOUT);
+  }
+
+  scheduleOfflineTurn() {
+    if (this.turnStage !== 'play' || !isValidPlayerIndex(this.currentPlayer)) return;
+    if (this.offlineActionTimer) clearTimeout(this.offlineActionTimer);
+    const player = this.players[this.currentPlayer]; if (!player) return;
+    if (player.isBot) {
+      const playerIndex = this.currentPlayer;
+      this.offlineActionTimer = setTimeout(() => {
+        this.offlineActionTimer = null; if (this.turnStage !== 'play' || this.currentPlayer !== playerIndex || !this.players[playerIndex]?.isBot) return;
+        const context = { hand: this.hands[playerIndex], vira: this.vira, handValue: this.handValue, maoDe11: this.maoDe11, betState: this.betState, players: this.players, playerIndex, currentRound: this.currentRound, roundCards: this.roundCards, roundWins: this.roundWins, scores: this.scores, setWins: this.setWins, roundWinners: this.roundWinners, roundStarter: this.roundStarter };
+        const action = chooseCard(context.hand, context.vira.rank, context); if (action) this.playCard(playerIndex, action);
+      }, 700); return;
+    }
+    if (player.online === false) {
+      const playerIndex = this.currentPlayer;
+      this.offlineActionTimer = setTimeout(() => {
+        this.offlineActionTimer = null; if (this.turnStage !== 'play' || this.currentPlayer !== playerIndex || this.players[playerIndex]?.online !== false) return;
+        const context = { hand: this.hands[playerIndex], vira: this.vira, handValue: this.handValue, maoDe11: this.maoDe11, betState: this.betState, players: this.players, playerIndex, currentRound: this.currentRound, roundCards: this.roundCards, roundWins: this.roundWins, scores: this.scores, setWins: this.setWins, roundWinners: this.roundWinners, roundStarter: this.roundStarter };
+        const action = chooseCard(context.hand, context.vira.rank, context); if (action) this.playCard(playerIndex, action);
+      }, DECISION_TIMEOUT);
+    }
+  }
+}
+
+module.exports = { Game4P };
