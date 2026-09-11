@@ -1,0 +1,4 @@
+/* Avatares removidos da mesa. */
+.player {
+  display: none !important;
+}

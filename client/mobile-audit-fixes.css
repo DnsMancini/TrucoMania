@@ -32,7 +32,7 @@
 
   #p1, #p3 { z-index: 2150; }
   #p2 { z-index: 2150; top: max(4px, var(--safe-top)) !important; }
-  #mao { z-index: 2600 !important; pointer-events: none; }
+  #mao { pointer-events: none; }
   #mao .playerCard { pointer-events: auto; }
 
   .game-button-truco, .game-button-correr { z-index: 2700 !important; bottom: calc(155px + var(--safe-bottom)) !important; width: calc(46vw - 6px); min-width: 0; max-width: calc(46vw - 6px); height: 44px; padding: 0 7px; font-size: clamp(9px, 2.7vw, 12px); white-space: nowrap; overflow: hidden; text-overflow: clip; }
@@ -56,7 +56,6 @@
   .cartaMesa > .carta .carta-center { font-size: clamp(14px, 4.2vw, 19px); }
   .cartaMesa > .carta .carta-corner { font-size: clamp(7px, 2vw, 9px); }
 
-  #vira { left: 50% !important; top: 50% !important; z-index: 1250 !important; pointer-events: none; }
   #painelHistorico { z-index: 2200; bottom: calc(205px + var(--safe-bottom)) !important; }
   #cronometro { z-index: 2500 !important; }
   #toast { z-index: 4000 !important; }

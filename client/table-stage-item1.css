@@ -4,22 +4,6 @@
    ========================================================= */
 
 :root {
-  --table-item1-rim: #4a2d16;
-  --table-item1-rim-light: #9b6930;
-  --table-item1-felt: #0b4a2b;
-}
-
-body {
-  background:
-    radial-gradient(circle at 50% 45%, rgba(34, 77, 52, .16), transparent 42%),
-    radial-gradient(circle at 50% 110%, rgba(0, 0, 0, .8), transparent 58%),
-    #070807;
-}
-
-/* A mesa passa a usar 100vw de diâmetro: encosta nas duas bordas laterais
-   e continua perfeitamente circular. O mesmo tamanho é compartilhado com
-   a camada de jogo para preservar a geometria dos elementos da partida. */
-:root {
   --table-size: 100vw;
 }
 
@@ -29,75 +13,71 @@ body {
   height: var(--table-size);
   max-width: none;
   max-height: none;
-  border: clamp(7px, 1.2vw, 14px) solid var(--table-item1-rim);
-  outline: 1px solid rgba(226, 174, 91, .48);
-  background-color: var(--table-item1-felt);
-  background-image:
-    linear-gradient(rgba(5, 35, 20, .18), rgba(5, 35, 20, .18)),
-    url("/img/mesa.png");
-  box-shadow:
-    inset 0 0 0 2px rgba(236, 190, 108, .22),
-    inset 0 0 45px rgba(0, 0, 0, .72),
-    inset 0 0 105px rgba(0, 0, 0, .58),
-    0 0 0 3px rgba(24, 14, 7, .92),
-    0 18px 55px rgba(0, 0, 0, .72),
-    0 32px 90px rgba(0, 0, 0, .5);
+  background-color: #0a2b18;
+  background-image: url("/img/mesa.png");
+  background-size: cover;
+  background-position: center 56%;
+  background-repeat: no-repeat;
 }
 
-/* Filete interno: dá acabamento de mesa profissional sem criar elementos
-   no DOM nem interferir nos eventos da partida. */
-.mesa::before {
-  content: "";
-  position: absolute;
-  inset: clamp(10px, 1.7vw, 18px);
-  border-radius: inherit;
-  border: 1px solid rgba(235, 196, 119, .3);
-  box-shadow:
-    inset 0 0 28px rgba(0, 0, 0, .34),
-    0 0 0 1px rgba(0, 0, 0, .25);
-  pointer-events: none;
+/* Cartas laterais: 10% do diâmetro da mesa para dentro. */
+@media (min-width: 901px) {
+  #hand1 {
+    left: calc(50% - (var(--table-size) / 2) + (var(--table-size) * 0.10)) !important;
+  }
+
+  #hand3 {
+    right: calc(50% - (var(--table-size) / 2) + (var(--table-size) * 0.10)) !important;
+  }
 }
 
-/* Vinheta sobre a área de jogo para concentrar o olhar no centro. */
-.mesa::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background:
-    radial-gradient(ellipse at center, transparent 35%, rgba(0,0,0,.08) 60%, rgba(0,0,0,.34) 100%),
-    linear-gradient(90deg, rgba(0,0,0,.16), transparent 16%, transparent 84%, rgba(0,0,0,.16));
-  pointer-events: none;
-}
-
-#game {
-  filter: drop-shadow(0 1px 0 rgba(255,255,255,.02));
-}
-
-#mesaCartas {
-  border-radius: 24px;
-  background: radial-gradient(ellipse at center, rgba(2, 20, 11, .14), transparent 68%);
-}
-
+/* Em telas menores, mantém a mesma proporção em relação à mesa. */
 @media (max-width: 900px) {
+  #hand1 {
+    left: calc(50% - (var(--table-size) / 2) + (var(--table-size) * 0.10)) !important;
+  }
+
+  #hand3 {
+    left: calc(50% + (var(--table-size) / 2) - (var(--table-size) * 0.10)) !important;
+  }
+
   .mesa {
     width: 100vw;
     height: 100vw;
     max-width: none;
     max-height: none;
-    border-width: clamp(5px, 1.5vw, 9px);
-    box-shadow:
-      inset 0 0 0 1px rgba(236, 190, 108, .2),
-      inset 0 0 55px rgba(0, 0, 0, .62),
-      0 0 0 2px rgba(24, 14, 7, .9),
-      0 14px 40px rgba(0, 0, 0, .68);
   }
+}
 
-  .mesa::before {
-    inset: clamp(7px, 1.8vw, 12px);
-  }
+/*
+   Carta selecionada: sobe e fica COMPLETAMENTE reta.
+   A regra usa especificidade maior para vencer o hover global de game-events.css.
+*/
+#gameWrapper #mao .playerCard.carta-selecionada,
+#gameWrapper #mao .playerCard.carta-selecionada:hover {
+  transform: translateY(-22px) rotate(0deg) !important;
+  z-index: 2200 !important;
+  transition: transform 120ms ease;
+}
+
+#mao .playerCard {
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/*
+   Hierarquia da mesa: a mão fica acima dos elementos do jogo,
+   mas abaixo dos botões e dos overlays da interface.
+   Isso evita que as cartas cubram os botões inferiores quando suas áreas se sobrepõem,
+   sem alterar posição, tamanho ou interação das cartas.
+*/
+#mao {
+  z-index: 2550;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .mesa { transition: none !important; }
+  #gameWrapper #mao .playerCard.carta-selecionada,
+  #gameWrapper #mao .playerCard.carta-selecionada:hover { transition: none !important; }
 }

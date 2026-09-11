@@ -1,6 +1,96 @@
-@import url("/style-base.css?v=7");
-@import url("/style-mobile-current.css?v=7");
-@import url("/mobile-audit-fixes.css?v=7");
-@import url("/mobile-card-render-fixes.css?v=7");
-@import url("/btn-sair-sala.css?v=1");
-@import url("/table-stage-item1.css?v=1");
+@import url("/style-base.css?v=9");
+@import url("/style-mobile-current.css?v=9");
+@import url("/mobile-audit-fixes.css?v=9");
+@import url("/mobile-card-render-fixes.css?v=9");
+@import url("/btn-sair-sala.css?v=2");
+@import url("/game-events.css?v=2");
+@import url("/avatar-card-position.css?v=2");
+@import url("/table-stage-item1.css?v=2");
+@import url("/match-layer-audit.css?v=1");
+
+.game-button { min-width:108px; height:38px; padding:0 12px; border-radius:9px; font-size:12px; letter-spacing:.4px; transform:none; }
+.game-button:hover { transform:translateY(-1px); }
+.game-button:active { transform:translateY(1px); }
+.game-button-truco,.game-button-correr { bottom:calc(126px + var(--safe-bottom)); }
+@media (max-width:768px) { .game-button { min-width:88px; height:34px; padding:0 9px; border-radius:8px; font-size:10px; letter-spacing:.25px; } .game-button-truco,.game-button-correr { bottom:calc(92px + var(--safe-bottom)); } }
+@media (max-width:380px) { .game-button { min-width:82px; height:32px; padding:0 8px; font-size:9px; } .game-button-truco,.game-button-correr { bottom:calc(88px + var(--safe-bottom)); } }
+
+/* Cartas da mesa: distribuição radial, orientação voltada para cada jogador e queda suave. */
+#mesaCartas { z-index:1200; }
+#vira { z-index:1400; }
+.cartaMesa { z-index:1; opacity:0; animation-duration:.65s; animation-timing-function:cubic-bezier(.22,.75,.3,1); animation-fill-mode:forwards; will-change:translate,opacity; box-shadow:0 10px 18px rgba(0,0,0,.45),inset 0 2px 3px rgba(255,255,255,.9); border:1px solid rgba(0,0,0,.2); }
+.cartaMesa.c0 { transform:translate(-50%,-50%) rotate(0deg); animation-name:cartaMesaCairBaixo; top:calc(50% + 108px); }
+.cartaMesa.c1 { transform:translate(-50%,-50%) rotate(90deg); animation-name:cartaMesaCairEsquerda; left:calc(50% - 138px); }
+.cartaMesa.c2 { transform:translate(-50%,-50%) rotate(180deg); animation-name:cartaMesaCairCima; top:calc(50% - 108px); }
+.cartaMesa.c3 { transform:translate(-50%,-50%) rotate(-90deg); animation-name:cartaMesaCairDireita; left:calc(50% + 138px); }
+@keyframes cartaMesaCairBaixo { from { opacity:0; translate:0 48px; } to { opacity:1; translate:0 0; } }
+@keyframes cartaMesaCairEsquerda { from { opacity:0; translate:-48px 0; } to { opacity:1; translate:0 0; } }
+@keyframes cartaMesaCairCima { from { opacity:0; translate:0 -48px; } to { opacity:1; translate:0 0; } }
+@keyframes cartaMesaCairDireita { from { opacity:0; translate:48px 0; } to { opacity:1; translate:0 0; } }
+
+@media (min-width:769px) {
+  :root { --table-size:min(100vw,100vh); }
+  body { background:#07130d; }
+  #gameWrapper { width:100vw; height:100vh; }
+  .mesa { width:100vw; height:100vh; top:50%; left:50%; border-radius:50%; background-size:cover; background-position:center; box-shadow:inset 0 0 90px rgba(0,0,0,.88),0 18px 60px rgba(0,0,0,.72); z-index:100; }
+  #game { width:100vw; height:100vh; top:50%; left:50%; z-index:1900; }
+  #hand2 { top:72px; left:50%; transform:translateX(-50%); }
+  #hand1 { left:118px; top:50%; transform:translateY(-50%); }
+  #hand3 { right:118px; top:50%; transform:translateY(-50%); }
+  #mao { bottom:24px; left:50%; transform:translateX(-50%); padding-bottom:0; }
+  .player { display:flex !important; z-index:2050; font-size:17px; font-weight:800; text-shadow:0 2px 4px rgba(0,0,0,.85); }
+  .player .avatar { display:none !important; }
+  #p0 { left:50%; bottom:118px; transform:translateX(-50%); }
+  #p1 { left:28px; top:50%; transform:translateY(-50%); }
+  #p2 { top:22px; left:50%; transform:translateX(-50%); }
+  #p3 { right:28px; top:50%; transform:translateY(-50%); }
+  #p0 .name,#p1 .name,#p2 .name,#p3 .name { margin:0; }
+  #painelEventosPartida { top:34px; right:28px; left:auto; width:300px; }
+  .evento-partida { padding:7px 10px; border-radius:8px; font-size:13px; line-height:1.2; background:rgba(5,10,8,.78); box-shadow:0 5px 16px rgba(0,0,0,.3); }
+  #painelHistorico { left:30px; bottom:30px; width:44px; min-height:auto; }
+  #historicoRodadas { gap:8px; }
+  .bolinha-rodada { width:17px; height:17px; }
+  .game-button,.game-button-truco,.game-button-correr { position:fixed; top:auto; bottom:28px; width:102px; min-width:102px; height:36px; padding:0 10px; border-radius:18px; font-size:12px; letter-spacing:.35px; transform:none; }
+  .game-button-truco { left:calc(50% - 112px); right:auto; }
+  .game-button-correr { left:calc(50% + 10px); right:auto; }
+  .game-button:hover { transform:translateY(-1px); }
+  .game-button:active { transform:translateY(1px); }
+  #placar { top:16px; right:18px; opacity:.96; }
+  .placar-time { width:105px; padding-top:12px; }
+  .placar-time-nome { font-size:10px; }
+  .placar-time-pontos { font-size:24px; }
+  .placar-status { font-size:11px; }
+}
+
+/* Resposta ao truco: tudo acontece dentro da mesa, sem confirm/alert do navegador. */
+#betResponsePanel {
+  position:fixed;
+  z-index:2800;
+  left:50%;
+  top:50%;
+  transform:translate(-50%,-50%);
+  width:min(360px,calc(100vw - 32px));
+  padding:14px;
+  border:1px solid rgba(241,196,15,.45);
+  border-radius:14px;
+  background:rgba(5,10,8,.94);
+  box-shadow:0 16px 42px rgba(0,0,0,.65),0 0 28px rgba(241,196,15,.12);
+  text-align:center;
+  opacity:0;
+  pointer-events:none;
+  visibility:hidden;
+  transition:opacity .16s ease,transform .16s ease;
+}
+#betResponsePanel.visible { opacity:1; pointer-events:auto; visibility:visible; }
+.bet-response-title { font-size:18px; font-weight:900; letter-spacing:.8px; color:#f1c40f; }
+.bet-response-value { margin-top:3px; font-size:12px; color:rgba(255,255,255,.72); }
+.bet-response-actions { display:flex; justify-content:center; gap:7px; margin-top:12px; }
+.bet-response-actions button { min-width:96px; height:34px; padding:0 10px; border:1px solid rgba(255,255,255,.16); border-radius:8px; background:rgba(255,255,255,.08); color:#fff; font:800 10px/1 inherit; letter-spacing:.45px; cursor:pointer; }
+.bet-response-actions button:hover { background:rgba(255,255,255,.14); transform:translateY(-1px); }
+#betAcceptBtn { border-color:rgba(92,184,92,.55); }
+#betRaiseBtn { border-color:rgba(241,196,15,.55); }
+#betFleeBtn { border-color:rgba(217,83,79,.55); }
+@media (max-width:600px) { #betResponsePanel { width:min(330px,calc(100vw - 24px)); padding:11px; } .bet-response-title { font-size:16px; } .bet-response-actions { gap:5px; margin-top:9px; } .bet-response-actions button { min-width:0; flex:1; height:32px; font-size:9px; padding:0 6px; } }
+
+#telaFinal { display:none !important; }
+#telaFinal.show { display:flex !important; }

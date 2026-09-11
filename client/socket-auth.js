@@ -25,9 +25,6 @@
       return false;
     }
 
-    // Apenas uma autenticação por socket pode ficar em andamento.
-    // Isso evita duas chamadas simultâneas quando o socket conecta e, ao
-    // mesmo tempo, o primeiro evento protegido é emitido.
     if (socket.__trucoAuthPromise) return socket.__trucoAuthPromise;
 
     socket.__trucoAuthPromise = (async () => {
@@ -48,10 +45,10 @@
               socket.__trucoAuthUid = user.uid;
               console.info('[SOCKET-AUTH] Socket autenticado:', reason || 'ok');
               finish(true);
-            } else {
-              console.error('[SOCKET-AUTH] Falha na autenticação:', response?.error || 'resposta inválida');
-              finish(false);
+              return;
             }
+            console.error('[SOCKET-AUTH] Falha na autenticação:', response?.error || 'resposta inválida');
+            finish(false);
           });
 
           setTimeout(() => finish(false), 10000);
@@ -97,11 +94,6 @@
         return;
       }
 
-      // O Firebase renova o ID token periodicamente. Não reconectamos o
-      // Socket.IO aqui: uma reconexão no meio da partida pode trocar o estado
-      // online/offline e criar uma janela desnecessária para travamentos.
-      // O servidor aceita reautenticação no mesmo socket e substitui o listener
-      // anterior de banimento antes de instalar o novo.
       if (socket.connected && socket.__trucoManiaAuthenticated && socket.__trucoAuthUid === user.uid) {
         socket.__trucoManiaAuthenticated = false;
         const ok = await authenticateSocket(socket, 'renovação do token');
@@ -111,8 +103,6 @@
     });
   }
 
-  // O game.js continua usando const socket = io(...). Este wrapper autentica
-  // automaticamente o socket e segura eventos protegidos até a autenticação.
   window.io = function (...args) {
     const socket = originalIo(...args);
     currentSocket = socket;
@@ -165,4 +155,22 @@
 
   installAuthListener();
   console.info('[SOCKET-AUTH] Ponte Firebase → Socket.IO instalada.');
+})();
+
+// Compatibilidade interna: o painel visual foi removido, mas o motor da partida
+// ainda usa estes dois nós para manter rodada/status sem quebrar o fluxo do jogo.
+(function ensureGameStatusNodes() {
+  const createHiddenNode = (id) => {
+    let node = document.getElementById(id);
+    if (!node) {
+      node = document.createElement('span');
+      node.id = id;
+      node.style.display = 'none';
+      node.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(node);
+    }
+    return node;
+  };
+  createHiddenNode('infoRodada');
+  createHiddenNode('trucoStatus');
 })();

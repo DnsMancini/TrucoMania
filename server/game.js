@@ -3,7 +3,7 @@ const { cardStrength } = require('./utils');
 const { shouldCallBet, respondBet: chooseBotBet } = require('./bot');
 
 const NUM_PLAYERS = 4;
-const ROUND_DISPLAY_MS = 2500;
+const ROUND_DISPLAY_MS = 3200;
 const DECISION_TIMEOUT = 25000;
 
 class Game4P extends BaseGame4P {
@@ -86,10 +86,6 @@ class Game4P extends BaseGame4P {
   }
 
   scheduleOfflineResponse() {
-    // Se existir um bot respondente, o Socket.IO cuida dele quando os dois
-    // jogadores da dupla são bots. Porém, se a dupla tiver um humano offline
-    // e um bot, o humano offline precisa continuar tendo um fallback; caso
-    // contrário a partida pode ficar presa em turnStage='respond'.
     if (this.checkBotTurn && this.betState) {
       const team = this.betState.responderTeam;
       const teamPlayers = [team, team + 2];
@@ -135,10 +131,6 @@ class Game4P extends BaseGame4P {
   }
 
   scheduleOfflineTurn() {
-    // Em produção, o Socket.IO já possui um agendador dedicado para bots.
-    // Quando chamado pelo próprio fluxo do engine, delegamos explicitamente
-    // para ele; isso também garante que a nova rodada não fique presa caso
-    // o vencedor que inicia a rodada seja um bot.
     if (this.checkBotTurn && this.players[this.currentPlayer]?.isBot) {
       this.checkBotTurn();
       return;
@@ -156,17 +148,33 @@ class Game4P extends BaseGame4P {
     let maxStrength = -Infinity;
 
     for (const card of round) {
-      if (card) maxStrength = Math.max(maxStrength, cardStrength(card, this.vira.rank));
+      if (card && !card.hidden) maxStrength = Math.max(maxStrength, cardStrength(card, this.vira.rank));
     }
 
     const strongestPlayers = [];
     for (let i = 0; i < NUM_PLAYERS; i++) {
       const card = round[i];
-      if (card && cardStrength(card, this.vira.rank) === maxStrength) strongestPlayers.push(i);
+      if (card && !card.hidden && cardStrength(card, this.vira.rank) === maxStrength) strongestPlayers.push(i);
     }
 
     const strongestTeams = [...new Set(strongestPlayers.map(i => i % 2))];
-    const winnerPlayer = strongestTeams.length === 1 ? strongestPlayers[0] : -1;
+
+    // Quando dois jogadores da mesma equipe empatam na maior carta,
+    // quem venceu a rodada para efeito de saída da próxima é quem jogou
+    // primeiro entre os empatados. Isso evita trocar o starter para o
+    // parceiro apenas por causa do índice do jogador.
+    let winnerPlayer = -1;
+    if (strongestTeams.length === 1 && strongestPlayers.length > 0) {
+      const starter = this.roundStarter;
+      for (let offset = 0; offset < NUM_PLAYERS; offset++) {
+        const candidate = (starter - offset + NUM_PLAYERS) % NUM_PLAYERS;
+        if (strongestPlayers.includes(candidate)) {
+          winnerPlayer = candidate;
+          break;
+        }
+      }
+    }
+
     const winnerTeam = winnerPlayer === -1 ? -1 : winnerPlayer % 2;
 
     this.roundWinners[this.currentRound] = winnerTeam;
@@ -197,6 +205,9 @@ class Game4P extends BaseGame4P {
     this.currentRound++;
     this.playersInRound = 0;
 
+    // O jogador que efetivamente venceu a rodada começa a próxima.
+    // Em empate de maior carta na mesma equipe, o desempate acima usa a ordem
+    // real de jogo, preservando exatamente quem fez a última rodada.
     const nextRoundStarter = winnerPlayer !== -1 ? winnerPlayer : this.roundStarter;
     this.roundStarter = nextRoundStarter;
     this.currentPlayer = nextRoundStarter;
