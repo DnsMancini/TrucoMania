@@ -68,6 +68,24 @@
   visibility: visible;
 }
 
+/* No mobile, avatar-card-position.css oculta .player por completo.
+   O game.js usa esses elementos como âncoras geométricas da seta. Mantemos
+   o elemento no layout, mas escondemos visualmente o conteúdo para não
+   reintroduzir nomes/avatares na mesa. */
+@media (max-width: 768px) {
+  .player {
+    display: flex !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+  .player .avatar {
+    display: none !important;
+  }
+  .player .name {
+    visibility: hidden !important;
+  }
+}
+
 /* Anúncio visual dos aumentos de Truco criado dinamicamente por game-events.js. */
 #anuncioTruco {
   position: fixed;
