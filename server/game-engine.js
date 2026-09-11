@@ -78,10 +78,10 @@ class Game4P {
     } else {
       this.handValue = 1; this.maoDe11 = false; this.maoDe11Team = null; this.maoDeFerro = false;
     }
-    this.maoDe11DecisionMade = false; this.currentPlayer = (this.dealerIndex + 3) % NUM_PLAYERS;
+    this.maoDe11DecisionMade = false; this.currentPlayer = (this.dealerIndex + 1) % NUM_PLAYERS;
     this.turnStage = this.maoDe11 ? 'mao11Decision' : 'play'; if (this.turnStage === 'mao11Decision') this.currentPlayer = null;
     this.betState = null; this.lastBetTeam = null; this.roundWins = [0, 0]; this.roundWinners = []; this.currentRound = 0; this.roundCards = [];
-    this.playersInRound = 0; this.roundStarter = (this.dealerIndex + 3) % NUM_PLAYERS;
+    this.playersInRound = 0; this.roundStarter = (this.dealerIndex + 1) % NUM_PLAYERS;
     for (let i = 0; i < NUM_PLAYERS; i++) {
       if (this.players[i]?.isBot) continue;
       this.emit('handStart', { player: i, hand: this.hands[i], vira: this.vira, currentPlayer: this.currentPlayer, dealer: this.dealerIndex, handValue: this.handValue, scores: this.scores, setWins: this.setWins, maoDe11: this.maoDe11, maoDe11Team: this.maoDe11Team, maoDe11DecisionMade: this.maoDe11DecisionMade, maoDeFerro: this.maoDeFerro, turnStage: this.turnStage, players: this.players.map(p => ({ name: p.name, isBot: p.isBot, online: p.online })) }, this.players[i].id);
